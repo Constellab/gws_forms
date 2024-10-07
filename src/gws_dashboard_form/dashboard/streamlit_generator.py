@@ -2,7 +2,7 @@
 import os
 
 from gws_core import (ConfigParams, InputSpec, InputSpecs,
-                      OutputSpec, OutputSpecs, Task, TaskInputs, TaskOutputs, task_decorator, JSONDict, TypingStyle, TypingIconColor)
+                      OutputSpec, OutputSpecs, Task, TaskInputs, TaskOutputs, task_decorator, JSONDict, TypingStyle, TypingIconColor, Folder)
 from gws_core.streamlit.streamlit_resource import StreamlitResource
 
 
@@ -32,6 +32,9 @@ class StreamlitGenerator(Task):
         # set the input in the streamlit resource
         questions_file: JSONDict = inputs.get('questions_file')
         streamlit_resource.add_resource(questions_file, create_new_resource=False)
+        folder_sessions : Folder = Folder(self.create_tmp_dir())
+        folder_sessions.name = "Answers"
+        streamlit_resource.add_resource(folder_sessions, create_new_resource=True)
 
         # set the app folder
         streamlit_resource.set_streamlit_folder(self.streamlit_app_folder)
