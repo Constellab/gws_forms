@@ -2,7 +2,7 @@
 import os
 
 from gws_core import (ConfigParams, InputSpec, InputSpecs,
-                      OutputSpec, OutputSpecs, Task, TaskInputs, TaskOutputs, task_decorator, JSONDict, TypingStyle, TypingIconColor, Folder)
+                      OutputSpec, OutputSpecs, Task, TaskInputs, TaskOutputs, task_decorator, JSONDict, TypingStyle, Folder)
 from gws_core.streamlit.streamlit_resource import StreamlitResource
 
 
@@ -12,6 +12,14 @@ from gws_core.streamlit.streamlit_resource import StreamlitResource
                                                     background_color="#413ebb"))
 class StreamlitGenerator(Task):
 
+    """
+    StreamlitGenerator is a task that generates a Streamlit dashboard designed to create forms
+    based on a provided JSON file containing questions.
+
+    Input :  a JSONDict file containing the questions.
+    Output : a Streamlit app.
+
+    """
     input_specs: InputSpecs = InputSpecs({'questions_file': InputSpec(JSONDict, human_name="JSONDict containing the questions")})
     output_specs: OutputSpecs = OutputSpecs({
         'streamlit_app': OutputSpec(StreamlitResource, human_name="Streamlit app")
