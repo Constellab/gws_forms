@@ -6,21 +6,22 @@ from gws_core import (ConfigParams, InputSpec, InputSpecs,
 from gws_core.streamlit.streamlit_resource import StreamlitResource
 
 
-@task_decorator("StreamlitGeneratorDashboard", human_name="Generate dashboard to create form",
+@task_decorator("StreamlitFormsDashbaordGenerator", human_name="Forms dashboard",
                 short_description="Task to generate a custom Streamlit dashboard to create form",
                 style=TypingStyle.material_icon(material_icon_name="question_answer",
-                                                    background_color="#413ebb"))
-class StreamlitGenerator(Task):
+                                                background_color="#413ebb"))
+class StreamlitFormsDashbaordGenerator(Task):
 
     """
-    StreamlitGenerator is a task that generates a Streamlit dashboard designed to create forms
-    based on a provided JSON file containing questions.
+    StreamlitFormsDashbaordGenerator is a task that generates a Streamlit dashboard designed to create forms
+    based on a provided JSON file containing the questions.
 
     Input :  a JSONDict file containing the questions.
     Output : a Streamlit app.
 
     """
-    input_specs: InputSpecs = InputSpecs({'questions_file': InputSpec(JSONDict, human_name="JSONDict containing the questions")})
+    input_specs: InputSpecs = InputSpecs({'questions_file': InputSpec(
+        JSONDict, human_name="JSONDict containing the questions")})
     output_specs: OutputSpecs = OutputSpecs({
         'streamlit_app': OutputSpec(StreamlitResource, human_name="Streamlit app")
     })
@@ -39,10 +40,12 @@ class StreamlitGenerator(Task):
 
         # set the input in the streamlit resource
         questions_file: JSONDict = inputs.get('questions_file')
-        streamlit_resource.add_resource(questions_file, create_new_resource=False)
-        folder_sessions : Folder = Folder(self.create_tmp_dir())
+        streamlit_resource.add_resource(
+            questions_file, create_new_resource=False)
+        folder_sessions: Folder = Folder(self.create_tmp_dir())
         folder_sessions.name = "Answers"
-        streamlit_resource.add_resource(folder_sessions, create_new_resource=True)
+        streamlit_resource.add_resource(
+            folder_sessions, create_new_resource=True)
 
         # set the app folder
         streamlit_resource.set_streamlit_folder(self.streamlit_app_folder)
