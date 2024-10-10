@@ -109,45 +109,46 @@ def show_content():
                 # Loop through each question in the section
                 for question_data in questions:
                     question_key = question_data['question']
-                    st.markdown(f"#### {question_key}")
-                    st.write(question_data['helper_text'])
+                    with st.expander(question_key, expanded=True, icon=":material/edit_note:"):
+                        st.markdown(f"#### {question_key}")
+                        st.write(question_data['helper_text'])
 
-                    # Populate answers from saved session if available
-                    questions_json = saved_answers.get('questions', {})
-                    saved_answer = next((question["answer"] for question in questions_json
-                                            if question["section"] == section and question["question"] == question_key), None)
+                        # Populate answers from saved session if available
+                        questions_json = saved_answers.get('questions', {})
+                        saved_answer = next((question["answer"] for question in questions_json
+                                                if question["section"] == section and question["question"] == question_key), None)
 
-                    # Générer le champ correspondant au type de réponse attendu
-                    response = None
-                    if question_data.get('allowed_values'):
-                        if question_data.get('multiselect'):
-                            response = st.multiselect(label=question_key, label_visibility="collapsed",
-                                                          options=question_data['allowed_values'], default=saved_answer if saved_answer else [], placeholder="Select a single or several options")
+                        # Générer le champ correspondant au type de réponse attendu
+                        response = None
+                        if question_data.get('allowed_values'):
+                            if question_data.get('multiselect'):
+                                response = st.multiselect(label=question_key, label_visibility="collapsed",
+                                                            options=question_data['allowed_values'], default=saved_answer if saved_answer else [], placeholder="Select a single or several options")
 
+                            else:
+                                response = st.selectbox(label=question_key, label_visibility="collapsed", options=question_data['allowed_values'],
+                                                            index=question_data['allowed_values'].index(saved_answer) if saved_answer in question_data['allowed_values'] else None, placeholder="Select an option")
                         else:
-                            response = st.selectbox(label=question_key, label_visibility="collapsed", options=question_data['allowed_values'],
-                                                        index=question_data['allowed_values'].index(saved_answer) if saved_answer in question_data['allowed_values'] else None, placeholder="Select an option")
-                    else:
-                        if question_data['response_type'] == "short_text":
-                            response = st.text_input(label=question_key, label_visibility="collapsed",
-                                                         placeholder="Enter a response", value=saved_answer if saved_answer else None)
-                        elif question_data['response_type'] == "long_text":
-                            response = st.text_area(label=question_key, label_visibility="collapsed",
-                                                        placeholder="Enter a response", value=saved_answer if saved_answer else None)
-                        elif question_data['response_type'] == "numeric":
-                            response = st.number_input(label=question_key, label_visibility="collapsed",
-                                                           value=saved_answer if saved_answer else None, min_value=question_data.get('min_value', None),
-                                                           max_value=question_data.get('max_value', None), placeholder="Enter a number")
-                        elif question_data['response_type'] == "range":
-                            response = st.slider(label=question_key, label_visibility="collapsed",
-                                                     value=saved_answer if saved_answer else None, min_value=question_data.get('min_value', None),
-                                                     max_value=question_data.get('max_value', None), placeholder="Select a range")
-                    # Update the original JSON structure with the captured answer
-                    question_data['answer'] = response
+                            if question_data['response_type'] == "short_text":
+                                response = st.text_input(label=question_key, label_visibility="collapsed",
+                                                            placeholder="Enter a response", value=saved_answer if saved_answer else None)
+                            elif question_data['response_type'] == "long_text":
+                                response = st.text_area(label=question_key, label_visibility="collapsed",
+                                                            placeholder="Enter a response", value=saved_answer if saved_answer else None)
+                            elif question_data['response_type'] == "numeric":
+                                response = st.number_input(label=question_key, label_visibility="collapsed",
+                                                            value=saved_answer if saved_answer else None, min_value=question_data.get('min_value', None),
+                                                            max_value=question_data.get('max_value', None), placeholder="Enter a number")
+                            elif question_data['response_type'] == "range":
+                                response = st.slider(label=question_key, label_visibility="collapsed",
+                                                        value=saved_answer if saved_answer else None, min_value=question_data.get('min_value', None),
+                                                        max_value=question_data.get('max_value', None), placeholder="Select a range")
+                        # Update the original JSON structure with the captured answer
+                        question_data['answer'] = response
 
-                    # Si la question est obligatoire
-                    if question_data.get("required", True) and (response is None or response == "" or response == []):
-                        st.write(":red[*Required]")
+                        # Si la question est obligatoire
+                        if question_data.get("required", True) and (response is None or response == "" or response == []):
+                            st.write(":red[*Required]")
 
                 st.markdown("---")
 
