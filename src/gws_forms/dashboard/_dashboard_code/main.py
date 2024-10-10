@@ -98,19 +98,19 @@ def show_content():
         sections = get_questions_by_section_and_subsection(
             json_questions['questions'])
 
+        question_number = 1
         # Parcourir chaque section et afficher les questions correspondantes
         for section, subsections in sections.items():
             st.header(section)
+            with st.expander(section, expanded=True, icon=":material/edit_note:"):
+                for subsection, questions in subsections.items():
+                    if subsection:
+                        st.subheader(subsection)
 
-            for subsection, questions in subsections.items():
-                if subsection:
-                    st.subheader(subsection)
-
-                # Loop through each question in the section
-                for question_data in questions:
-                    question_key = question_data['question']
-                    with st.expander(question_key, expanded=True, icon=":material/edit_note:"):
-                        st.markdown(f"#### {question_key}")
+                    # Loop through each question in the section
+                    for question_data in questions:
+                        question_key = question_data['question']
+                        st.markdown(f"#### {question_number}: {question_key}")
                         st.write(question_data['helper_text'])
 
                         # Populate answers from saved session if available
@@ -149,8 +149,8 @@ def show_content():
                         # Si la question est obligatoire
                         if question_data.get("required", True) and (response is None or response == "" or response == []):
                             st.write(":red[*Required]")
-
-                st.markdown("---")
+                        question_number += 1
+                    st.markdown("---")
 
         # Submit button will only be enabled if all required answers are filled
         submit_disabled = not all_required_answered(
@@ -161,7 +161,7 @@ def show_content():
             "Save the session to complete your responses later.")
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            if st.button("Save session", use_container_width=True):
+            if st.button("Save session", use_container_width=True, key = "end"):
                 save_current_session(
                     questions=json_questions['questions'], session_directory=SESSIONS_DIR, name_user=name_user)
                 # Delete the file where the session was saved if it's not a new session
