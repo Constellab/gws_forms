@@ -110,7 +110,7 @@ def show_content():
                     # Loop through each question in the section
                     for question_data in questions:
                         question_key = question_data['question']
-                        st.markdown(f"#### {question_number}: {question_key}")
+                        st.markdown(f"#### {question_number}. {question_data.get('question_head')}: {question_key}")
                         st.write(question_data['helper_text'])
 
                         # Populate answers from saved session if available
