@@ -2,6 +2,8 @@ import os
 import json
 import streamlit as st
 from gws_forms.dashboard._dashboard_code.session_management.session_functions import list_sessions, load_session, save_current_session
+from gws_core import JSONDict, ResourceModel, FrontService
+from gws_core.resource.resource_dto import ResourceOrigin
 
 # thoses variable will be set by the streamlit app
 # don't initialize them, there are create to avoid errors in the IDE
@@ -169,10 +171,12 @@ def show_content():
                         # Check if the file exists and delete it
                         if os.path.exists(session_path):
                             os.remove(session_path)
-                    #Create a Json Dict TODO
-                    """json_dict = JSONDict()
-                    json_dict.data = json.loads(st.session_state.questions)"""
-                    st.success("Form successfully submitted!")
+                    #Create a Json Dict
+                    json_dict: JSONDict = JSONDict()
+                    json_dict.data = {"questions": st.session_state.questions}
+                    json_resource = ResourceModel.save_from_resource(json_dict, ResourceOrigin.UPLOADED, flagged = True)
+
+                    st.success(f"Form successfully submitted! A JsonDict Resource has been created : {FrontService.get_resource_url(json_resource.id)}")
 
     with tab_questions:
 
