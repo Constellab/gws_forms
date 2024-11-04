@@ -1,10 +1,8 @@
 
 import os
 
-from gws_core import (ConfigParams, InputSpec, InputSpecs,
-                      OutputSpec, OutputSpecs, Task, TaskInputs, TaskOutputs, task_decorator, JSONDict, TypingStyle, Folder)
+from gws_core import (ConfigParams, OutputSpec, OutputSpecs, Task, TaskInputs, TaskOutputs, task_decorator, TypingStyle, Folder)
 from gws_core.streamlit.streamlit_resource import StreamlitResource
-
 
 @task_decorator("StreamlitCreationFormsGenerator", human_name="Forms creation dashboard",
                 short_description="Task to generate a custom Streamlit dashboard to create form",
