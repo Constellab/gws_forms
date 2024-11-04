@@ -19,6 +19,7 @@ def load_session(session_name : str, session_directory : str):
 # Function to save the current session
 def save_current_session(questions, session_directory : str, name_user : str):
     timestamp = datetime.now(tz=pytz.timezone('Europe/Paris')).strftime(f"session-{name_user}-%d_%m_%Y-%Hh%M.json")
+    path = os.path.join(session_directory, timestamp)
     session_data = {"questions": questions}
-    with open(os.path.join(session_directory, timestamp), "w", encoding="utf-8") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(session_data, f, ensure_ascii=False)
