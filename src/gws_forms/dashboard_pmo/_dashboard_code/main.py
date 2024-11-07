@@ -7,7 +7,7 @@ import plotly.express as px
 from  PIL import Image
 import pytz
 
-#TODO Citer l'insîration quelque part : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
+#TODO Citer l'inspîration quelque part : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
 
 # thoses variable will be set by the streamlit app
 # don't initialize them, there are create to avoid errors in the IDE
@@ -68,7 +68,15 @@ with tab_project_plan :
     project_plan_df['End Date'] = project_plan_df['End Date'].astype('datetime64[ns]')
     #Show the dataframe and make it editable
     edited_project_plan_df = st.data_editor(project_plan_df, hide_index=True, num_rows="dynamic", column_config={
-            "Start Date": st.column_config.DatetimeColumn("Start Date", format="DD MM YYYY",),"End Date": st.column_config.DatetimeColumn("End Date", format="DD MM YYYY",)})
+            "Start Date": st.column_config.DatetimeColumn("Start Date", format="DD MM YYYY"),
+            "End Date": st.column_config.DatetimeColumn("End Date", format="DD MM YYYY"),
+            "Status": st.column_config.SelectboxColumn(
+            options=[
+                "📝 Todo",
+                "📈 In progress",
+                "✅ Done",
+                "☑️ Closed"])
+            })
 
     if st.button("Save project plan"):
         #Save dataframe in the folder
