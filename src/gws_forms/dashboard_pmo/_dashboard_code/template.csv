@@ -1,0 +1,14 @@
+Task,Task Description,Start,Finish,Completion Pct,Team
+Discovery,Gather requirements and translate Business questions to analytics questions,02/07/21,2/14/2021,100,Sharone
+Project planning,Create the project plan including core deliverables and estimated timelines,2/14/2021,2/20/2021,100,Sharone
+Data collection,"Collect data, assess and address any data gap issues",2/14/2021,03/04/21,75,Sharone
+Data pre-processing,Process and clean data ,2/28/2021,03/11/21,60,Sharone
+EDA,Perform data exploratory analysis,03/04/21,03/11/21,30,Jenny and Mark
+Feature Engineering,Perform feature selection and feature engineering tasks,03/07/21,3/14/2021,30,Jenny and Mark
+Model Training,"Model training and validation, hyper-parameter tuning",3/14/2021,3/31/2021,30,Jenny and Mark
+Model Evaluation,Team to evaluate and discuss the model performance and finalize the modeling results,04/02/21,04/09/21,0,Jenny and Mark
+Data Visualization,Develop BI dashboards to visualize the model performance,04/07/21,4/15/2021,0,Jeffrey
+Presentation,Present models to stakeholders and obtain approval to deploy the model,4/15/2021,4/16/2021,0,Jenny and Mark
+Model deployment,Deploy model on Sagemaker,4/18/2021,4/20/2021,0,Jayden
+Develop model feedback loop,Develop feedback loop to monitor model's performance on production,4/15/2021,4/30/2021,0,Jayden
+Documentation,"Document methodology, analysis, code, and findings",4/25/2021,4/30/2021,0,Mark
