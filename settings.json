@@ -19,7 +19,9 @@
                     {
                     "name": "types-pytz",
                     "version": "2024.2.0.20240913"
-                  }
+                  },
+                  {"name" : "streamlit-aggrid",
+                    "version": "1.0.5"}
                 ]
             }
         ],
