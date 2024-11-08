@@ -7,7 +7,7 @@ import plotly.express as px
 from  PIL import Image
 import pytz
 
-#TODO Citer l'inspîration quelque part : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
+#Code inspired by this tutorial : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
 
 # thoses variable will be set by the streamlit app
 # don't initialize them, there are create to avoid errors in the IDE
@@ -40,9 +40,9 @@ with tab_project_plan :
     # List all csv files in the saved directory
     files = sorted([f.split(".csv")[0] for f in os.listdir(folder_project_plan) if f.endswith(".csv")], reverse=True)
     if files :
-        choice_project_plan = st.selectbox("Select an option", ["Load" , "Upload"])
+        choice_project_plan = st.selectbox("Select an option", ["Load" , "Upload", "Fill manually"])
     else :
-        choice_project_plan = "Upload"
+        choice_project_plan = st.selectbox("Select an option", ["Upload", "Fill manually"])
 
     project_plan_df = pd.DataFrame(columns = ["Project Name","Mission Name","Mission Referee","Team Members","Start Date","End Date","Milestones","Status","Priority","Progress (%)","Next Steps","Comments","Visibility"])
 
@@ -67,7 +67,7 @@ with tab_project_plan :
     project_plan_df['Start Date'] = project_plan_df['Start Date'].astype('datetime64[ns]')
     project_plan_df['End Date'] = project_plan_df['End Date'].astype('datetime64[ns]')
     #Show the dataframe and make it editable
-    edited_project_plan_df = st.data_editor(project_plan_df, hide_index=True, num_rows="dynamic", column_config={
+    edited_project_plan_df = st.data_editor(project_plan_df, use_container_width = True, hide_index=True, num_rows="dynamic", column_config={
             "Start Date": st.column_config.DatetimeColumn("Start Date", format="DD MM YYYY"),
             "End Date": st.column_config.DatetimeColumn("End Date", format="DD MM YYYY"),
             "Status": st.column_config.SelectboxColumn(
@@ -108,7 +108,7 @@ with tab_project_plan :
 with tab_gantt :
     st.subheader('Generate the Gantt chart')
 
-    gantt_choice = st.selectbox("View Gantt Chart by:", ["Mission Referee","Team Members",'Progress (%)'],index=0)
+    gantt_choice = st.selectbox("View Gantt Chart by:", ["Mission Referee","Team Members",'Progress (%)', "Project Name","Mission Name"],index=0)
 
     fig = px.timeline(
                     edited_project_plan_df,
