@@ -49,13 +49,13 @@ with tab_project_plan :
     #Load data
     if choice_project_plan == "Load":
         # Show a selectbox to choose one file; by default, choose the last one
-            selected_file = st.selectbox(label="Choose an existing project plan",
+        selected_file = st.selectbox(label="Choose an existing project plan",
                                         options=files, index=0, placeholder="Select a project plan")
-            # Load the selected file and display its contents
-            if selected_file:
-                selected_file = selected_file + ".csv"
-                file_path = os.path.join(folder_project_plan, selected_file)
-                project_plan_df = pd.read_csv(file_path)
+        # Load the selected file and display its contents
+        if selected_file:
+            selected_file = selected_file + ".csv"
+            file_path = os.path.join(folder_project_plan, selected_file)
+            project_plan_df = pd.read_csv(file_path)
     #Upload data
     elif choice_project_plan == "Upload":
         uploaded_file = st.file_uploader("Upload your project plan.", type=['csv'], key ="file_uploader")
@@ -64,8 +64,18 @@ with tab_project_plan :
         else:
             st.warning('You need to upload a csv file.')
     #Change data type
-    project_plan_df['Start Date'] = project_plan_df['Start Date'].astype('datetime64[ns]')
-    project_plan_df['End Date'] = project_plan_df['End Date'].astype('datetime64[ns]')
+    project_plan_df['Start Date'] = project_plan_df['Start Date'].fillna('').astype('datetime64[ns]')
+    project_plan_df['End Date'] = project_plan_df['End Date'].fillna('').astype('datetime64[ns]')
+    project_plan_df['Milestones'] = project_plan_df['Milestones'].fillna('').astype('str')
+    project_plan_df['Priority'] = project_plan_df['Priority'].fillna('').astype('str')
+    project_plan_df['Progress (%)'] = project_plan_df['Progress (%)'].astype('float')
+    project_plan_df['Next Steps'] = project_plan_df['Next Steps'].fillna('').astype('str')
+    project_plan_df['Comments'] = project_plan_df['Comments'].fillna('').astype('str')
+    project_plan_df['Visibility'] = project_plan_df['Visibility'].fillna('').astype('str')
+    project_plan_df['Project Name'] = project_plan_df['Project Name'].fillna('').astype('str')
+    project_plan_df['Mission Name'] = project_plan_df['Mission Name'].fillna('').astype('str')
+    project_plan_df['Mission Referee'] = project_plan_df['Mission Referee'].fillna('').astype('str')
+    project_plan_df['Team Members'] = project_plan_df['Team Members'].fillna('').astype('str')
     #Show the dataframe and make it editable
     edited_project_plan_df = st.data_editor(project_plan_df, use_container_width = True, hide_index=True, num_rows="dynamic", column_config={
             "Start Date": st.column_config.DatetimeColumn("Start Date", format="DD MM YYYY"),
