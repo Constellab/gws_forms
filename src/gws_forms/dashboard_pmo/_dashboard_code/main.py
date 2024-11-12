@@ -117,6 +117,9 @@ with tab_project_plan :
 
 with tab_gantt :
     st.subheader('Generate the Gantt chart')
+    #Replace empty strings with No members in the Team members column in order to show it in the Gantt chart
+    edited_project_plan_df['Team Members'] = edited_project_plan_df['Team Members'].replace('', None)  # Treat empty strings as None
+    edited_project_plan_df['Team Members'] = edited_project_plan_df['Team Members'].fillna('No members')
 
     gantt_choice = st.selectbox("View Gantt Chart by:", ["Mission Referee","Team Members",'Progress (%)', "Project Name","Mission Name"],index=0)
 
@@ -127,15 +130,16 @@ with tab_gantt :
                     y="Project Name",
                     color=gantt_choice,
                     hover_name="Mission Name",
-                    color_discrete_sequence=px.colors.qualitative.Pastel
-                    )
+                    color_discrete_sequence=px.colors.qualitative.Pastel,
+                    color_continuous_scale=px.colors.sequential.algae,
+                    range_color=(0, 100))
 
+    fig.update_coloraxes(colorbar_title= gantt_choice)
     fig.update_yaxes(autorange="reversed")
-
     fig.update_layout(
                     title='Project Plan Gantt Chart',
                     hoverlabel_bgcolor='#DAEEED',
-                    bargap=0.2,height=600,xaxis_title="",yaxis_title="",title_x=0.5,
+                    bargap=0.2,height=600,xaxis_title="",yaxis_title="",title_x=0.5,barmode='group',
                     xaxis=dict(
                             tickfont_size=15,
                             tickangle = 270,
@@ -145,11 +149,11 @@ with tab_gantt :
                             zeroline = True,
                             showline = True,
                             showticklabels = True,
-                            tickformat="%x\n",
+                            tickformat="%d %m %Y",
                             )
                 )
 
-    fig.update_xaxes(tickangle=0, tickfont=dict(family='Rockwell', color='blue', size=15))
+    fig.update_xaxes(tickangle=0, tickfont=dict(family='Poppins', color='black', size=13))
 
     st.plotly_chart(fig, use_container_width=True)
 
