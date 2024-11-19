@@ -1,11 +1,14 @@
 import os
 import io
+import json
 from datetime import datetime
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from  PIL import Image
 import pytz
+
 
 #Code inspired by this tutorial : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
 
@@ -15,24 +18,10 @@ sources: list
 params: dict
 
 folder_project_plan = sources[0].path
-
-# Streamlit app title
-col1, col2 = st.columns([1,10])
-logo_gencovery_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "logo/logo_gencovery.png")
-with col1:
-    st.image(logo_gencovery_path,  width=100)
-with col2 :
-    # Add the CSS for styling
-    st.markdown("""<style>
-        .font {
-            font-size:30px;
-            font-family: 'Poppins', sans-serif;
-            color: #2DBDB4;}</style>""", unsafe_allow_html=True)
-    # Use markdown to display the title with the custom class
-    st.markdown('<p class="font">PMO Dashboard</p>', unsafe_allow_html=True)
+folder_details = sources[1].path
 
 # Create tabs
-tab_project_plan, tab_gantt = st.tabs(["Project Plan", "Gantt"])
+tab_project_plan, tab_gantt, tab_plot_overview, tab_details = st.tabs(["Project Plan", "Gantt", "Plot overview", "Details"])
 
 with tab_project_plan :
     #Add a file uploader to allow users to upload their project plan file
@@ -85,8 +74,14 @@ with tab_project_plan :
                 "📝 Todo",
                 "📈 In progress",
                 "✅ Done",
-                "☑️ Closed"])
+                "☑️ Closed"]),
+            "Priority": st.column_config.SelectboxColumn(
+            options=[
+                "🔴 High",
+                "🟡 Medium",
+                "🟢 Low"])
             })
+
 
     if st.button("Save project plan"):
         #Save dataframe in the folder
@@ -112,7 +107,7 @@ with tab_project_plan :
             mime='text/csv',
         )
 
-        image = Image.open(os.path.join(os.path.abspath(os.path.dirname(__file__)),"example_template.png")) #template screenshot provided as an example
+        image = Image.open(os.path.join(os.path.abspath(os.path.dirname(__file__)),"example_template_pmo.png")) #template screenshot provided as an example
         st.image(image,  caption='Make sure you use the same column names as in the template')
 
 with tab_gantt :
@@ -167,3 +162,127 @@ with tab_gantt :
         file_name='Gantt.html',
         mime='text/html'
     )
+
+with tab_plot_overview :
+    cols = st.columns(2)
+
+    with cols[0]:
+        # Data for the donut chart
+        # Calculate the count of each status
+        status_counts = edited_project_plan_df['Status'].value_counts()
+        labels = status_counts.index.tolist()
+        values = status_counts.values.tolist()
+
+        colors = ["#3f78e0", "#8cb2ff", "#ff9e4a", "#ff4c4c"]
+
+        # Create the donut chart
+        fig = go.Figure(data=[go.Pie(
+            labels=labels,
+            values=values,
+            hole=0.5,  # Creates the donut hole effect
+            marker=dict(colors=colors),
+            textinfo='percent+label',  # Show both percent and label
+            insidetextorientation='radial'
+        )])
+
+        # Customize layout
+        fig.update_layout(
+            title_text="Overall Task Status",
+            annotations=[dict(text='Status', x=0.5, y=0.5, font_size=20, showarrow=False)]
+        )
+
+        # Display the chart in Streamlit
+        st.plotly_chart(fig)
+
+    with cols[1]:
+        edited_project_plan_df['Priority'] = edited_project_plan_df['Priority'].replace('', None)  # Treat empty strings as None
+        edited_project_plan_df['Priority'] = edited_project_plan_df['Priority'].fillna('NaN')
+        # Data for the donut chart
+        # Calculate the count of each status
+        status_counts = edited_project_plan_df['Priority'].value_counts()
+        labels = status_counts.index.tolist()
+        values = status_counts.values.tolist()
+
+        # Colors for each section
+        status_colors = {
+            "🔴 High": "#ff4c4c",
+            "🟡 Medium": "#f2eb1d",
+            "🟢 Low": "#59d95e",
+            "NaN": "#abaa93"
+        }
+        colors = [status_colors[status] for status in labels]
+
+        # Create the donut chart
+        fig = go.Figure(data=[go.Pie(
+            labels=labels,
+            values=values,
+            hole=0.5,  # Creates the donut hole effect
+            marker=dict(colors=colors),
+            textinfo='percent+label',  # Show both percent and label
+            insidetextorientation='radial'
+        )])
+
+        # Customize layout
+        fig.update_layout(
+            title_text="Overall Task Priority",
+            annotations=[dict(text='Priority', x=0.5, y=0.5, font_size=20, showarrow=False)]
+        )
+
+        # Display the chart in Streamlit
+        st.plotly_chart(fig)
+
+with tab_details :
+    cols = st.columns(2)
+    # List all json files in the saved directory
+    files = sorted([f.split(".json")[0] for f in os.listdir(folder_details) if f.endswith(".json")], reverse=True)
+    if files :
+        with cols[0]:
+            choice_details = st.selectbox("Select an option", ["Load" , "New"])
+    else:
+        choice_details = "New"
+
+    if choice_details == "New":
+        # Create a dictionary to store text data
+        if "text_data" not in st.session_state:
+            st.session_state.text_data = {}
+
+    elif choice_details == "Load":
+        with cols[1]:
+            # Show a selectbox to choose one file; by default, choose the last one
+            selected_file = st.selectbox(label="Select an existing detail file", options=files, index=0, placeholder="Select a detail")
+            # Load the selected file and display its contents
+            if selected_file:
+                selected_file = selected_file + ".json"
+                file_path = os.path.join(folder_details, selected_file)
+                if os.path.exists(file_path):
+                    with open(file_path, "r") as f:
+                        st.session_state.text_data = json.load(f)
+
+    cols_1 = st.columns(2)
+    list_projects = edited_project_plan_df['Project Name'].unique()
+    with cols_1[0]:
+        project_selected : str = st.selectbox(label = r"$\textbf{\text{\large{Choose a project}}}$", options = list_projects)
+    if project_selected :
+        list_missions = edited_project_plan_df[edited_project_plan_df['Project Name'] == project_selected]['Mission Name']
+        with cols_1[1]:
+            mission_selected : str = st.selectbox(label = r"$\textbf{\text{\large{Choose a mission}}}$", options = list_missions)
+        if mission_selected :
+            # Key for the text data
+            key = f"{project_selected}_{mission_selected}"
+            # Retrieve existing text if available
+            existing_text = st.session_state.text_data.get(key, "")
+            # Input area for the text
+            text_input = st.text_area(label=r"$\textbf{\text{\large{Details:}}}$",value=existing_text, key=key)
+
+            # Save button
+            if st.button("Save Text"):
+                # Update session state with the new text
+                st.session_state.text_data[key] = text_input
+
+                # Save to JSON file
+                timestamp = datetime.now(tz=pytz.timezone('Europe/Paris')).strftime(f"details-%d_%m_%Y-%Hh%M.json")
+                file_path = os.path.join(folder_details,timestamp)
+                with open(file_path, "w") as json_file:
+                    json.dump(st.session_state.text_data, json_file, indent=4)
+
+                st.success(f"Text for {project_selected} - {mission_selected} saved successfully!")

@@ -38,6 +38,11 @@ class StreamlitPMOGenerator(Task):
         streamlit_resource.add_resource(
             folder_project_plan, create_new_resource=True)
 
+        folder_details: Folder = Folder(self.create_tmp_dir())
+        folder_details.name = "Details"
+        streamlit_resource.add_resource(
+            folder_details, create_new_resource=True)
+
         # set the app folder
         streamlit_resource.set_streamlit_folder(self.streamlit_app_folder)
 
