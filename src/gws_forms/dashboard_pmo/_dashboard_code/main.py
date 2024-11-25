@@ -362,7 +362,7 @@ with tab_details :
                     st.session_state.text_data[key] = text_input
 
                     # Save to JSON file
-                    timestamp = datetime.now(tz=pytz.timezone('Europe/Paris')).strftime(f"details-%d_%m_%Y-%Hh%M.json")
+                    timestamp = datetime.now(tz=pytz.timezone('Europe/Paris')).strftime(f"details_%Y-%m-%d-%Hh%M.json")
                     file_path = os.path.join(folder_details,timestamp)
                     with open(file_path, "w") as json_file:
                         json.dump(st.session_state.text_data, json_file, indent=4)
