@@ -138,7 +138,7 @@ with tab_project_plan :
             return HEADER_HEIGHT + ROW_HEIGHT *100
 
     #Show the dataframe and make it editable
-    edited_project_plan_df = st.data_editor(project_plan_df, use_container_width = True, hide_index=True, num_rows="dynamic", on_change= dataframe_modified,height=calculate_height(project_plan_df), column_config={
+    edited_project_plan_df = st.data_editor(project_plan_df, use_container_width = True, hide_index=True, num_rows="dynamic", on_change= dataframe_modified,height=calculate_height(), column_config={
             NAME_COLUMN_START_DATE: st.column_config.DatetimeColumn(NAME_COLUMN_START_DATE, format="DD MM YYYY"),
             NAME_COLUMN_END_DATE: st.column_config.DatetimeColumn(NAME_COLUMN_END_DATE, format="DD MM YYYY"),
             NAME_COLUMN_STATUS: st.column_config.SelectboxColumn(
