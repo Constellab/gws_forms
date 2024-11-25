@@ -130,7 +130,7 @@ with tab_project_plan :
     ROW_HEIGHT = 35  # Height per row in pixels
     HEADER_HEIGHT = 38  # Height for the header in pixels
     # Calculate the height of the data editor
-    def calculate_height(dataframe):
+    def calculate_height():
         #Define the height of the dataframe : 100 rows to show or the number of max rows
         if len(project_plan_df) < 100:
             return ROW_HEIGHT*(len(project_plan_df.reset_index(drop=True))+1)+HEADER_HEIGHT
