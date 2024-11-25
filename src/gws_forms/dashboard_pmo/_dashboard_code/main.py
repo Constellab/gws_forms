@@ -177,7 +177,7 @@ with tab_project_plan :
             st.image(image,  caption='Make sure you use the same column names as in the template')
 
 
-    with st_fixed_container(mode="sticky", position="bottom", border=False, transparent = True):
+    with st_fixed_container(mode="sticky", position="bottom", border=False, transparent = False):
         cols = st.columns([1,2])
         with cols[0]:
             if st.button("Save project plan", use_container_width=False):
