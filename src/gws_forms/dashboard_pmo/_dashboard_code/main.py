@@ -94,7 +94,7 @@ with tab_project_plan :
         with st.sidebar :
             if not original_project_plan_df.equals(edited_project_plan_df):
                 st.error("Save your project plan before filtering/sorting", icon="🚨")
-
+    edition = True
     with st.sidebar:
         #Sortering
         with st.expander('Sort',icon=":material/swap_vert:"):
@@ -114,17 +114,22 @@ with tab_project_plan :
             selected_priority : str = st.selectbox(label=NAME_COLUMN_PRIORITY, options=project_plan_df[NAME_COLUMN_PRIORITY].unique(), index=None, placeholder=NAME_COLUMN_PRIORITY)
         if selected_regex_filter_project_name :
             project_plan_df = project_plan_df[project_plan_df[NAME_COLUMN_PROJECT_NAME].str.contains(selected_regex_filter_project_name, case=False)]
+            edition = False
         if selected_regex_filter_mission_name :
             project_plan_df = project_plan_df[project_plan_df[NAME_COLUMN_MISSION_NAME].str.contains(selected_regex_filter_mission_name, case=False)]
+            edition = False
         if selected_mission_referee != None :
             project_plan_df = project_plan_df.loc[project_plan_df[NAME_COLUMN_MISSION_REFEREE].isin([selected_mission_referee])]
+            edition = False
         if selected_regex_filter_team_members :
             project_plan_df = project_plan_df[project_plan_df[NAME_COLUMN_TEAM_MEMBERS].str.contains(selected_regex_filter_team_members, case=False)]
+            edition = False
         if selected_status != None :
             project_plan_df = project_plan_df.loc[project_plan_df[NAME_COLUMN_STATUS].isin([selected_status])]
+            edition = False
         if selected_priority != None :
             project_plan_df = project_plan_df.loc[project_plan_df[NAME_COLUMN_PRIORITY].isin([selected_priority])]
-
+            edition = False
 
     # Constants for height calculation
     ROW_HEIGHT = 35  # Height per row in pixels
@@ -137,22 +142,28 @@ with tab_project_plan :
         else :
             return HEADER_HEIGHT + ROW_HEIGHT *100
 
-    #Show the dataframe and make it editable
-    edited_project_plan_df = st.data_editor(project_plan_df, use_container_width = True, hide_index=True, num_rows="dynamic", on_change= dataframe_modified,height=calculate_height(), column_config={
-            NAME_COLUMN_START_DATE: st.column_config.DatetimeColumn(NAME_COLUMN_START_DATE, format="DD MM YYYY"),
-            NAME_COLUMN_END_DATE: st.column_config.DatetimeColumn(NAME_COLUMN_END_DATE, format="DD MM YYYY"),
-            NAME_COLUMN_STATUS: st.column_config.SelectboxColumn(
-            options=[
-                "📝 Todo",
-                "📈 In progress",
-                "✅ Done",
-                "☑️ Closed"]),
-            NAME_COLUMN_PRIORITY: st.column_config.SelectboxColumn(
-            options=[
-                "🔴 High",
-                "🟡 Medium",
-                "🟢 Low"])
-            })
+    if edition is True :
+        #Show the dataframe and make it editable
+        edited_project_plan_df = st.data_editor(project_plan_df, use_container_width = True, hide_index=True, num_rows="dynamic", on_change= dataframe_modified,height=calculate_height(), column_config={
+                NAME_COLUMN_START_DATE: st.column_config.DatetimeColumn(NAME_COLUMN_START_DATE, format="DD MM YYYY"),
+                NAME_COLUMN_END_DATE: st.column_config.DatetimeColumn(NAME_COLUMN_END_DATE, format="DD MM YYYY"),
+                NAME_COLUMN_STATUS: st.column_config.SelectboxColumn(
+                options=[
+                    "📝 Todo",
+                    "📈 In progress",
+                    "✅ Done",
+                    "☑️ Closed"]),
+                NAME_COLUMN_PRIORITY: st.column_config.SelectboxColumn(
+                options=[
+                    "🔴 High",
+                    "🟡 Medium",
+                    "🟢 Low"])
+                })
+        df_to_save = edited_project_plan_df
+    else :
+        df_to_save = original_project_plan_df
+        edited_project_plan_df = project_plan_df
+        st.dataframe(edited_project_plan_df)
 
 
     if choice_project_plan != "Load":
@@ -180,11 +191,11 @@ with tab_project_plan :
     with st_fixed_container(mode="sticky", position="bottom", border=False, transparent = False):
         cols = st.columns([1,2])
         with cols[0]:
-            if st.button("Save project plan", use_container_width=False):
+            if st.button("Save project plan", use_container_width=False, icon = ":material/save:"):
                 #Save dataframe in the folder
                 timestamp = datetime.now(tz=pytz.timezone('Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M.csv")
                 path = os.path.join(folder_project_plan, timestamp)
-                original_project_plan_df.to_csv(path, index = False)
+                df_to_save.to_csv(path, index = False)
                 with cols[1]:
                     st.success("Saved ! You can find it in the Folder Project Plan")
 
@@ -357,7 +368,7 @@ with tab_details :
 
             with st_fixed_container(mode="sticky", position="bottom", border=False, transparent = False):
                 # Save button
-                if st.button("Save Text"):
+                if st.button("Save Text", icon = ":material/save:"):
                     # Update session state with the new text
                     st.session_state.text_data[key] = text_input
 
