@@ -1,6 +1,6 @@
-import streamlit as st
 from typing import Literal
 from streamlit.components.v1 import html
+import streamlit as st
 
 #Following code inspired by https://gist.github.com/toolittlecakes/cf1a5d734cbf5b0b2581c28b2530fec2
 
@@ -101,7 +101,7 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(div.not-fixed-container):not
 """.strip()
 
 MARGINS = {
-    "top": "0",
+    "top": "2.875rem",
     "bottom": "0",
 }
 

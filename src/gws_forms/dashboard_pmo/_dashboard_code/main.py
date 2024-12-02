@@ -26,7 +26,6 @@ NAME_COLUMN_END_DATE = 'End Date'
 NAME_COLUMN_MILESTONES = 'Milestones'
 NAME_COLUMN_PRIORITY = 'Priority'
 NAME_COLUMN_PROGRESS = 'Progress (%)'
-NAME_COLUMN_NEXT_STEPS = 'Next Steps'
 NAME_COLUMN_COMMENTS = 'Comments'
 NAME_COLUMN_VISIBILITY = 'Visibility'
 NAME_COLUMN_PROJECT_NAME = 'Project Name'
@@ -36,7 +35,11 @@ NAME_COLUMN_TEAM_MEMBERS = 'Team Members'
 NAME_COLUMN_STATUS = "Status"
 
 # Create tabs
-tab_project_plan, tab_gantt, tab_plot_overview, tab_details = st.tabs(["Project Plan", "Gantt", "Plot overview", "Details"])
+tab_project_plan, tab_gantt, tab_plot_overview, tab_details, tab_todo = st.tabs(["Project Plan", "Gantt", "Plot overview", "Details", "Todo"])
+
+if "df_to_save" not in st.session_state:
+    st.session_state.df_to_save = pd.DataFrame(columns = [NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME,NAME_COLUMN_MISSION_REFEREE,NAME_COLUMN_TEAM_MEMBERS,NAME_COLUMN_START_DATE,NAME_COLUMN_END_DATE,NAME_COLUMN_MILESTONES,NAME_COLUMN_STATUS,NAME_COLUMN_PRIORITY,NAME_COLUMN_PROGRESS,NAME_COLUMN_COMMENTS,NAME_COLUMN_VISIBILITY])
+
 
 with tab_project_plan :
     with st.sidebar :
@@ -52,7 +55,7 @@ with tab_project_plan :
                 with cols[0]:
                     choice_project_plan = st.selectbox("Select an option", ["Upload", "Fill manually"])
 
-            project_plan_df = pd.DataFrame(columns = [NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME,NAME_COLUMN_MISSION_REFEREE,NAME_COLUMN_TEAM_MEMBERS,NAME_COLUMN_START_DATE,NAME_COLUMN_END_DATE,NAME_COLUMN_MILESTONES,NAME_COLUMN_STATUS,NAME_COLUMN_PRIORITY,NAME_COLUMN_PROGRESS,NAME_COLUMN_NEXT_STEPS,NAME_COLUMN_COMMENTS,NAME_COLUMN_VISIBILITY])
+            project_plan_df = pd.DataFrame(columns = [NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME,NAME_COLUMN_MISSION_REFEREE,NAME_COLUMN_TEAM_MEMBERS,NAME_COLUMN_START_DATE,NAME_COLUMN_END_DATE,NAME_COLUMN_MILESTONES,NAME_COLUMN_STATUS,NAME_COLUMN_PRIORITY,NAME_COLUMN_PROGRESS,NAME_COLUMN_COMMENTS,NAME_COLUMN_VISIBILITY])
 
             #Load data
             if choice_project_plan == "Load":
@@ -80,7 +83,6 @@ with tab_project_plan :
     project_plan_df[NAME_COLUMN_MILESTONES] = project_plan_df[NAME_COLUMN_MILESTONES].fillna('').astype('str')
     project_plan_df[NAME_COLUMN_PRIORITY] = project_plan_df[NAME_COLUMN_PRIORITY].fillna('').astype('str')
     project_plan_df[NAME_COLUMN_PROGRESS] = project_plan_df[NAME_COLUMN_PROGRESS].astype('float')
-    project_plan_df[NAME_COLUMN_NEXT_STEPS] = project_plan_df[NAME_COLUMN_NEXT_STEPS].fillna('').astype('str')
     project_plan_df[NAME_COLUMN_COMMENTS] = project_plan_df[NAME_COLUMN_COMMENTS].fillna('').astype('str')
     project_plan_df[NAME_COLUMN_VISIBILITY] = project_plan_df[NAME_COLUMN_VISIBILITY].fillna('').astype('str')
     project_plan_df[NAME_COLUMN_PROJECT_NAME] = project_plan_df[NAME_COLUMN_PROJECT_NAME].fillna('').astype('str')
@@ -94,7 +96,7 @@ with tab_project_plan :
         with st.sidebar :
             if not original_project_plan_df.equals(edited_project_plan_df):
                 st.error("Save your project plan before filtering/sorting", icon="🚨")
-    edition = True
+    EDITION = True
     with st.sidebar:
         #Sortering
         with st.expander('Sort',icon=":material/swap_vert:"):
@@ -114,22 +116,22 @@ with tab_project_plan :
             selected_priority : str = st.selectbox(label=NAME_COLUMN_PRIORITY, options=project_plan_df[NAME_COLUMN_PRIORITY].unique(), index=None, placeholder=NAME_COLUMN_PRIORITY)
         if selected_regex_filter_project_name :
             project_plan_df = project_plan_df[project_plan_df[NAME_COLUMN_PROJECT_NAME].str.contains(selected_regex_filter_project_name, case=False)]
-            edition = False
+            EDITION = False
         if selected_regex_filter_mission_name :
             project_plan_df = project_plan_df[project_plan_df[NAME_COLUMN_MISSION_NAME].str.contains(selected_regex_filter_mission_name, case=False)]
-            edition = False
-        if selected_mission_referee != None :
+            EDITION = False
+        if selected_mission_referee is not None :
             project_plan_df = project_plan_df.loc[project_plan_df[NAME_COLUMN_MISSION_REFEREE].isin([selected_mission_referee])]
-            edition = False
+            EDITION = False
         if selected_regex_filter_team_members :
             project_plan_df = project_plan_df[project_plan_df[NAME_COLUMN_TEAM_MEMBERS].str.contains(selected_regex_filter_team_members, case=False)]
-            edition = False
-        if selected_status != None :
+            EDITION = False
+        if selected_status is not None :
             project_plan_df = project_plan_df.loc[project_plan_df[NAME_COLUMN_STATUS].isin([selected_status])]
-            edition = False
-        if selected_priority != None :
+            EDITION = False
+        if selected_priority is not None :
             project_plan_df = project_plan_df.loc[project_plan_df[NAME_COLUMN_PRIORITY].isin([selected_priority])]
-            edition = False
+            EDITION = False
 
     # Constants for height calculation
     ROW_HEIGHT = 35  # Height per row in pixels
@@ -142,11 +144,12 @@ with tab_project_plan :
         else :
             return HEADER_HEIGHT + ROW_HEIGHT *100
 
-    if edition is True :
+    if EDITION is True :
         #Show the dataframe and make it editable
-        edited_project_plan_df = st.data_editor(project_plan_df, use_container_width = True, hide_index=True, num_rows="dynamic", on_change= dataframe_modified,height=calculate_height(), column_config={
-                NAME_COLUMN_START_DATE: st.column_config.DatetimeColumn(NAME_COLUMN_START_DATE, format="DD MM YYYY"),
-                NAME_COLUMN_END_DATE: st.column_config.DatetimeColumn(NAME_COLUMN_END_DATE, format="DD MM YYYY"),
+        edited_project_plan_df = st.data_editor(project_plan_df, use_container_width = True, hide_index=True, num_rows="dynamic", on_change= dataframe_modified,height=calculate_height(),
+                column_config={
+                NAME_COLUMN_START_DATE: st.column_config.DateColumn(NAME_COLUMN_START_DATE, format="DD MM YYYY"),
+                NAME_COLUMN_END_DATE: st.column_config.DateColumn(NAME_COLUMN_END_DATE, format="DD MM YYYY"),
                 NAME_COLUMN_STATUS: st.column_config.SelectboxColumn(
                 options=[
                     "📝 Todo",
@@ -159,9 +162,9 @@ with tab_project_plan :
                     "🟡 Medium",
                     "🟢 Low"])
                 })
-        df_to_save = edited_project_plan_df
+        st.session_state["df_to_save"] = edited_project_plan_df
     else :
-        df_to_save = original_project_plan_df
+        st.session_state["df_to_save"] = original_project_plan_df
         edited_project_plan_df = project_plan_df
         st.dataframe(edited_project_plan_df)
 
@@ -191,11 +194,11 @@ with tab_project_plan :
     with st_fixed_container(mode="sticky", position="bottom", border=False, transparent = False):
         cols = st.columns([1,2])
         with cols[0]:
-            if st.button("Save project plan", use_container_width=False, icon = ":material/save:"):
+            if st.button("Save changes", use_container_width=False, icon = ":material/save:"):
                 #Save dataframe in the folder
                 timestamp = datetime.now(tz=pytz.timezone('Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M.csv")
                 path = os.path.join(folder_project_plan, timestamp)
-                df_to_save.to_csv(path, index = False)
+                st.session_state["df_to_save"].to_csv(path, index = False)
                 with cols[1]:
                     st.success("Saved ! You can find it in the Folder Project Plan")
 
@@ -380,3 +383,81 @@ with tab_details :
 
                     st.success(f"Text for {project_selected} - {mission_selected} saved successfully!")
 
+
+    with tab_todo :
+        # Filter the relevant columns
+        reduced_edited_project_plan_df = edited_project_plan_df[[NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MILESTONES]]
+
+        # Replace empty strings in the milestones column with None
+        reduced_edited_project_plan_df[NAME_COLUMN_MILESTONES] = reduced_edited_project_plan_df[NAME_COLUMN_MILESTONES].replace('', None)
+
+        # Drop rows where milestones are NaN
+        filtered_df = reduced_edited_project_plan_df.dropna(subset=[NAME_COLUMN_MILESTONES])
+
+        # Group by project name
+        grouped_by_project = filtered_df.groupby(NAME_COLUMN_PROJECT_NAME)
+
+        updated_milestones = {}
+
+        # Iterate through each project*
+        number_project = 0
+        for project_name, group in grouped_by_project:
+            st.subheader(f"**Project:** {project_name}")
+            number_mission =0
+            # Iterate through missions within the project
+            for index, row in group.iterrows():
+                mission_name = row[NAME_COLUMN_MISSION_NAME]
+                milestones = row[NAME_COLUMN_MILESTONES]
+
+                # Split milestones into individual tasks
+                task_list = milestones.split("\n")
+
+                # Display mission name before the tasks
+                st.write(f"**Mission:** {mission_name}")
+
+                updated_task_list = []
+                number_task = 0
+                for task in task_list:
+                    # Check if the task is marked as completed
+                    is_completed = task.startswith("✅")
+
+                    checked_task = st.checkbox(label = task, key = f"{project_name}_{mission_name}_{task}_{number_project}_{number_mission}_{number_task}", value = is_completed)
+                    # Update the task's status
+                    if checked_task:
+                        task = f"✅{task[1:]}" if task.startswith("-") else task
+                    else:
+                        task = f"-{task[1:]}" if task.startswith("✅") else task
+
+                    updated_task_list.append(task)
+                    number_task += 1
+
+                # Store updated tasks back in the milestones for this mission
+                updated_milestones[index] = "\n".join(updated_task_list)
+                number_mission +=1
+            number_project +=1
+
+        if "show_success_todo" not in st.session_state:
+            st.session_state["show_success_todo"] = False
+
+        with st_fixed_container(mode="sticky", position="bottom", border=False, transparent = False):
+            cols = st.columns([1,2])
+            with cols[0]:
+                if st.button("Update infos", use_container_width=False, icon = ":material/save:"):
+                    # Apply the updates to the original DataFrame
+                    for index, new_milestones in updated_milestones.items():
+                        edited_project_plan_df.at[index, NAME_COLUMN_MILESTONES] = new_milestones
+
+                    # Save updated DataFrame to session state
+                    st.session_state["df_to_save"] = edited_project_plan_df
+                    #Save dataframe in the folder
+                    timestamp = datetime.now(tz=pytz.timezone('Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M.csv")
+                    path = os.path.join(folder_project_plan, timestamp)
+                    st.session_state["df_to_save"].to_csv(path, index = False)
+                    st.session_state["show_success_todo"] = True
+                    st.rerun()
+            with cols[1]:
+                if st.session_state["show_success_todo"]:
+                    st.success("Changes saved!")
+
+        if st.session_state["show_success_todo"]:
+            st.session_state["show_success_todo"] = False
