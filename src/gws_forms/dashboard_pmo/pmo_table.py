@@ -11,6 +11,8 @@ from PIL import Image
 import pytz
 from gws_forms.e_table.e_table import Etable
 from gws_forms.dashboard_pmo._dashboard_code.container.container import st_fixed_container
+from gws_core.streamlit import rich_text_editor
+from gws_core import RichText
 
 
 class PMOTable(Etable):
@@ -62,6 +64,7 @@ class PMOTable(Etable):
         self.tab_widgets = {
             # Base tab widget
             "Table": self.display_project_plan_tab,
+            "Closed projects": self.display_project_plan_closed_tab,
             "Gantt" : self.display_gantt_tab,
             "Plot overview" : self.display_plot_overview_tab,
             "Details" : self.display_details_tab,
@@ -114,6 +117,28 @@ class PMOTable(Etable):
 
         # Apply the function to calculate progress
         df[self.NAME_COLUMN_PROGRESS] = df.apply(self.calculate_progress, axis=1)
+
+        #Filter rows in order to show "In progress", "Todo" before "Done" and "Closed" -> for a better use
+        #group by project name
+        # Define the custom order for the "status" column
+        status_order = {"📈 In progress": 0, "📝 Todo": 1, "✅ Done": 2, "☑️ Closed": 3}
+
+
+        # Create a temporary column for the sort order based on "status"
+        df["status_order"] = df[self.NAME_COLUMN_STATUS].map(status_order)
+
+        # Sort the DataFrame
+        df = (
+            df.sort_values(by=[self.NAME_COLUMN_PROJECT_NAME, "status_order"])
+            .groupby(self.NAME_COLUMN_PROJECT_NAME, group_keys=False)  # Group by project_name
+            .apply(lambda group: group.sort_values("status_order"))  # Sort within each group
+        )
+
+        # Drop the temporary column if no longer needed
+        df = df.drop(columns=["status_order"])
+
+        #Reset index
+        df = df.reset_index(drop=True)
 
         return df
 
@@ -180,32 +205,6 @@ class PMOTable(Etable):
                         else:
                             st.warning('You need to upload a csv file.')
 
-            with st.expander('Details file',icon=":material/description:"):
-                cols = st.columns(2)
-                # List all json files in the saved directory
-                files = sorted([f.split(".json")[0] for f in os.listdir(self.folder_details) if f.endswith(".json")], reverse=True)
-                if files :
-                    with cols[0]:
-                        choice_details = st.selectbox("Select an option", ["Load" , "New"])
-                else:
-                    choice_details = "New"
-
-                if choice_details == "New":
-                    # Create a dictionary to store text data
-                    if "text_data" not in st.session_state:
-                        st.session_state.text_data = {}
-
-                elif choice_details == "Load":
-                    with cols[1]:
-                        # Show a selectbox to choose one file; by default, choose the last one
-                        selected_file = st.selectbox(label="Select an existing detail file", options=files, index=0, placeholder="Select a detail")
-                        # Load the selected file and display its contents
-                        if selected_file:
-                            selected_file = selected_file + ".json"
-                            file_path = os.path.join(self.folder_details, selected_file)
-                            if os.path.exists(file_path):
-                                with open(file_path, "r", encoding="utf-8") as f:
-                                    st.session_state.text_data = json.load(f)
 
         self.original_project_plan_df = self.project_plan_df.copy()
 
@@ -316,6 +315,17 @@ class PMOTable(Etable):
                     with cols[1]:
                         st.success("Saved ! You can find it in the Folder Project Plan")
 
+    def display_project_plan_closed_tab(self):
+        """Display the DataFrame in Streamlit tabs. Here only the closed missions are presented"""
+        if "df_to_save" not in st.session_state:
+            st.session_state.df_to_save = PMOTable().df
+
+        # Sort the DataFrame
+        df_closed_projects = self.df[self.df[self.NAME_COLUMN_STATUS] == "☑️ Closed"]
+        if not df_closed_projects.empty:
+            st.dataframe(df_closed_projects)
+        else :
+            st.write("No project is closed yet.")
 
     def display_gantt_tab(self):
         if "df_to_save" not in st.session_state:
@@ -445,6 +455,7 @@ class PMOTable(Etable):
     def display_details_tab(self):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
+
         self.df = self.validate_columns(self.df)
 
         cols_1 = st.columns(2)
@@ -457,26 +468,28 @@ class PMOTable(Etable):
                 with cols_1[1]:
                     mission_selected : str = st.selectbox(label = r"$\textbf{\text{\large{Choose a mission}}}$", options = list_missions)
                 if mission_selected :
-                    # Key for the text data
+                    ##Display note
+                    # Key for the file note
                     key = f"{project_selected}_{mission_selected}"
-                    # Retrieve existing text if available
-                    existing_text = st.session_state.text_data.get(key, "")
-                    # Input area for the text
-                    text_input = st.text_area(label=r"$\textbf{\text{\large{Details:}}}$",value=existing_text, key=key)
 
-                    with st_fixed_container(mode="sticky", position="bottom", border=False, transparent = False):
-                        # Save button
-                        if st.button("Save Text", icon = ":material/save:"):
-                            # Update session state with the new text
-                            st.session_state.text_data[key] = text_input
+                    file_path = os.path.join(self.folder_details, f'{key}.json')
+                    # initialising the rich text from a json file
+                    rich_text: RichText = None
+                    if os.path.exists(file_path):
+                        # load json file to rich text
+                        with open(file_path, 'r') as f:
+                            rich_text = RichText.from_json(json.load(f))
+                    else:
+                        rich_text = RichText()
 
-                            # Save to JSON file
-                            timestamp = datetime.now(tz=pytz.timezone('Europe/Paris')).strftime(f"details_%Y-%m-%d-%Hh%M.json")
-                            file_path = os.path.join(self.folder_details,timestamp)
-                            with open(file_path, "w", encoding="utf-8") as json_file:
-                                json.dump(st.session_state.text_data, json_file, indent=4, encoding="utf-8")
+                    # calling component
+                    result = rich_text_editor(placeholder=key, initial_value=rich_text, key=key)
 
-                            st.success(f"Text for {project_selected} - {mission_selected} saved successfully!")
+                    if result:
+                        # saving modified rich text to json file
+                        with open(file_path, 'w') as f:
+                            json.dump(result.to_dto_json_dict(), f)
+
         else :
             st.warning(f"Please complete the {self.NAME_COLUMN_PROJECT_NAME} column first")
 
@@ -538,7 +551,7 @@ class PMOTable(Etable):
                         number_mission +=1
                 number_project +=1
 
-            if self.edition == True :
+            if self.edition :
                 if "show_success_todo" not in st.session_state:
                     st.session_state["show_success_todo"] = False
                 with st_fixed_container(mode="sticky", position="bottom", border=False, transparent = False):
