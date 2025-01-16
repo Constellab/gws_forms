@@ -272,12 +272,12 @@ class PMOTable(Etable):
             with st.expander('Sort', icon=":material/swap_vert:"):
                 selected_column_order: str = st.selectbox(label="Select the column to sort", options=[
                                                           col for col in st.session_state["active_project_plan"].columns if col in self.DEFAULT_COLUMNS_LIST], index=0, placeholder="Select a column")
-                selected_order = st.selectbox(label="Sort ...", options=[
-                                              "in alphabetical order", "in non-alphabetical order"], index=None, placeholder="Select a sort")
-            if selected_order == "in alphabetical order":
+                selected_order = st.selectbox(label="Sort", options=[
+                                              "A-Z", "Z-A"], index=0, placeholder="Select a sort")
+            if selected_order == "A-Z":
                 st.session_state["active_project_plan"] = st.session_state["active_project_plan"].sort_values(
                     by=selected_column_order).reset_index(drop=True)
-            elif selected_order == "in non-alphabetical order":
+            elif selected_order == "Z-A":
                 st.session_state["active_project_plan"] = st.session_state["active_project_plan"].sort_values(
                     by=selected_column_order, ascending=False).reset_index(drop=True)
             # Filtering
@@ -655,64 +655,62 @@ class PMOTable(Etable):
                             for task in task_list:
                                 # Check if the task is marked as completed
                                 is_completed = task.startswith("✅")
-                                if self.edition == True:
-                                    if is_completed:
-                                        checked_task = st.checkbox(
-                                            label=f"~~{task}~~", key=f"{project_name}_{mission_name}_{task}_{number_project}_{number_mission}_{number_task}", value=is_completed)
-                                    else:
-                                        checked_task = st.checkbox(
-                                            label=task, key=f"{project_name}_{mission_name}_{task}_{number_project}_{number_mission}_{number_task}", value=is_completed)
 
-                                    # Update the task's status
-                                    if checked_task:
-                                        task = f"✅{task[1:]}" if task.startswith(
-                                            "-") else task
-                                    else:
-                                        task = f"-{task[1:]}" if task.startswith(
-                                            "✅") else task
-
-                                    updated_task_list.append(task)
-                                    number_task += 1
+                                if is_completed:
+                                    checked_task = st.checkbox(
+                                        label=f"~~{task}~~", key=f"{project_name}_{mission_name}_{task}_{number_project}_{number_mission}_{number_task}", value=is_completed)
                                 else:
-                                    st.write(task)
+                                    checked_task = st.checkbox(
+                                        label=task, key=f"{project_name}_{mission_name}_{task}_{number_project}_{number_mission}_{number_task}", value=is_completed)
+
+                                # Update the task's status
+                                if checked_task:
+                                    task = f"✅{task[1:]}" if task.startswith(
+                                        "-") else task
+                                else:
+                                    task = f"-{task[1:]}" if task.startswith(
+                                        "✅") else task
+
+                                updated_task_list.append(task)
+                                number_task += 1
 
                             # Store updated tasks back in the milestones for this mission
-                            updated_milestones[index] = "\n".join(
+                            updated_milestones[self.get_index(index)] = "\n".join(
                                 updated_task_list)
                         else:
-                            updated_milestones[index] = ""
+                            updated_milestones[self.get_index(index)] = ""
                         number_mission += 1
                 number_project += 1
 
-            if self.edition:
-                if "show_success_todo" not in st.session_state:
-                    st.session_state["show_success_todo"] = False
-                with st_fixed_container(mode="sticky", position="bottom", border=False, transparent=False):
-                    cols = st.columns([1, 2])
-                    with cols[0]:
-                        if st.button("Update infos", use_container_width=False, icon=":material/save:"):
-                            # Apply the updates to the original DataFrame
-                            for index, new_milestones in updated_milestones.items():
-                                self.df.at[index,
-                                           self.NAME_COLUMN_MILESTONES] = new_milestones
+            if "show_success_todo" not in st.session_state:
+                st.session_state["show_success_todo"] = False
+            with st_fixed_container(mode="sticky", position="bottom", border=False, transparent=False):
+                cols = st.columns([1, 2])
+                with cols[0]:
+                    if st.button("Update infos", use_container_width=False, icon=":material/save:"):
+                        # Apply the updates to the original DataFrame
+                        for index, new_milestones in updated_milestones.items():
+                            st.session_state["active_project_plan"].at[index,
+                                        self.NAME_COLUMN_MILESTONES] = new_milestones
 
-                            # Save updated DataFrame to session state
-                            st.session_state["df_to_save"] = self.df
-                            # Save dataframe in the folder
-                            timestamp = datetime.now(tz=pytz.timezone(
-                                'Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M.csv")
-                            path = os.path.join(
-                                self.folder_project_plan, timestamp)
-                            st.session_state["df_to_save"].to_csv(
-                                path, index=False)
-                            st.session_state["show_success_todo"] = True
-                            st.rerun()
-                    with cols[1]:
-                        if st.session_state["show_success_todo"]:
-                            st.success("Changes saved!")
+                        # Save updated DataFrame to session state
+                        st.session_state["df_to_save"] = st.session_state["active_project_plan"]
+                        st.session_state["df_to_save"] = self.validate_columns(st.session_state["df_to_save"])
+                        # Save dataframe in the folder
+                        timestamp = datetime.now(tz=pytz.timezone(
+                            'Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M.csv")
+                        path = os.path.join(
+                            self.folder_project_plan, timestamp)
+                        st.session_state["df_to_save"].to_csv(
+                            path, index=False)
+                        st.session_state["show_success_todo"] = True
+                        st.rerun()
+                with cols[1]:
+                    if st.session_state["show_success_todo"]:
+                        st.success("Changes saved!")
 
-                if st.session_state["show_success_todo"]:
-                    st.session_state["show_success_todo"] = False
+            if st.session_state["show_success_todo"]:
+                st.session_state["show_success_todo"] = False
         else:
             st.warning(
                 f"Please complete the {self.NAME_COLUMN_MILESTONES} column first")
