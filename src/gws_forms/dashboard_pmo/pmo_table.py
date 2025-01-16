@@ -30,12 +30,13 @@ class PMOTable(Etable):
     NAME_COLUMN_MISSION_REFEREE = 'Mission Referee'
     NAME_COLUMN_TEAM_MEMBERS = 'Team Members'
     NAME_COLUMN_STATUS = "Status"
-    DEFAULT_COLUMNS_LIST = [NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME,NAME_COLUMN_MISSION_REFEREE,NAME_COLUMN_TEAM_MEMBERS,NAME_COLUMN_START_DATE,NAME_COLUMN_END_DATE,NAME_COLUMN_MILESTONES,NAME_COLUMN_STATUS,NAME_COLUMN_PRIORITY,NAME_COLUMN_PROGRESS,NAME_COLUMN_COMMENTS,NAME_COLUMN_VISIBILITY]
+    NAME_COLUMN_ACTIVE = "Active"
+    DEFAULT_COLUMNS_LIST = [NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MISSION_REFEREE, NAME_COLUMN_TEAM_MEMBERS, NAME_COLUMN_START_DATE, NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY, NAME_COLUMN_PROGRESS, NAME_COLUMN_COMMENTS, NAME_COLUMN_VISIBILITY]
     # Constants for height calculation
     ROW_HEIGHT = 35  # Height per row in pixels
     HEADER_HEIGHT = 38  # Height for the header in pixels
 
-    def __init__(self, json_path = None, folder_project_plan = None, folder_details = None):
+    def __init__(self, json_path=None, folder_project_plan=None, folder_details=None):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
@@ -55,28 +56,29 @@ class PMOTable(Etable):
             self.NAME_COLUMN_PRIORITY: self.TEXT,
             self.NAME_COLUMN_PROGRESS: self.NUMERIC,
             self.NAME_COLUMN_COMMENTS: self.TEXT,
-            self.NAME_COLUMN_VISIBILITY: self.TEXT
+            self.NAME_COLUMN_VISIBILITY: self.TEXT,
+            self.NAME_COLUMN_ACTIVE: self.BOOLEAN
         }
 
         self.df = self.validate_columns(self.df)
-        self.project_plan_df = self.df.copy()
 
         self.tab_widgets = {
             # Base tab widget
             "Table": self.display_project_plan_tab,
             "Closed projects": self.display_project_plan_closed_tab,
-            "Gantt" : self.display_gantt_tab,
-            "Plot overview" : self.display_plot_overview_tab,
-            "Details" : self.display_details_tab,
-            "Todo" : self.display_todo_tab
+            "Gantt": self.display_gantt_tab,
+            "Plot overview": self.display_plot_overview_tab,
+            "Details": self.display_details_tab,
+            "Todo": self.display_todo_tab
         }
         self.edition = True
         self.choice_project_plan = None
         self.original_project_plan_df = None
-
+        if "active_project_plan" not in st.session_state:
+            st.session_state.active_project_plan = self.df.copy()
 
     # Function to calculate progress
-    def calculate_progress(self,row):
+    def calculate_progress(self, row):
         if row[self.NAME_COLUMN_MILESTONES] == "nan" or pd.isna(row[self.NAME_COLUMN_MILESTONES]):
             return 0
         # Count the number of steps (total "-"" and "✅")
@@ -89,7 +91,6 @@ class PMOTable(Etable):
         else:
             return 0
 
-
     def validate_columns(self, df):
         """Ensures the required columns are present and have the correct types."""
         for column, col_type in self.required_columns.items():
@@ -101,14 +102,17 @@ class PMOTable(Etable):
                 df[column] = df[column].astype(str)
             elif col_type == self.NUMERIC:
                 df[column] = df[column].astype(float)
+            elif col_type == self.BOOLEAN:
+                df[column] = df[column].astype(bool)
 
-        #Replace empty strings with No members in the Team members column in order to show it in the Gantt chart TODO : trouver un moyen que quand le df est modifié alors ça fait bien les changements suivants aussi
+        # Replace empty strings with No members in the Team members column in order to show it in the Gantt chart
         df[self.NAME_COLUMN_TEAM_MEMBERS] = df[self.NAME_COLUMN_TEAM_MEMBERS].replace('', None)  # Treat empty strings as None
         df[self.NAME_COLUMN_TEAM_MEMBERS] = df[self.NAME_COLUMN_TEAM_MEMBERS].fillna('No members')
         df[self.NAME_COLUMN_PRIORITY] = df[self.NAME_COLUMN_PRIORITY].replace('', 'nan')
         df[self.NAME_COLUMN_PRIORITY] = df[self.NAME_COLUMN_PRIORITY].replace('None', 'nan')
         df[self.NAME_COLUMN_STATUS] = df[self.NAME_COLUMN_STATUS].replace('', 'nan')
         df[self.NAME_COLUMN_STATUS] = df[self.NAME_COLUMN_STATUS].replace('None', 'nan')
+        df[self.NAME_COLUMN_ACTIVE] = df[self.NAME_COLUMN_ACTIVE].replace('', False)
         # Replace empty strings in the milestones column with None
         df[self.NAME_COLUMN_MILESTONES] = df[self.NAME_COLUMN_MILESTONES].replace('', np.nan)
         df[self.NAME_COLUMN_MILESTONES] = df[self.NAME_COLUMN_MILESTONES].replace('None', np.nan)
@@ -118,11 +122,11 @@ class PMOTable(Etable):
         # Apply the function to calculate progress
         df[self.NAME_COLUMN_PROGRESS] = df.apply(self.calculate_progress, axis=1)
 
-        #Filter rows in order to show "In progress", "Todo" before "Done" and "Closed" -> for a better use
-        #group by project name
+        # Filter rows in order to show "In progress", "Todo" before "Done" and "Closed" -> for a better use
+        # group by project name
         # Define the custom order for the "status" column
-        status_order = {"📈 In progress": 0, "📝 Todo": 1, "✅ Done": 2, "☑️ Closed": 3}
-
+        status_order = {"📈 In progress": 0,
+                        "📝 Todo": 1, "✅ Done": 2, "☑️ Closed": 3}
 
         # Create a temporary column for the sort order based on "status"
         df["status_order"] = df[self.NAME_COLUMN_STATUS].map(status_order)
@@ -130,14 +134,16 @@ class PMOTable(Etable):
         # Sort the DataFrame
         df = (
             df.sort_values(by=[self.NAME_COLUMN_PROJECT_NAME, "status_order"])
-            .groupby(self.NAME_COLUMN_PROJECT_NAME, group_keys=False)  # Group by project_name
-            .apply(lambda group: group.sort_values("status_order"))  # Sort within each group
+            # Group by project_name
+            .groupby(self.NAME_COLUMN_PROJECT_NAME, group_keys=False)
+            # Sort within each group
+            .apply(lambda group: group.sort_values("status_order"))
         )
 
         # Drop the temporary column if no longer needed
         df = df.drop(columns=["status_order"])
 
-        #Reset index
+        # Reset index
         df = df.reset_index(drop=True)
 
         return df
@@ -145,6 +151,8 @@ class PMOTable(Etable):
     def display_tabs(self):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
+        if "active_project_plan" not in st.session_state:
+            st.session_state.active_project_plan = self.df.copy()
         self.display_sidebar()
         names = list(self.tab_widgets.keys())
         widgets = list(self.tab_widgets.values())
@@ -153,138 +161,175 @@ class PMOTable(Etable):
             with st_tab:
                 widgets[idx]()
 
-
     def dataframe_modified(self):
-        with st.sidebar :
+        with st.sidebar:
             if not self.original_project_plan_df.equals(self.df):
                 st.error("Save your project plan before filtering/sorting", icon="🚨")
 
     def calculate_height(self):
-        #Define the height of the dataframe : 100 rows to show or the number of max rows
-        if len(self.project_plan_df) < 100:
-            return self.ROW_HEIGHT*(len(self.project_plan_df.reset_index(drop=True))+1) + self.HEADER_HEIGHT
-        else :
+        # Define the height of the dataframe : 100 rows to show or the number of max rows
+        active_plan = self.active_project_plan()
+        if len(active_plan) < 100:
+            return self.ROW_HEIGHT*(len(active_plan)+1) + self.HEADER_HEIGHT
+        else:
             return self.HEADER_HEIGHT + self.ROW_HEIGHT * 100
+
+    def active_project_plan(self):
+        if "active_project_plan" not in st.session_state or st.session_state["active_project_plan"].empty:
+            st.session_state["active_project_plan"] = self.df.copy()
+        return st.session_state["active_project_plan"][st.session_state["active_project_plan"]["Active"] == True].copy()
+
+    def get_index(self,row):
+        return self.active_project_plan().iloc[row].name
+
+    def commit(self):
+        for row in st.session_state.editor["edited_rows"]:
+            row_index = self.get_index(row)
+
+            for key, value in st.session_state.editor["edited_rows"][row].items():
+                st.session_state["active_project_plan"].at[row_index, key] = value
+
+        for row in st.session_state.editor["added_rows"]:
+            row_index = len(st.session_state["active_project_plan"])
+
+            for key, value in row.items():
+                st.session_state["active_project_plan"].at[row_index, key] = value
+
+        for row in st.session_state.editor["deleted_rows"]:
+            row_index = self.get_index(row)
+            st.session_state["active_project_plan"].drop(index=row_index, inplace=True)
 
     def display_sidebar(self):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
+        if "active_project_plan" not in st.session_state:
+            st.session_state.active_project_plan = self.df.copy()
 
-        with st.sidebar :
+        with st.sidebar:
             st.write("**Load files**")
-            with st.expander('Project plan file',icon=":material/description:"):
+            with st.expander('Project plan file', icon=":material/description:"):
                 # List all csv files in the saved directory
-                files = sorted([f.split(".csv")[0] for f in os.listdir(self.folder_project_plan) if f.endswith(".csv")], reverse=True)
+                files = sorted([f.split(".csv")[0] for f in os.listdir(
+                    self.folder_project_plan) if f.endswith(".csv")], reverse=True)
                 cols = st.columns(2)
-                if files :
+                if files:
                     with cols[0]:
-                        self.choice_project_plan = st.selectbox("Select an option", ["Load" , "Upload", "Fill manually"], key = "choice_project_plan")
-                else :
+                        self.choice_project_plan = st.selectbox("Select an option", ["Load", "Upload", "Fill manually"], key="choice_project_plan")
+                else:
                     with cols[0]:
-                        self.choice_project_plan = st.selectbox("Select an option", ["Upload", "Fill manually"], key = "choice_project_plan_sidebar")
+                        self.choice_project_plan = st.selectbox("Select an option", ["Upload", "Fill manually"], key="choice_project_plan_sidebar")
 
-                #Load data
+                # Load data
                 if self.choice_project_plan == "Load":
                     with cols[1]:
                         # Show a selectbox to choose one file; by default, choose the last one
                         selected_file = st.selectbox(label="Choose an existing project plan",
-                                                        options=files, index=0, placeholder="Select a project plan", key = "selected_file_sidebar")
+                                                     options=files, index=0, placeholder="Select a project plan", key="selected_file_sidebar")
                         # Load the selected file and display its contents
                         if selected_file:
                             selected_file = selected_file + ".csv"
                             file_path = os.path.join(self.folder_project_plan, selected_file)
-                            self.project_plan_df = pd.read_csv(file_path)
-                            self.project_plan_df = self.validate_columns(self.project_plan_df)
-                #Upload data
-                #Add a file uploader to allow users to upload their project plan file
+                            st.session_state.active_project_plan = pd.read_csv(file_path)
+                            st.session_state.active_project_plan = self.validate_columns(st.session_state.active_project_plan)
+                # Upload data
+                # Add a file uploader to allow users to upload their project plan file
                 elif self.choice_project_plan == "Upload":
                     with cols[1]:
-                        uploaded_file = st.file_uploader("Upload your project plan.", type=['csv'], key ="file_uploader_sidebar")
+                        uploaded_file = st.file_uploader("Upload your project plan.", type=['csv'], key="file_uploader_sidebar")
                         if uploaded_file is not None:
-                            self.project_plan_df=pd.read_csv(uploaded_file)
+                            st.session_state.active_project_plan = pd.read_csv(uploaded_file)
                         else:
                             st.warning('You need to upload a csv file.')
 
-
-        self.original_project_plan_df = self.project_plan_df.copy()
+        self.original_project_plan_df = st.session_state.active_project_plan.copy()
 
         with st.sidebar:
             st.write("**Filtering/Sortering**")
-            #Sortering
-            with st.expander('Sort',icon=":material/swap_vert:"):
-                selected_column_order : str = st.selectbox(label="Select the column to sort", options=self.project_plan_df.columns, index=0, placeholder="Select a column")
-                selected_order = st.selectbox(label="Sort ...", options=["in alphabetical order", "in non-alphabetical order"], index=None, placeholder="Select a sort")
-            if selected_order == "in alphabetical order" :
-                self.project_plan_df = self.project_plan_df.sort_values(by=selected_column_order).reset_index(drop=True)
-            elif selected_order == "in non-alphabetical order" :
-                self.project_plan_df = self.project_plan_df.sort_values(by=selected_column_order, ascending=False).reset_index(drop=True)
-            #Filtering
-            with st.expander('Filter',icon=":material/filter_alt:"):
-                selected_regex_filter_project_name = st.text_input(label = PMOTable.NAME_COLUMN_PROJECT_NAME, placeholder = PMOTable.NAME_COLUMN_PROJECT_NAME)
-                selected_regex_filter_mission_name = st.text_input(label = PMOTable.NAME_COLUMN_MISSION_NAME, placeholder = PMOTable.NAME_COLUMN_MISSION_NAME)
-                selected_mission_referee : str = st.selectbox(label=PMOTable.NAME_COLUMN_MISSION_REFEREE, options=self.project_plan_df[PMOTable.NAME_COLUMN_MISSION_REFEREE].unique(), index=None, placeholder=PMOTable.NAME_COLUMN_MISSION_REFEREE)
-                selected_regex_filter_team_members = st.text_input(label = PMOTable.NAME_COLUMN_TEAM_MEMBERS, placeholder = PMOTable.NAME_COLUMN_TEAM_MEMBERS)
-                selected_status : str = st.selectbox(label=PMOTable.NAME_COLUMN_STATUS, options=self.project_plan_df[PMOTable.NAME_COLUMN_STATUS].unique(), index=None, placeholder=PMOTable.NAME_COLUMN_STATUS)
-                selected_priority : str = st.selectbox(label=PMOTable.NAME_COLUMN_PRIORITY, options=self.project_plan_df[PMOTable.NAME_COLUMN_PRIORITY].unique(), index=None, placeholder=PMOTable.NAME_COLUMN_PRIORITY)
-            if selected_regex_filter_project_name :
-                self.project_plan_df = self.project_plan_df[self.project_plan_df[PMOTable.NAME_COLUMN_PROJECT_NAME].str.contains(selected_regex_filter_project_name, case=False)]
+            # Sortering
+            with st.expander('Sort', icon=":material/swap_vert:"):
+                selected_column_order: str = st.selectbox(label="Select the column to sort", options=[col for col in st.session_state["active_project_plan"].columns if col in self.DEFAULT_COLUMNS_LIST], index=0, placeholder="Select a column")
+                selected_order = st.selectbox(label="Sort ...", options=[
+                                              "in alphabetical order", "in non-alphabetical order"], index=None, placeholder="Select a sort")
+            if selected_order == "in alphabetical order":
+                st.session_state["active_project_plan"] = st.session_state["active_project_plan"].sort_values(by=selected_column_order).reset_index(drop=True)
+            elif selected_order == "in non-alphabetical order":
+                st.session_state["active_project_plan"] = st.session_state["active_project_plan"].sort_values(by=selected_column_order, ascending=False).reset_index(drop=True)
+            # Filtering
+            with st.expander('Filter', icon=":material/filter_alt:"):
+                selected_regex_filter_project_name = st.text_input(
+                    label=PMOTable.NAME_COLUMN_PROJECT_NAME, placeholder=PMOTable.NAME_COLUMN_PROJECT_NAME)
+                selected_regex_filter_mission_name = st.text_input(
+                    label=PMOTable.NAME_COLUMN_MISSION_NAME, placeholder=PMOTable.NAME_COLUMN_MISSION_NAME)
+                selected_mission_referee: str = st.selectbox(label=PMOTable.NAME_COLUMN_MISSION_REFEREE, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_MISSION_REFEREE].unique(
+                ), index=None, placeholder=PMOTable.NAME_COLUMN_MISSION_REFEREE)
+                selected_regex_filter_team_members = st.text_input(
+                    label=PMOTable.NAME_COLUMN_TEAM_MEMBERS, placeholder=PMOTable.NAME_COLUMN_TEAM_MEMBERS)
+                selected_status: str = st.selectbox(label=PMOTable.NAME_COLUMN_STATUS, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_STATUS].unique(
+                ), index=None, placeholder=PMOTable.NAME_COLUMN_STATUS)
+                selected_priority: str = st.selectbox(label=PMOTable.NAME_COLUMN_PRIORITY, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_PRIORITY].unique(
+                ), index=None, placeholder=PMOTable.NAME_COLUMN_PRIORITY)
+
+            # Set edition to False and mark the project plan as inactive if any filter is applied
+            if any([selected_regex_filter_project_name, selected_regex_filter_mission_name, selected_mission_referee, selected_regex_filter_team_members, selected_status, selected_priority]):
                 self.edition = False
-            if selected_regex_filter_mission_name :
-                self.project_plan_df = self.project_plan_df[self.project_plan_df[PMOTable.NAME_COLUMN_MISSION_NAME].str.contains(selected_regex_filter_mission_name, case=False)]
-                self.edition = False
-            if selected_mission_referee is not None :
-                self.project_plan_df = self.project_plan_df.loc[self.project_plan_df[PMOTable.NAME_COLUMN_MISSION_REFEREE].isin([selected_mission_referee])]
-                self.edition = False
-            if selected_regex_filter_team_members :
-                self.project_plan_df = self.project_plan_df[self.project_plan_df[PMOTable.NAME_COLUMN_TEAM_MEMBERS].str.contains(selected_regex_filter_team_members, case=False)]
-                self.edition = False
-            if selected_status is not None :
-                self.project_plan_df = self.project_plan_df.loc[self.project_plan_df[PMOTable.NAME_COLUMN_STATUS].isin([selected_status])]
-                self.edition = False
-            if selected_priority is not None :
-                self.project_plan_df = self.project_plan_df.loc[self.project_plan_df[PMOTable.NAME_COLUMN_PRIORITY].isin([selected_priority])]
-                self.edition = False
+                st.session_state["active_project_plan"].Active = False
+            # Initialize the filter condition to True (for all rows)
+            filter_condition = pd.Series(True, index=st.session_state["active_project_plan"].index)
+
+            if selected_regex_filter_project_name:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_PROJECT_NAME].str.contains(selected_regex_filter_project_name, case=False)
+            if selected_regex_filter_mission_name:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_MISSION_NAME].str.contains(selected_regex_filter_mission_name, case=False)
+            if selected_mission_referee is not None:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_MISSION_REFEREE].isin([selected_mission_referee])
+            if selected_regex_filter_team_members:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_TEAM_MEMBERS].str.contains(selected_regex_filter_team_members, case=False)
+            if selected_status is not None:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_STATUS].isin([selected_status])
+            if selected_priority is not None:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_PRIORITY].isin([selected_priority])
+
+            # Apply the combined filter to mark rows as active
+            st.session_state["active_project_plan"].loc[filter_condition, "Active"] = True
 
 
     def display_project_plan_tab(self):
         """Display the DataFrame in Streamlit tabs."""
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
+        if "active_project_plan" not in st.session_state:
+            st.session_state.active_project_plan = self.df.copy()
 
-        if self.edition is True :
-            #Show the dataframe and make it editable
-            self.df = st.data_editor(self.project_plan_df, use_container_width = True, hide_index=True, num_rows="dynamic", on_change = self.dataframe_modified,height=self.calculate_height(),
-                column_config={
-                self.NAME_COLUMN_START_DATE: st.column_config.DateColumn(self.NAME_COLUMN_START_DATE, format="DD MM YYYY"),
-                self.NAME_COLUMN_END_DATE: st.column_config.DateColumn(self.NAME_COLUMN_END_DATE, format="DD MM YYYY"),
-                self.NAME_COLUMN_STATUS: st.column_config.SelectboxColumn(
+        if self.edition is True:
+            st.session_state["active_project_plan"].Active = True
+
+        # Show the dataframe and make it editable
+        self.df = st.data_editor(self.active_project_plan().reset_index(), column_order=self.DEFAULT_COLUMNS_LIST, use_container_width=True, hide_index=True, key="editor", num_rows="dynamic", on_change = self.dataframe_modified, height=self.calculate_height(),
+                                    column_config={
+            self.NAME_COLUMN_START_DATE: st.column_config.DateColumn(self.NAME_COLUMN_START_DATE, format="DD MM YYYY"),
+            self.NAME_COLUMN_END_DATE: st.column_config.DateColumn(self.NAME_COLUMN_END_DATE, format="DD MM YYYY"),
+            self.NAME_COLUMN_STATUS: st.column_config.SelectboxColumn(
                 options=[
                     "📝 Todo",
                     "📈 In progress",
                     "✅ Done",
                     "☑️ Closed"]),
-                self.NAME_COLUMN_PRIORITY: st.column_config.SelectboxColumn(
+            self.NAME_COLUMN_PRIORITY: st.column_config.SelectboxColumn(
                 options=[
                     "🔴 High",
                     "🟡 Medium",
                     "🟢 Low"])
-                })
-            st.session_state["df_to_save"] = self.df
-        else :
-            st.session_state["df_to_save"] = self.original_project_plan_df
-            self.df = self.project_plan_df
-            st.dataframe(self.df)
-
+        })
 
         if self.choice_project_plan != "Load":
-            #Add a template screenshot as an example
-            with st.expander('Download the project plan template',icon=":material/help_outline:"):
+            # Add a template screenshot as an example
+            with st.expander('Download the project plan template', icon=":material/help_outline:"):
 
-                #Allow users to download the template
+                # Allow users to download the template
                 @st.cache_data
                 def convert_df(df):
                     return df.to_csv().encode('utf-8')
-                df_template = pd.read_csv(os.path.join(os.path.abspath(os.path.dirname(__file__)), "template.csv"), index_col = False)
+                df_template = pd.read_csv(os.path.join(os.path.abspath(os.path.dirname(__file__)), "template.csv"), index_col=False)
 
                 csv = convert_df(df_template)
                 st.download_button(
@@ -294,20 +339,25 @@ class PMOTable(Etable):
                     mime='text/csv',
                 )
 
-                image = Image.open(os.path.join(os.path.abspath(os.path.dirname(__file__)),"example_template_pmo.png")) #template screenshot provided as an example
+                image = Image.open(os.path.join(os.path.abspath(os.path.dirname(__file__)), "example_template_pmo.png"))  # template screenshot provided as an example
                 st.image(image,  caption='Make sure you use the same column names as in the template')
 
-        with st_fixed_container(mode="sticky", position="bottom", border=False, transparent = False):
-            cols = st.columns([1,2])
+        with st_fixed_container(mode="sticky", position="bottom", border=False, transparent=False):
+            cols = st.columns([1, 2])
             with cols[0]:
-                if st.button("Save changes", use_container_width=False, icon = ":material/save:"):
+                if st.button("Save changes", use_container_width=False, icon=":material/save:", on_click=self.commit()):
+                    st.session_state["df_to_save"] = st.session_state["active_project_plan"]
                     st.session_state["df_to_save"] = self.validate_columns(st.session_state["df_to_save"])
                     self.df = self.validate_columns(self.df)
-                    #Save dataframe in the folder
-                    timestamp = datetime.now(tz=pytz.timezone('Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M")
-                    path_csv = os.path.join(self.folder_project_plan, f"{timestamp}.csv")
-                    path_json = os.path.join(self.folder_project_plan, f"{timestamp}.json")
-                    st.session_state["df_to_save"].to_csv(path_csv, index = False)
+                    # Save dataframe in the folder
+                    timestamp = datetime.now(tz=pytz.timezone(
+                        'Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M")
+                    path_csv = os.path.join(
+                        self.folder_project_plan, f"{timestamp}.csv")
+                    path_json = os.path.join(
+                        self.folder_project_plan, f"{timestamp}.json")
+                    st.session_state["df_to_save"].to_csv(
+                        path_csv, index=False)
 
                     with open(path_json, 'w', encoding='utf-8') as f:
                         json.dump(st.session_state["df_to_save"].to_json(orient="records", indent=2), f, ensure_ascii=False, indent=4)
@@ -319,55 +369,63 @@ class PMOTable(Etable):
         """Display the DataFrame in Streamlit tabs. Here only the closed missions are presented"""
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
+        if "active_project_plan" not in st.session_state:
+            st.session_state.active_project_plan = self.df.copy()
 
         # Sort the DataFrame
-        df_closed_projects = self.df[self.df[self.NAME_COLUMN_STATUS] == "☑️ Closed"]
+        df_closed_projects = self.df[self.df[self.NAME_COLUMN_STATUS]== "☑️ Closed"].copy()
         if not df_closed_projects.empty:
-            st.dataframe(df_closed_projects)
-        else :
+            if "index" in df_closed_projects.columns:
+                df_closed_projects = df_closed_projects.drop(columns=["index"])
+            st.dataframe(df_closed_projects, hide_index=True)
+        else:
             st.write("No project is closed yet.")
 
     def display_gantt_tab(self):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
+        if "active_project_plan" not in st.session_state:
+            st.session_state.active_project_plan = self.df.copy()
         self.df = self.validate_columns(self.df)
-        gantt_choice = st.selectbox("View Gantt Chart by:", [self.NAME_COLUMN_MISSION_REFEREE,self.NAME_COLUMN_TEAM_MEMBERS,self.NAME_COLUMN_PROGRESS, self.NAME_COLUMN_PROJECT_NAME, self.NAME_COLUMN_MISSION_NAME],index=0)
+        gantt_choice = st.selectbox("View Gantt Chart by:", [self.NAME_COLUMN_MISSION_REFEREE, self.NAME_COLUMN_TEAM_MEMBERS,
+                                    self.NAME_COLUMN_PROGRESS, self.NAME_COLUMN_PROJECT_NAME, self.NAME_COLUMN_MISSION_NAME], index=0)
 
         fig = px.timeline(
-                        self.df,
-                        x_start=self.NAME_COLUMN_START_DATE,
-                        x_end= self.NAME_COLUMN_END_DATE,
-                        y= self.NAME_COLUMN_PROJECT_NAME,
-                        color=gantt_choice,
-                        hover_name= self.NAME_COLUMN_MISSION_NAME,
-                        color_discrete_sequence=px.colors.qualitative.Pastel,
-                        color_continuous_scale=px.colors.sequential.algae,
-                        range_color=(0, 100))
+            self.df,
+            x_start=self.NAME_COLUMN_START_DATE,
+            x_end=self.NAME_COLUMN_END_DATE,
+            y=self.NAME_COLUMN_PROJECT_NAME,
+            color=gantt_choice,
+            hover_name=self.NAME_COLUMN_MISSION_NAME,
+            color_discrete_sequence=px.colors.qualitative.Pastel,
+            color_continuous_scale=px.colors.sequential.algae,
+            range_color=(0, 100))
 
-        fig.update_coloraxes(colorbar_title= gantt_choice)
+        fig.update_coloraxes(colorbar_title=gantt_choice)
         fig.update_yaxes(autorange="reversed")
         fig.update_layout(
-                        title='Project Plan Gantt Chart',
-                        hoverlabel_bgcolor='#DAEEED',
-                        bargap=0.2,height=600,xaxis_title="",yaxis_title="",title_x=0.5,barmode='group',
-                        xaxis=dict(
-                                tickfont_size=15,
-                                tickangle = 270,
-                                rangeslider_visible=True,
-                                side ="top",
-                                showgrid = True,
-                                zeroline = True,
-                                showline = True,
-                                showticklabels = True,
-                                tickformat="%d %m %Y",
-                                )
-                    )
+            title='Project Plan Gantt Chart',
+            hoverlabel_bgcolor='#DAEEED',
+            bargap=0.2, height=600, xaxis_title="", yaxis_title="", title_x=0.5, barmode='group',
+            xaxis=dict(
+                tickfont_size=15,
+                tickangle=270,
+                rangeslider_visible=True,
+                side="top",
+                showgrid=True,
+                zeroline=True,
+                showline=True,
+                showticklabels=True,
+                tickformat="%d %m %Y",
+            )
+        )
 
-        fig.update_xaxes(tickangle=0, tickfont=dict(family='Poppins', color='black', size=13))
+        fig.update_xaxes(tickangle=0, tickfont=dict(
+            family='Poppins', color='black', size=13))
 
         st.plotly_chart(fig, use_container_width=True)
 
-        #Export to HTML
+        # Export to HTML
         buffer = io.StringIO()
         fig.write_html(buffer, include_plotlyjs='cdn')
         html_bytes = buffer.getvalue().encode()
@@ -381,6 +439,8 @@ class PMOTable(Etable):
     def display_plot_overview_tab(self):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
+        if "active_project_plan" not in st.session_state:
+            st.session_state.active_project_plan = self.df.copy()
         self.df = self.validate_columns(self.df)
         cols = st.columns(2)
 
@@ -406,7 +466,8 @@ class PMOTable(Etable):
             # Customize layout
             fig.update_layout(
                 title_text="Overall Task Status",
-                annotations=[dict(text=self.NAME_COLUMN_STATUS, x=0.5, y=0.5, font_size=20, showarrow=False)]
+                annotations=[dict(text=self.NAME_COLUMN_STATUS,
+                                  x=0.5, y=0.5, font_size=20, showarrow=False)]
             )
 
             # Display the chart in Streamlit
@@ -446,7 +507,8 @@ class PMOTable(Etable):
                 # Customize layout
                 fig.update_layout(
                     title_text="Overall Task Priority",
-                    annotations=[dict(text=self.NAME_COLUMN_PRIORITY, x=0.5, y=0.5, font_size=20, showarrow=False)]
+                    annotations=[dict(
+                        text=self.NAME_COLUMN_PRIORITY, x=0.5, y=0.5, font_size=20, showarrow=False)]
                 )
 
                 # Display the chart in Streamlit
@@ -455,24 +517,28 @@ class PMOTable(Etable):
     def display_details_tab(self):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
+        if "active_project_plan" not in st.session_state:
+            st.session_state.active_project_plan = self.df.copy()
 
         self.df = self.validate_columns(self.df)
 
         cols_1 = st.columns(2)
         list_projects = self.df[self.NAME_COLUMN_PROJECT_NAME].unique()
-        if len(list_projects)>0 :
+        if len(list_projects) > 0:
             with cols_1[0]:
-                project_selected : str = st.selectbox(label = r"$\textbf{\text{\large{Choose a project}}}$", options = list_projects)
-            if project_selected :
-                list_missions = self.df[self.df[self.NAME_COLUMN_PROJECT_NAME] == project_selected][self.NAME_COLUMN_MISSION_NAME]
+                project_selected: str = st.selectbox(label=r"$\textbf{\text{\large{Choose a project}}}$", options=list_projects)
+            if project_selected:
+                list_missions = self.df[self.df[self.NAME_COLUMN_PROJECT_NAME]
+                                        == project_selected][self.NAME_COLUMN_MISSION_NAME]
                 with cols_1[1]:
-                    mission_selected : str = st.selectbox(label = r"$\textbf{\text{\large{Choose a mission}}}$", options = list_missions)
-                if mission_selected :
-                    ##Display note
+                    mission_selected: str = st.selectbox(label=r"$\textbf{\text{\large{Choose a mission}}}$", options=list_missions)
+                if mission_selected:
+                    # Display note
                     # Key for the file note
                     key = f"{project_selected}_{mission_selected}"
 
-                    file_path = os.path.join(self.folder_details, f'{key}.json')
+                    file_path = os.path.join(
+                        self.folder_details, f'{key}.json')
                     # initialising the rich text from a json file
                     rich_text: RichText = None
                     if os.path.exists(file_path):
@@ -483,34 +549,40 @@ class PMOTable(Etable):
                         rich_text = RichText()
 
                     # calling component
-                    result = rich_text_editor(placeholder=key, initial_value=rich_text, key=key)
+                    result = rich_text_editor(
+                        placeholder=key, initial_value=rich_text, key=key)
 
                     if result:
                         # saving modified rich text to json file
                         with open(file_path, 'w') as f:
                             json.dump(result.to_dto_json_dict(), f)
 
-        else :
-            st.warning(f"Please complete the {self.NAME_COLUMN_PROJECT_NAME} column first")
+        else:
+            st.warning(
+                f"Please complete the {self.NAME_COLUMN_PROJECT_NAME} column first")
 
     def display_todo_tab(self):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
+        if "active_project_plan" not in st.session_state:
+            st.session_state.active_project_plan = self.df.copy()
         self.df = self.validate_columns(self.df)
 
         # Filter the relevant columns
-        filtered_df = self.df[[self.NAME_COLUMN_PROJECT_NAME, self.NAME_COLUMN_MISSION_NAME, self.NAME_COLUMN_MILESTONES]]
+        filtered_df = self.df[[self.NAME_COLUMN_PROJECT_NAME,
+                               self.NAME_COLUMN_MISSION_NAME, self.NAME_COLUMN_MILESTONES]]
         updated_milestones = {}
-        if not filtered_df.empty :
+        if not filtered_df.empty:
             # Group by project name
-            grouped_by_project = filtered_df.groupby(self.NAME_COLUMN_PROJECT_NAME)
+            grouped_by_project = filtered_df.groupby(
+                self.NAME_COLUMN_PROJECT_NAME)
 
             # Iterate through each project
             number_project = 0
             for project_name, group in grouped_by_project:
                 if (group[self.NAME_COLUMN_MILESTONES] != "nan").any():
                     st.subheader(f"**Project:** {project_name}")
-                    number_mission =0
+                    number_mission = 0
                     # Iterate through missions within the project
                     for index, row in group.iterrows():
                         mission_name = row[self.NAME_COLUMN_MISSION_NAME]
@@ -527,17 +599,21 @@ class PMOTable(Etable):
                             for task in task_list:
                                 # Check if the task is marked as completed
                                 is_completed = task.startswith("✅")
-                                if self.edition == True :
-                                    if is_completed :
-                                        checked_task = st.checkbox(label = f"~~{task}~~", key = f"{project_name}_{mission_name}_{task}_{number_project}_{number_mission}_{number_task}", value = is_completed)
-                                    else :
-                                        checked_task = st.checkbox(label = task, key = f"{project_name}_{mission_name}_{task}_{number_project}_{number_mission}_{number_task}", value = is_completed)
+                                if self.edition == True:
+                                    if is_completed:
+                                        checked_task = st.checkbox(
+                                            label=f"~~{task}~~", key=f"{project_name}_{mission_name}_{task}_{number_project}_{number_mission}_{number_task}", value=is_completed)
+                                    else:
+                                        checked_task = st.checkbox(
+                                            label=task, key=f"{project_name}_{mission_name}_{task}_{number_project}_{number_mission}_{number_task}", value=is_completed)
 
                                     # Update the task's status
                                     if checked_task:
-                                        task = f"✅{task[1:]}" if task.startswith("-") else task
+                                        task = f"✅{task[1:]}" if task.startswith(
+                                            "-") else task
                                     else:
-                                        task = f"-{task[1:]}" if task.startswith("✅") else task
+                                        task = f"-{task[1:]}" if task.startswith(
+                                            "✅") else task
 
                                     updated_task_list.append(task)
                                     number_task += 1
@@ -545,29 +621,34 @@ class PMOTable(Etable):
                                     st.write(task)
 
                             # Store updated tasks back in the milestones for this mission
-                            updated_milestones[index] = "\n".join(updated_task_list)
+                            updated_milestones[index] = "\n".join(
+                                updated_task_list)
                         else:
                             updated_milestones[index] = ""
-                        number_mission +=1
-                number_project +=1
+                        number_mission += 1
+                number_project += 1
 
-            if self.edition :
+            if self.edition:
                 if "show_success_todo" not in st.session_state:
                     st.session_state["show_success_todo"] = False
-                with st_fixed_container(mode="sticky", position="bottom", border=False, transparent = False):
-                    cols = st.columns([1,2])
+                with st_fixed_container(mode="sticky", position="bottom", border=False, transparent=False):
+                    cols = st.columns([1, 2])
                     with cols[0]:
-                        if st.button("Update infos", use_container_width=False, icon = ":material/save:"):
+                        if st.button("Update infos", use_container_width=False, icon=":material/save:"):
                             # Apply the updates to the original DataFrame
                             for index, new_milestones in updated_milestones.items():
-                                self.df.at[index, self.NAME_COLUMN_MILESTONES] = new_milestones
+                                self.df.at[index,
+                                           self.NAME_COLUMN_MILESTONES] = new_milestones
 
                             # Save updated DataFrame to session state
                             st.session_state["df_to_save"] = self.df
-                            #Save dataframe in the folder
-                            timestamp = datetime.now(tz=pytz.timezone('Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M.csv")
-                            path = os.path.join(self.folder_project_plan, timestamp)
-                            st.session_state["df_to_save"].to_csv(path, index = False)
+                            # Save dataframe in the folder
+                            timestamp = datetime.now(tz=pytz.timezone(
+                                'Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M.csv")
+                            path = os.path.join(
+                                self.folder_project_plan, timestamp)
+                            st.session_state["df_to_save"].to_csv(
+                                path, index=False)
                             st.session_state["show_success_todo"] = True
                             st.rerun()
                     with cols[1]:
@@ -576,5 +657,5 @@ class PMOTable(Etable):
 
                 if st.session_state["show_success_todo"]:
                     st.session_state["show_success_todo"] = False
-        else :
+        else:
             st.warning(f"Please complete the {self.NAME_COLUMN_MILESTONES} column first")
