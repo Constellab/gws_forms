@@ -47,10 +47,10 @@ class StreamlitPMOGenerator(Task):
         streamlit_resource.add_resource(
             folder_details, create_new_resource=True)
 
-        #folder_change_log: Folder = Folder(self.create_tmp_dir())
-        #folder_change_log.name = "Change Log"
-        #streamlit_resource.add_resource(
-        #    folder_change_log, create_new_resource=True)
+        folder_change_log: Folder = Folder(self.create_tmp_dir())
+        folder_change_log.name = "Change Log"
+        streamlit_resource.add_resource(
+            folder_change_log, create_new_resource=True)
 
 
         # set dashboard reference

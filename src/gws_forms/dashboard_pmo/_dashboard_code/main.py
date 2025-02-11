@@ -8,7 +8,7 @@ params: dict
 
 folder_project_plan = sources[0].path
 folder_details = sources[1].path
-#folder_change_log = sources[2].path
+folder_change_log = sources[2].path
 
-pmoTable = PMOTable(json_path = None, folder_project_plan = folder_project_plan, folder_details= folder_details)#, folder_change_log = folder_change_log)
+pmoTable = PMOTable(json_path = None, folder_project_plan = folder_project_plan, folder_details= folder_details, folder_change_log = folder_change_log)
 pmoTable.display_tabs()

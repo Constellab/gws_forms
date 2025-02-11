@@ -1,9 +1,8 @@
 import json
 import os
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
-import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
@@ -12,7 +11,9 @@ import pytz
 from gws_forms.e_table.e_table import Etable
 from gws_forms.dashboard_pmo._dashboard_code.container.container import st_fixed_container
 from gws_core.streamlit import rich_text_editor
-from gws_core import RichText
+from gws_core import RichText, StringHelper
+
+# Code inspired by this tutorial : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
 
 
 class PMOTable(Etable):
@@ -31,13 +32,14 @@ class PMOTable(Etable):
     NAME_COLUMN_TEAM_MEMBERS = 'Team Members'
     NAME_COLUMN_STATUS = "Status"
     NAME_COLUMN_ACTIVE = "Active"
+    NAME_COLUMN_UNIQUE_ID = "ID"
     DEFAULT_COLUMNS_LIST = [NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MISSION_REFEREE, NAME_COLUMN_TEAM_MEMBERS, NAME_COLUMN_START_DATE,
                             NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY, NAME_COLUMN_PROGRESS, NAME_COLUMN_COMMENTS, NAME_COLUMN_VISIBILITY]
     # Constants for height calculation
     ROW_HEIGHT = 35  # Height per row in pixels
     HEADER_HEIGHT = 38  # Height for the header in pixels
 
-    def __init__(self, json_path=None, folder_project_plan=None, folder_details=None):
+    def __init__(self, json_path=None, folder_project_plan=None, folder_details=None, missions_order=[], folder_change_log=None):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
@@ -45,6 +47,16 @@ class PMOTable(Etable):
         super().__init__(json_path)
         self.folder_project_plan = folder_project_plan
         self.folder_details = folder_details
+        self.folder_change_log = folder_change_log
+        if folder_change_log:
+            self.file_path_change_log = os.path.join(
+                self.folder_change_log, 'change_log.json')
+            if not os.path.exists(self.file_path_change_log):
+                with open(self.file_path_change_log, 'w', encoding="utf-8") as f:
+                    f.write("[]")
+        else:
+            self.file_path_change_log = None
+        self.missions_order = missions_order
         self.required_columns = {
             self.NAME_COLUMN_PROJECT_NAME: self.TEXT,
             self.NAME_COLUMN_MISSION_NAME: self.TEXT,
@@ -58,9 +70,9 @@ class PMOTable(Etable):
             self.NAME_COLUMN_PROGRESS: self.NUMERIC,
             self.NAME_COLUMN_COMMENTS: self.TEXT,
             self.NAME_COLUMN_VISIBILITY: self.TEXT,
-            self.NAME_COLUMN_ACTIVE: self.BOOLEAN
+            self.NAME_COLUMN_ACTIVE: self.BOOLEAN,
+            self.NAME_COLUMN_UNIQUE_ID: self.TEXT
         }
-
         self.df = self.validate_columns(self.df)
 
         self.tab_widgets = {
@@ -78,6 +90,18 @@ class PMOTable(Etable):
         if "active_project_plan" not in st.session_state:
             st.session_state.active_project_plan = self.df.copy()
 
+        # Initialize a log list for status changes
+        if "status_change_log" not in st.session_state:
+            st.session_state.status_change_log = []
+
+        # Initialize a log list for status changes
+        if "status_change_json" not in st.session_state or st.session_state.status_change_json == []:
+            if self.file_path_change_log and os.path.exists(self.file_path_change_log):
+                with open(self.file_path_change_log, 'r', encoding="utf-8") as file:
+                    st.session_state.status_change_json = json.load(file)
+            else:
+                st.session_state.status_change_json = []
+
     # Function to calculate progress
     def calculate_progress(self, row):
         if row[self.NAME_COLUMN_MILESTONES] == "nan" or pd.isna(row[self.NAME_COLUMN_MILESTONES]):
@@ -93,8 +117,93 @@ class PMOTable(Etable):
         else:
             return 0
 
-    def validate_columns(self, df):
-        """Ensures the required columns are present and have the correct types."""
+    def track_and_log_status(self, old_df, new_df):
+        """
+        Compare old_df and new_df to detect status changes and log them.
+        """
+        # Keep the current date in ISO format
+        current_date = datetime.now().isoformat()
+
+        # Initialize logs in session state if not present
+        if "status_change_log" not in st.session_state:
+            st.session_state.status_change_log = []
+
+        # Identify rows where 'status' has changed
+        new_df.set_index("level_0", inplace=True)
+
+        # Ensure old_df contains all indices from new_df
+        missing_indices = new_df.index.difference(old_df.index)
+
+        # Create a DataFrame with missing indices and copy data from new_df except for STATUS
+        if not missing_indices.empty:
+            missing_rows = new_df.loc[missing_indices].copy()
+            missing_rows[self.NAME_COLUMN_STATUS] = "nan"  # Set STATUS to NaN
+            old_df = pd.concat([old_df, missing_rows])  # Append missing rows
+
+        # Remove rows from old_df that are no longer in new_df
+        old_df = old_df.loc[old_df.index.intersection(new_df.index)]
+
+        # Now find changed rows
+        changed_rows = new_df[new_df[self.NAME_COLUMN_STATUS]
+                              != old_df[self.NAME_COLUMN_STATUS]]
+
+        # Load existing log if the file exists
+        if self.file_path_change_log:  # Ensure the file path is not None or empty
+            try:
+                with open(self.file_path_change_log, 'r', encoding="utf-8") as f:
+                    existing_log = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                existing_log = []
+        else:
+            existing_log = []
+
+        time_tolerance = timedelta(seconds=5)  # Allow 5 seconds of difference
+
+        for idx, row in changed_rows.iterrows():
+            old_status = old_df.loc[idx, self.NAME_COLUMN_STATUS]
+            new_status = row[self.NAME_COLUMN_STATUS]
+
+            new_entry = {
+                "id": row[self.NAME_COLUMN_UNIQUE_ID],
+                "project": row[self.NAME_COLUMN_PROJECT_NAME],
+                "mission": row[self.NAME_COLUMN_MISSION_NAME],
+                "status_before": old_status,
+                "status_after": new_status,
+                "date": current_date
+            }
+
+            # Check if a similar entry already exists within the time tolerance
+            if existing_log:
+                is_duplicate = any(
+                    entry["id"] == new_entry["id"] and
+                    entry["project"] == new_entry["project"] and
+                    entry["mission"] == new_entry["mission"] and
+                    entry["status_before"] == new_entry["status_before"] and
+                    entry["status_after"] == new_entry["status_after"] and
+                    abs(datetime.strptime(entry["date"], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(
+                        current_date, "%Y-%m-%dT%H:%M:%S.%f")) <= time_tolerance
+                    for entry in existing_log
+                )
+            else:
+                is_duplicate = False
+            if not is_duplicate:
+                st.session_state.status_change_log.append(new_entry)
+
+        # Convert the log to JSON
+        if st.session_state.status_change_log:
+            if isinstance(st.session_state.status_change_json, dict):
+                # Ensure `status_change_json` is a list of dictionaries
+                if not isinstance(st.session_state.status_change_json, list):
+                    st.session_state.status_change_json = [
+                        st.session_state.status_change_json]  # Convert to list
+            for new_entry_log in st.session_state.status_change_log:
+                if new_entry_log not in st.session_state.status_change_json:
+                    st.session_state.status_change_json.append(new_entry_log)
+            with open(self.file_path_change_log, 'w', encoding="utf-8") as f:
+                f.write(json.dumps(st.session_state.status_change_json,
+                        indent=4, ensure_ascii=False))
+
+    def fill_na_df(self, df):
         for column, col_type in self.required_columns.items():
             if column not in df.columns:
                 df[column] = None
@@ -108,32 +217,188 @@ class PMOTable(Etable):
                 df[column] = df[column].astype(bool)
 
         # Replace empty strings with No members in the Team members column in order to show it in the Gantt chart
-        df[self.NAME_COLUMN_TEAM_MEMBERS] = df[self.NAME_COLUMN_TEAM_MEMBERS].replace(
-            '', None)  # Treat empty strings as None
-        df[self.NAME_COLUMN_TEAM_MEMBERS] = df[self.NAME_COLUMN_TEAM_MEMBERS].fillna(
-            'No members')
-        df[self.NAME_COLUMN_PRIORITY] = df[self.NAME_COLUMN_PRIORITY].replace(
-            '', 'nan')
-        df[self.NAME_COLUMN_PRIORITY] = df[self.NAME_COLUMN_PRIORITY].replace(
-            'None', 'nan')
-        df[self.NAME_COLUMN_STATUS] = df[self.NAME_COLUMN_STATUS].replace(
-            '', 'nan')
-        df[self.NAME_COLUMN_STATUS] = df[self.NAME_COLUMN_STATUS].replace(
-            'None', 'nan')
+        df[self.NAME_COLUMN_TEAM_MEMBERS] = df[self.NAME_COLUMN_TEAM_MEMBERS].replace([
+                                                                                      '', 'None'], 'No members')
+        # Replace empty text columns by 'nan'
+        df[self.NAME_COLUMN_PROJECT_NAME] = df[self.NAME_COLUMN_PROJECT_NAME].replace([
+                                                                                      '', 'None'], 'nan')
+        df[self.NAME_COLUMN_MISSION_NAME] = df[self.NAME_COLUMN_MISSION_NAME].replace([
+                                                                                      '', 'None'], 'nan')
+        df[self.NAME_COLUMN_MISSION_REFEREE] = df[self.NAME_COLUMN_MISSION_REFEREE].replace([
+                                                                                            '', 'None'], 'nan')
+        df[self.NAME_COLUMN_MILESTONES] = df[self.NAME_COLUMN_MILESTONES].replace([
+                                                                                  '', 'None'], 'nan')
+        df[self.NAME_COLUMN_STATUS] = df[self.NAME_COLUMN_STATUS].replace([
+                                                                          '', 'None'], 'nan')
+        df[self.NAME_COLUMN_PRIORITY] = df[self.NAME_COLUMN_PRIORITY].replace([
+                                                                              '', 'None'], 'nan')
+        df[self.NAME_COLUMN_COMMENTS] = df[self.NAME_COLUMN_COMMENTS].replace([
+                                                                              '', 'None'], 'nan')
+        df[self.NAME_COLUMN_VISIBILITY] = df[self.NAME_COLUMN_VISIBILITY].replace([
+                                                                                  '', 'None'], 'nan')
+        df[self.NAME_COLUMN_UNIQUE_ID] = df[self.NAME_COLUMN_UNIQUE_ID].replace([
+                                                                                '', 'None'], 'nan')
+        # Set active to False if empty
         df[self.NAME_COLUMN_ACTIVE] = df[self.NAME_COLUMN_ACTIVE].replace(
             '', False)
-        # Replace empty strings in the milestones column with None
-        df[self.NAME_COLUMN_MILESTONES] = df[self.NAME_COLUMN_MILESTONES].replace(
-            '', np.nan)
-        df[self.NAME_COLUMN_MILESTONES] = df[self.NAME_COLUMN_MILESTONES].replace(
-            'None', np.nan)
         # Convert None to pd.NaT
         df[self.NAME_COLUMN_START_DATE] = df[self.NAME_COLUMN_START_DATE].apply(
             lambda x: pd.NaT if x is None else x)
+        df[self.NAME_COLUMN_END_DATE] = df[self.NAME_COLUMN_END_DATE].apply(
+            lambda x: pd.NaT if x is None else x)
+
+        # Add a unique id to each line if not set yet
+        df[self.NAME_COLUMN_UNIQUE_ID] = df[self.NAME_COLUMN_UNIQUE_ID].apply(
+            lambda x: StringHelper.generate_uuid() if x == "nan" else x)
+
+        return df
+
+    def validate_columns(self, df):
+        """Ensures the required columns are present and have the correct types."""
+        df = self.fill_na_df(df)
+
+        # If status is Done and there is no end date, then set current date to the column end date
+        for idx, row in df.iterrows():
+            if row[self.NAME_COLUMN_STATUS] == "✅ Done" and pd.isna(row[self.NAME_COLUMN_END_DATE]):
+                # Set end date
+                end_date = datetime.now(tz=pytz.timezone(
+                    'Europe/Paris')).strftime(f"%d %m %Y")
+                df.at[idx, self.NAME_COLUMN_END_DATE] = end_date
 
         # Apply the function to calculate progress
         df[self.NAME_COLUMN_PROGRESS] = df.apply(
             self.calculate_progress, axis=1)
+
+        # Track the changes of status
+        # Keep the current date at iso format
+        current_date = datetime.now().isoformat()
+
+        # Initialize a log list for status changes
+        if "status_change_log" not in st.session_state:
+            st.session_state.status_change_log = []
+
+        # Load existing log if the file exists
+        if self.file_path_change_log:  # Ensure the file path is not None or empty
+            try:
+                with open(self.file_path_change_log, 'r', encoding="utf-8") as f:
+                    existing_log = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                existing_log = []
+        else:
+            existing_log = []
+
+        time_tolerance = timedelta(seconds=5)  # Allow 5 seconds of difference
+
+        # Change status to '✅ Done' if progress is 100 + set today’s date in 'End Date'
+        for idx, row in df.iterrows():
+            if (
+                row[self.NAME_COLUMN_PROGRESS] == 100 and
+                row[self.NAME_COLUMN_STATUS] in ["📈 In progress", "📝 Todo"]
+            ):
+                old_status = row[self.NAME_COLUMN_STATUS]
+                new_status = "✅ Done"
+                df.loc[idx, self.NAME_COLUMN_STATUS] = new_status
+                if pd.isna(row[self.NAME_COLUMN_END_DATE]):
+                    df.loc[idx, self.NAME_COLUMN_END_DATE] = datetime.now(
+                        tz=pytz.timezone('Europe/Paris')).strftime(f"%d %m %Y")  # Set end date
+
+                # Log the change
+                new_entry = {
+                    "id": row[self.NAME_COLUMN_UNIQUE_ID],
+                    "project": row[self.NAME_COLUMN_PROJECT_NAME],
+                    "mission": row[self.NAME_COLUMN_MISSION_NAME],
+                    "status_before": old_status,
+                    "status_after": new_status,
+                    "date": current_date
+                }
+
+                # Check if a similar entry already exists within the time tolerance
+                if existing_log:
+                    is_duplicate = any(
+                        entry["id"] == new_entry["id"] and
+                        entry["project"] == new_entry["project"] and
+                        entry["mission"] == new_entry["mission"] and
+                        entry["status_before"] == new_entry["status_before"] and
+                        entry["status_after"] == new_entry["status_after"] and
+                        abs(datetime.strptime(entry["date"], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(
+                            current_date, "%Y-%m-%dT%H:%M:%S.%f")) <= time_tolerance
+                        for entry in existing_log
+                    )
+                else:
+                    is_duplicate = False
+
+                if not is_duplicate:
+                    st.session_state.status_change_log.append(new_entry)
+
+        # Iterate through each mission
+
+        if self.missions_order:
+            # Exclude the last mission
+            for idx, mission in enumerate(self.missions_order[:-1]):
+                # Adjust the column name if necessary
+                current_mission_mask = df[self.NAME_COLUMN_MISSION_NAME] == mission
+                next_mission = self.missions_order[idx + 1]
+                next_mission_mask = df[self.NAME_COLUMN_MISSION_NAME] == next_mission
+
+                # Get unique project names for the current mission
+                current_project_names = df.loc[current_mission_mask & (
+                    df[self.NAME_COLUMN_STATUS] == "✅ Done"), self.NAME_COLUMN_PROJECT_NAME].unique()
+                # Update the next mission only if the project name matches
+                for project_name in current_project_names:
+                    project_mask = df[self.NAME_COLUMN_PROJECT_NAME] == project_name
+                    # Update start date and status for the next mission
+                    for next_idx, next_row in df[next_mission_mask & project_mask].iterrows():
+                        if pd.isna(next_row[self.NAME_COLUMN_START_DATE]):
+                            df.loc[next_idx, self.NAME_COLUMN_START_DATE] = datetime.now(
+                                tz=pytz.timezone('Europe/Paris')).strftime(f"%d %m %Y")
+                        if next_row[self.NAME_COLUMN_STATUS] == "📝 Todo":
+                            old_status = next_row[self.NAME_COLUMN_STATUS]
+                            new_status = "📈 In progress"
+                            df.loc[next_idx, self.NAME_COLUMN_STATUS] = new_status
+
+                            # Log the change
+                            new_entry = {
+                                "id": next_row[self.NAME_COLUMN_UNIQUE_ID],
+                                "project": next_row[self.NAME_COLUMN_PROJECT_NAME],
+                                "mission": next_row[self.NAME_COLUMN_MISSION_NAME],
+                                "status_before": old_status,
+                                "status_after": new_status,
+                                "date": current_date
+                            }
+
+                            # Check if a similar entry already exists within the time tolerance
+                            if existing_log:
+                                is_duplicate = any(
+                                    entry["id"] == new_entry["id"] and
+                                    entry["project"] == new_entry["project"] and
+                                    entry["mission"] == new_entry["mission"] and
+                                    entry["status_before"] == new_entry["status_before"] and
+                                    entry["status_after"] == new_entry["status_after"] and
+                                    abs(datetime.strptime(entry["date"], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(
+                                        current_date, "%Y-%m-%dT%H:%M:%S.%f")) <= time_tolerance
+                                    for entry in existing_log
+                                )
+                            else:
+                                is_duplicate = False
+
+                            if not is_duplicate:
+                                st.session_state.status_change_log.append(
+                                    new_entry)
+
+        # Convert the log to JSON
+        if st.session_state.status_change_log:
+            if isinstance(st.session_state.status_change_json, dict):
+                # Ensure `status_change_json` is a list of dictionaries
+                if not isinstance(st.session_state.status_change_json, list):
+                    st.session_state.status_change_json = [
+                        st.session_state.status_change_json]  # Convert to list
+
+            for new_entry_log in st.session_state.status_change_log:
+                if new_entry_log not in st.session_state.status_change_json:
+                    st.session_state.status_change_json.append(new_entry_log)
+            with open(self.file_path_change_log, 'w', encoding="utf-8") as f:
+                f.write(json.dumps(st.session_state.status_change_json,
+                        indent=4, ensure_ascii=False))
 
         # Filter rows in order to show "In progress", "Todo" before "Done" and "Closed" -> for a better use
         # group by project name
@@ -166,6 +431,15 @@ class PMOTable(Etable):
             st.session_state.df_to_save = PMOTable().df
         if "active_project_plan" not in st.session_state:
             st.session_state.active_project_plan = self.df.copy()
+        if "status_change_log" not in st.session_state:
+            st.session_state.status_change_log = []
+        if "status_change_json" not in st.session_state or st.session_state.status_change_json == {}:
+            if self.file_path_change_log and os.path.exists(self.file_path_change_log):
+                with open(self.file_path_change_log, 'r', encoding="utf-8") as file:
+                    st.session_state.status_change_json = json.load(file)
+            else:
+                st.session_state.status_change_json = {}
+
         self.display_sidebar()
         names = list(self.tab_widgets.keys())
         widgets = list(self.tab_widgets.values())
@@ -177,7 +451,7 @@ class PMOTable(Etable):
     def active_project_plan(self):
         if "active_project_plan" not in st.session_state or st.session_state["active_project_plan"].empty:
             st.session_state["active_project_plan"] = self.df.copy()
-        return st.session_state["active_project_plan"][st.session_state["active_project_plan"]["Active"] == True].copy()
+        return st.session_state["active_project_plan"][st.session_state["active_project_plan"][self.NAME_COLUMN_ACTIVE] == True].copy()
 
     def calculate_height(self):
         # Define the height of the dataframe : 11 rows to show or the number of max rows
@@ -214,7 +488,8 @@ class PMOTable(Etable):
             for row in st.session_state.editor["deleted_rows"]:
                 row_index = self.get_index(row)
                 rows_to_delete.append(row_index)
-            st.session_state["active_project_plan"].drop(index=rows_to_delete, inplace=True)
+            st.session_state["active_project_plan"].drop(
+                index=rows_to_delete, inplace=True)
 
     def display_sidebar(self):
         if "df_to_save" not in st.session_state:
@@ -267,9 +542,8 @@ class PMOTable(Etable):
                                 st.session_state.active_project_plan)
                         else:
                             st.warning('You need to upload a csv file.')
-                else :
+                else:
                     st.session_state.active_project_plan = PMOTable().df
-
 
         self.original_project_plan_df = st.session_state.active_project_plan.copy()
 
@@ -331,29 +605,37 @@ class PMOTable(Etable):
 
             # Apply the combined filter to mark rows as active
             st.session_state["active_project_plan"].loc[filter_condition,
-                                                        "Active"] = True
+                                                        self.NAME_COLUMN_ACTIVE] = True
 
     def display_project_plan_tab(self):
         """Display the DataFrame in Streamlit tabs."""
 
-        #Custom css to define the size of the scrollbar -> because it was dificult to select the horizontal scrollbar
+        # Custom css
+        # - to define the size of the scrollbar -> because it was dificult to select the horizontal scrollbar
+        # - We added padding: 10px; because otherwise it would create a horizontal scrolling bar in the global window
+        # -> with certain screen sizes, this would cause the display to bog down when there were 2 rows in the table, for example.
         st.markdown("""
-            <style>
-                .dvn-scroller::-webkit-scrollbar {
-                width: 5px;
-                height: 10px;
-                }
+             <style>
+                 .dvn-scroller::-webkit-scrollbar {
+                 width: 5px;
+                 height: 10px;
+                 }
+                 .block-container{
+                 padding: 10px;
+                 }
 
-            </style>
+             </style>
         """, unsafe_allow_html=True)
 
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
         if "active_project_plan" not in st.session_state:
             st.session_state.active_project_plan = self.df.copy()
+
         if self.edition is True:
             st.session_state["active_project_plan"].Active = True
-        st.session_state["df_to_save"] = st.session_state["active_project_plan"].copy()
+        st.session_state["df_to_save"] = st.session_state["active_project_plan"].copy(
+        )
         # Show the dataframe and make it editable
         self.df = st.data_editor(self.active_project_plan().reset_index(), column_order=self.DEFAULT_COLUMNS_LIST, use_container_width=True, hide_index=True, key="editor", num_rows="dynamic", height=self.calculate_height(),
                                  column_config={
@@ -373,8 +655,9 @@ class PMOTable(Etable):
         })
 
         if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
-            with st.sidebar :
-                self.placeholder_warning_filtering.error("Save your project plan before filtering/sorting.", icon="🚨")
+            with st.sidebar:
+                self.placeholder_warning_filtering.error(
+                    "Save your project plan before filtering/sorting.", icon="🚨")
 
         if self.choice_project_plan != "Load":
             # Add a template screenshot as an example
@@ -406,7 +689,9 @@ class PMOTable(Etable):
         with st_fixed_container(mode="sticky", position="bottom", border=False, transparent=False):
             cols = st.columns([1, 2])
             with cols[0]:
-                if st.button("Save changes", use_container_width=False, icon=":material/save:"):#, on_click=self.commit):
+                if st.button("Save changes", use_container_width=False, icon=":material/save:"):
+                    self.df = self.fill_na_df(self.df)
+                    self.track_and_log_status(old_df=self.active_project_plan(), new_df=self.df)
                     self.commit()
                     self.df = self.validate_columns(self.df)
                     st.session_state["df_to_save"] = st.session_state["active_project_plan"].copy()
@@ -429,10 +714,9 @@ class PMOTable(Etable):
                     st.rerun()
             with cols[1]:
                 if st.session_state["show_success_project_plan"]:
-                    st.success("Saved ! You can find it in the Folder Project Plan")
+                    st.success("Saved!")
         if st.session_state["show_success_project_plan"]:
             st.session_state["show_success_project_plan"] = False
-
 
     def display_project_plan_closed_tab(self):
         """Display the DataFrame in Streamlit tabs. Here only the closed missions are presented"""
@@ -440,133 +724,106 @@ class PMOTable(Etable):
             st.session_state.df_to_save = PMOTable().df
         if "active_project_plan" not in st.session_state:
             st.session_state.active_project_plan = self.df.copy()
-        self.df = self.validate_columns(self.df)
 
-        # Sort the DataFrame
-        df_closed_projects = self.df[self.df[self.NAME_COLUMN_STATUS] == "☑️ Closed"].copy()
-        if not df_closed_projects.empty:
-            if "index" in df_closed_projects.columns:
-                df_closed_projects = df_closed_projects.drop(columns=["index"])
-            if "level_0" in df_closed_projects.columns:
-                df_closed_projects = df_closed_projects.drop(columns=["level_0"])
-            st.dataframe(df_closed_projects[self.DEFAULT_COLUMNS_LIST], hide_index=True)
+        if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
+            st.warning("Please save your project plan first")
         else:
-            st.write("No project is closed yet.")
+            self.df = self.validate_columns(self.df)
+            # Sort the DataFrame
+            df_closed_projects = self.df[self.df[self.NAME_COLUMN_STATUS] == "☑️ Closed"].copy(
+            )
+            if not df_closed_projects.empty:
+                if "index" in df_closed_projects.columns:
+                    df_closed_projects = df_closed_projects.drop(columns=[
+                                                                 "index"])
+                if "level_0" in df_closed_projects.columns:
+                    df_closed_projects = df_closed_projects.drop(
+                        columns=["level_0"])
+                st.dataframe(
+                    df_closed_projects[self.DEFAULT_COLUMNS_LIST], hide_index=True)
+            else:
+                st.write("No project is closed yet.")
 
     def display_gantt_tab(self):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
         if "active_project_plan" not in st.session_state:
-           st.session_state.active_project_plan = self.df.copy()
-        self.df = self.validate_columns(self.df)
+            st.session_state.active_project_plan = self.df.copy()
 
-        gantt_choice = st.selectbox("View Gantt Chart by:", [self.NAME_COLUMN_MISSION_REFEREE, self.NAME_COLUMN_TEAM_MEMBERS,
-                                    self.NAME_COLUMN_PROGRESS, self.NAME_COLUMN_PROJECT_NAME, self.NAME_COLUMN_MISSION_NAME], index=0)
+        if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
+            st.warning("Please save your project plan first")
+        else:
+            self.df = self.validate_columns(self.df)
 
-        fig = px.timeline(
-            self.df,
-            x_start=self.NAME_COLUMN_START_DATE,
-            x_end=self.NAME_COLUMN_END_DATE,
-            y=self.NAME_COLUMN_PROJECT_NAME,
-            color=gantt_choice,
-            hover_name=self.NAME_COLUMN_MISSION_NAME,
-            color_discrete_sequence=px.colors.qualitative.Pastel,
-            color_continuous_scale=px.colors.sequential.algae,
-            range_color=(0, 100))
+            gantt_choice = st.selectbox("View Gantt Chart by:", [self.NAME_COLUMN_MISSION_REFEREE, self.NAME_COLUMN_TEAM_MEMBERS,
+                                        self.NAME_COLUMN_PROGRESS, self.NAME_COLUMN_PROJECT_NAME, self.NAME_COLUMN_MISSION_NAME], index=0)
 
-        fig.update_coloraxes(colorbar_title=gantt_choice)
-        fig.update_yaxes(autorange="reversed")
-        fig.update_layout(
-            title='Project Plan Gantt Chart',
-            hoverlabel_bgcolor='#DAEEED',
-            bargap=0.2, height=600, xaxis_title="", yaxis_title="", title_x=0.5, barmode='group',
-            xaxis=dict(
-                tickfont_size=15,
-                tickangle=270,
-                rangeslider_visible=True,
-                side="top",
-                showgrid=True,
-                zeroline=True,
-                showline=True,
-                showticklabels=True,
-                tickformat="%d %m %Y",
+            fig = px.timeline(
+                self.df,
+                x_start=self.NAME_COLUMN_START_DATE,
+                x_end=self.NAME_COLUMN_END_DATE,
+                y=self.NAME_COLUMN_PROJECT_NAME,
+                color=gantt_choice,
+                hover_name=self.NAME_COLUMN_MISSION_NAME,
+                color_discrete_sequence=px.colors.qualitative.Pastel,
+                color_continuous_scale=px.colors.sequential.algae,
+                range_color=(0, 100))
+
+            fig.update_coloraxes(colorbar_title=gantt_choice)
+            fig.update_yaxes(autorange="reversed")
+            fig.update_layout(
+                title='Project Plan Gantt Chart',
+                hoverlabel_bgcolor='#DAEEED',
+                bargap=0.2, height=600, xaxis_title="", yaxis_title="", title_x=0.5, barmode='group',
+                xaxis=dict(
+                    tickfont_size=15,
+                    tickangle=270,
+                    rangeslider_visible=True,
+                    side="top",
+                    showgrid=True,
+                    zeroline=True,
+                    showline=True,
+                    showticklabels=True,
+                    tickformat="%d %m %Y",
+                )
             )
-        )
 
-        fig.update_xaxes(tickangle=0, tickfont=dict(
-            family='Poppins', color='black', size=13))
+            fig.update_xaxes(tickangle=0, tickfont=dict(
+                family='Poppins', color='black', size=13))
 
-        st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
 
-        # Export to HTML
-        buffer = io.StringIO()
-        fig.write_html(buffer, include_plotlyjs='cdn')
-        html_bytes = buffer.getvalue().encode()
-        st.download_button(
-            label='Export to HTML',
-            data=html_bytes,
-            file_name='Gantt.html',
-            mime='text/html'
-        )
+            # Export to HTML
+            buffer = io.StringIO()
+            fig.write_html(buffer, include_plotlyjs='cdn')
+            html_bytes = buffer.getvalue().encode()
+            st.download_button(
+                label='Export to HTML',
+                data=html_bytes,
+                file_name='Gantt.html',
+                mime='text/html'
+            )
 
     def display_plot_overview_tab(self):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
         if "active_project_plan" not in st.session_state:
             st.session_state.active_project_plan = self.df.copy()
-        self.df = self.validate_columns(self.df)
-        cols = st.columns(2)
 
-        with cols[0]:
-            # Data for the donut chart
-            # Calculate the count of each status
-            status_counts = self.df[self.NAME_COLUMN_STATUS].value_counts()
-            labels = status_counts.index.tolist()
-            values = status_counts.values.tolist()
+        if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
+            st.warning("Please save your project plan first")
+        else:
+            self.df = self.validate_columns(self.df)
+            cols = st.columns(2)
 
-            colors = ["#3f78e0", "#8cb2ff", "#ff9e4a", "#ff4c4c"]
-
-            # Create the donut chart
-            fig = go.Figure(data=[go.Pie(
-                labels=labels,
-                values=values,
-                hole=0.5,  # Creates the donut hole effect
-                marker=dict(colors=colors),
-                textinfo='percent+label',  # Show both percent and label
-                insidetextorientation='radial'
-            )])
-
-            # Customize layout
-            fig.update_layout(
-                title_text="Overall Task Status",
-                annotations=[dict(text=self.NAME_COLUMN_STATUS,
-                                  x=0.5, y=0.5, font_size=20, showarrow=False)]
-            )
-
-            # Display the chart in Streamlit
-            st.plotly_chart(fig)
-
-        with cols[1]:
-            # Data for the donut chart
-            # Filter rows where the column has values different from None
-            non_none_values = self.df[self.NAME_COLUMN_PRIORITY].notna()
-
-            # Perform value_counts only on non-None values
-            if non_none_values.any():
+            with cols[0]:
+                # Data for the donut chart
                 # Calculate the count of each status
-                status_counts = self.df[self.NAME_COLUMN_PRIORITY].value_counts(
-                )
+                status_counts = self.df[self.NAME_COLUMN_STATUS].value_counts()
                 labels = status_counts.index.tolist()
                 values = status_counts.values.tolist()
 
-                # Colors for each section
-                status_colors = {
-                    "🔴 High": "#ff4c4c",
-                    "🟡 Medium": "#f2eb1d",
-                    "🟢 Low": "#59d95e",
-                    "nan": "#abaa93"
-                }
-                colors = [status_colors[status] for status in labels]
+                colors = ["#3f78e0", "#8cb2ff", "#ff9e4a", "#ff4c4c"]
 
                 # Create the donut chart
                 fig = go.Figure(data=[go.Pie(
@@ -580,13 +837,55 @@ class PMOTable(Etable):
 
                 # Customize layout
                 fig.update_layout(
-                    title_text="Overall Task Priority",
-                    annotations=[dict(
-                        text=self.NAME_COLUMN_PRIORITY, x=0.5, y=0.5, font_size=20, showarrow=False)]
+                    title_text="Overall Task Status",
+                    annotations=[dict(text=self.NAME_COLUMN_STATUS,
+                                      x=0.5, y=0.5, font_size=20, showarrow=False)]
                 )
 
                 # Display the chart in Streamlit
                 st.plotly_chart(fig)
+
+            with cols[1]:
+                # Data for the donut chart
+                # Filter rows where the column has values different from None
+                non_none_values = self.df[self.NAME_COLUMN_PRIORITY].notna()
+
+                # Perform value_counts only on non-None values
+                if non_none_values.any():
+                    # Calculate the count of each status
+                    status_counts = self.df[self.NAME_COLUMN_PRIORITY].value_counts(
+                    )
+                    labels = status_counts.index.tolist()
+                    values = status_counts.values.tolist()
+
+                    # Colors for each section
+                    status_colors = {
+                        "🔴 High": "#ff4c4c",
+                        "🟡 Medium": "#f2eb1d",
+                        "🟢 Low": "#59d95e",
+                        "nan": "#abaa93"
+                    }
+                    colors = [status_colors[status] for status in labels]
+
+                    # Create the donut chart
+                    fig = go.Figure(data=[go.Pie(
+                        labels=labels,
+                        values=values,
+                        hole=0.5,  # Creates the donut hole effect
+                        marker=dict(colors=colors),
+                        textinfo='percent+label',  # Show both percent and label
+                        insidetextorientation='radial'
+                    )])
+
+                    # Customize layout
+                    fig.update_layout(
+                        title_text="Overall Task Priority",
+                        annotations=[dict(
+                            text=self.NAME_COLUMN_PRIORITY, x=0.5, y=0.5, font_size=20, showarrow=False)]
+                    )
+
+                    # Display the chart in Streamlit
+                    st.plotly_chart(fig)
 
     def display_details_tab(self):
         if "df_to_save" not in st.session_state:
@@ -594,62 +893,67 @@ class PMOTable(Etable):
         if "active_project_plan" not in st.session_state:
             st.session_state.active_project_plan = self.df.copy()
 
-        self.df = self.validate_columns(self.df)
-
-        cols_1 = st.columns(2)
-        list_projects = self.df[self.NAME_COLUMN_PROJECT_NAME].unique()
-        if len(list_projects) > 0:
-            with cols_1[0]:
-                project_selected: str = st.selectbox(
-                    label=r"$\textbf{\text{\large{Choose a project}}}$", options=list_projects)
-            if project_selected:
-                list_missions = self.df[self.df[self.NAME_COLUMN_PROJECT_NAME]
-                                        == project_selected][self.NAME_COLUMN_MISSION_NAME]
-                with cols_1[1]:
-                    mission_selected: str = st.selectbox(
-                        label=r"$\textbf{\text{\large{Choose a mission}}}$", options=list_missions)
-                if mission_selected:
-                    # Display note
-                    # Key for the file note
-                    key = f"{project_selected}_{mission_selected}"
-
-                    file_path = os.path.join(
-                        self.folder_details, f'{key}.json')
-                    # initialising the rich text from a json file
-                    rich_text: RichText = None
-                    if os.path.exists(file_path):
-                        # load json file to rich text
-                        with open(file_path, 'r') as f:
-                            rich_text = RichText.from_json(json.load(f))
-                    else:
-                        rich_text = RichText()
-
-                    # calling component
-                    result = rich_text_editor(
-                        placeholder=key, initial_value=rich_text, key=key)
-
-                    if result:
-                        # saving modified rich text to json file
-                        with open(file_path, 'w') as f:
-                            json.dump(result.to_dto_json_dict(), f)
-
+        if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
+            st.warning("Please save your project plan first")
         else:
-            st.warning(
-                f"Please complete the {self.NAME_COLUMN_PROJECT_NAME} column first")
+            self.df = self.validate_columns(self.df)
+
+            cols_1 = st.columns(2)
+            list_projects = self.df[self.NAME_COLUMN_PROJECT_NAME].unique()
+            if len(list_projects) > 0:
+                with cols_1[0]:
+                    project_selected: str = st.selectbox(
+                        label=r"$\textbf{\textsf{\large{Choose a project}}}$", options=list_projects)
+                if project_selected:
+                    list_missions = self.df[self.df[self.NAME_COLUMN_PROJECT_NAME]
+                                            == project_selected][self.NAME_COLUMN_MISSION_NAME]
+                    with cols_1[1]:
+                        mission_selected: str = st.selectbox(
+                            label=r"$\textbf{\textsf{\large{Choose a mission}}}$", options=list_missions)
+                    if mission_selected:
+                        # Display note
+                        # Key for the file note
+                        key = f"{project_selected}_{mission_selected}"
+
+                        file_path = os.path.join(
+                            self.folder_details, f'{key}.json')
+                        # initialising the rich text from a json file
+                        rich_text: RichText = None
+                        if os.path.exists(file_path):
+                            # load json file to rich text
+                            with open(file_path, 'r') as f:
+                                rich_text = RichText.from_json(json.load(f))
+                        else:
+                            rich_text = RichText()
+
+                        # calling component
+                        result = rich_text_editor(
+                            placeholder=key, initial_value=rich_text, key=key)
+
+                        if result:
+                            # saving modified rich text to json file
+                            with open(file_path, 'w') as f:
+                                json.dump(result.to_dto_json_dict(), f)
+
+            else:
+                st.warning(
+                    f"Please complete the {self.NAME_COLUMN_PROJECT_NAME} column first")
 
     def display_todo_tab(self):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
         if "active_project_plan" not in st.session_state:
             st.session_state.active_project_plan = self.df.copy()
-        self.df = self.validate_columns(self.df)
 
         if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
             st.warning("Please save your project plan first")
         else:
+            self.df = self.validate_columns(self.df)
+            st.session_state["active_project_plan"] = self.validate_columns(
+                st.session_state["active_project_plan"])
             # Filter the relevant columns
             filtered_df = self.df[[self.NAME_COLUMN_PROJECT_NAME,
-                                self.NAME_COLUMN_MISSION_NAME, self.NAME_COLUMN_MILESTONES]]
+                                   self.NAME_COLUMN_MISSION_NAME, self.NAME_COLUMN_MILESTONES]]
             updated_milestones = {}
             if not filtered_df.empty and (filtered_df[self.NAME_COLUMN_MILESTONES] != "nan").any():
                 # Group by project name
@@ -714,11 +1018,12 @@ class PMOTable(Etable):
                             # Apply the updates to the original DataFrame
                             for index, new_milestones in updated_milestones.items():
                                 st.session_state["active_project_plan"].at[index,
-                                            self.NAME_COLUMN_MILESTONES] = new_milestones
+                                                                           self.NAME_COLUMN_MILESTONES] = new_milestones
 
                             # Save updated DataFrame to session state
                             st.session_state["df_to_save"] = st.session_state["active_project_plan"]
-                            st.session_state["df_to_save"] = self.validate_columns(st.session_state["df_to_save"])
+                            st.session_state["df_to_save"] = self.validate_columns(
+                                st.session_state["df_to_save"])
                             self.df = st.session_state["df_to_save"].copy()
                             # Save dataframe in the folder
                             timestamp = datetime.now(tz=pytz.timezone(
