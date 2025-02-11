@@ -74,7 +74,10 @@ class PMOTable(Etable):
             self.NAME_COLUMN_UNIQUE_ID: self.TEXT
         }
         self.df = self.validate_columns(self.df)
-
+        self.df_example = pd.DataFrame({self.NAME_COLUMN_PROJECT_NAME: ["Project 1"],self.NAME_COLUMN_MISSION_NAME: ["Mission 1"],self.NAME_COLUMN_MISSION_REFEREE: ["Person1"],
+                            self.NAME_COLUMN_TEAM_MEMBERS: ["Person1, Person2"],self.NAME_COLUMN_START_DATE: "", self.NAME_COLUMN_END_DATE: "",self.NAME_COLUMN_MILESTONES: ["- step 1"],
+                            self.NAME_COLUMN_STATUS: ["📝 Todo"],self.NAME_COLUMN_PRIORITY: ["🔴 High"],self.NAME_COLUMN_PROGRESS: [0],
+                            self.NAME_COLUMN_COMMENTS: [""],self.NAME_COLUMN_VISIBILITY: [""],self.NAME_COLUMN_ACTIVE: [False],self.NAME_COLUMN_UNIQUE_ID: [StringHelper.generate_uuid()]})
         self.tab_widgets = {
             # Base tab widget
             "Table": self.display_project_plan_tab,
@@ -128,8 +131,9 @@ class PMOTable(Etable):
         if "status_change_log" not in st.session_state:
             st.session_state.status_change_log = []
 
-        # Identify rows where 'status' has changed
-        new_df.set_index("level_0", inplace=True)
+        ### Identify rows where 'status' has changed
+        if "level_0" in new_df.columns:
+            new_df.set_index("level_0", inplace=True)
 
         # Ensure old_df contains all indices from new_df
         missing_indices = new_df.index.difference(old_df.index)
@@ -218,7 +222,7 @@ class PMOTable(Etable):
 
         # Replace empty strings with No members in the Team members column in order to show it in the Gantt chart
         df[self.NAME_COLUMN_TEAM_MEMBERS] = df[self.NAME_COLUMN_TEAM_MEMBERS].replace([
-                                                                                      '', 'None'], 'No members')
+                                                                                      '', 'None', 'nan'], 'No members')
         # Replace empty text columns by 'nan'
         df[self.NAME_COLUMN_PROJECT_NAME] = df[self.NAME_COLUMN_PROJECT_NAME].replace([
                                                                                       '', 'None'], 'nan')
@@ -542,8 +546,13 @@ class PMOTable(Etable):
                                 st.session_state.active_project_plan)
                         else:
                             st.warning('You need to upload a csv file.')
+                            st.session_state.active_project_plan = self.df_example
+                            st.session_state.active_project_plan = self.validate_columns(
+                                st.session_state.active_project_plan)
                 else:
-                    st.session_state.active_project_plan = PMOTable().df
+                    st.session_state.active_project_plan = self.df_example
+                    st.session_state.active_project_plan = self.validate_columns(
+                                st.session_state.active_project_plan)
 
         self.original_project_plan_df = st.session_state.active_project_plan.copy()
 
