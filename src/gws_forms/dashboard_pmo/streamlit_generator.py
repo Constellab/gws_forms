@@ -4,7 +4,7 @@ import os
 from gws_core import (ConfigParams, OutputSpec, OutputSpecs, StreamlitResource, Task, TaskInputs, TaskOutputs, task_decorator,
                       dashboard_decorator, Dashboard, DashboardType, Folder, TypingStyle)
 
-@dashboard_decorator("GenerateDashboard", dashboard_type=DashboardType.STREAMLIT)
+@dashboard_decorator("GenerateDashboardPMO", dashboard_type=DashboardType.STREAMLIT)
 class GenerateDashboardPMO(Dashboard):
 
     # retrieve the path of the app folder, relative to this file

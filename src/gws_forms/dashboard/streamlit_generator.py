@@ -1,10 +1,19 @@
 
 import os
 
-from gws_core import (ConfigParams, InputSpec, InputSpecs,
-                      OutputSpec, OutputSpecs, Task, TaskInputs, TaskOutputs, task_decorator, JSONDict, TypingStyle, Folder)
-from gws_core.streamlit.streamlit_resource import StreamlitResource
+from gws_core import (ConfigParams, OutputSpec, OutputSpecs, StreamlitResource, Task, TaskInputs, TaskOutputs, task_decorator,InputSpec, InputSpecs,
+                      dashboard_decorator, Dashboard, DashboardType, Folder, TypingStyle, JSONDict)
 
+@dashboard_decorator("GenerateDashboardFormsAnswer", dashboard_type=DashboardType.STREAMLIT)
+class GenerateDashboardFormsAnswer(Dashboard):
+
+    # retrieve the path of the app folder, relative to this file
+    # the dashboard code folder starts with a underscore to avoid being loaded when the brick is loaded
+    def get_app_folder_path(self):
+        return os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            "_dashboard_code"
+        )
 
 @task_decorator("StreamlitFormsDashbaordGenerator", human_name="Forms dashboard",
                 short_description="Task to generate a custom Streamlit dashboard to create form",
@@ -26,13 +35,6 @@ class StreamlitFormsDashbaordGenerator(Task):
         'streamlit_app': OutputSpec(StreamlitResource, human_name="Streamlit app")
     })
 
-    # retrieve the path of the app folder, relative to this file
-    # the dashboard code folder starts with a underscore to avoid being loaded when the brick is loaded
-    streamlit_app_folder = os.path.join(
-        os.path.abspath(os.path.dirname(__file__)),
-        "_dashboard_code"
-    )
-
     def run(self, params: ConfigParams, inputs: TaskInputs) -> TaskOutputs:
 
         # build the streamlit resource with the code and the resources
@@ -47,7 +49,7 @@ class StreamlitFormsDashbaordGenerator(Task):
         streamlit_resource.add_resource(
             folder_sessions, create_new_resource=True)
 
-        # set the app folder
-        streamlit_resource.set_streamlit_folder(self.streamlit_app_folder)
+        # set dashboard reference
+        streamlit_resource.set_dashboard(GenerateDashboardFormsAnswer())
 
         return {'streamlit_app': streamlit_resource}
