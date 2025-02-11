@@ -39,7 +39,7 @@ class PMOTable(Etable):
     ROW_HEIGHT = 35  # Height per row in pixels
     HEADER_HEIGHT = 38  # Height for the header in pixels
 
-    def __init__(self, json_path=None, folder_project_plan=None, folder_details=None, missions_order=[], folder_change_log=None):
+    def __init__(self, json_path=None, folder_project_plan=None, folder_details=None, missions_order=[], folder_change_log=None, dynamic_df = "dynamic"):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
@@ -90,6 +90,8 @@ class PMOTable(Etable):
         self.edition = True
         self.choice_project_plan = None
         self.original_project_plan_df = None
+        #By default, we allow user to add rows to the dataframe Project Plan
+        self.dynamic_df = dynamic_df
         if "active_project_plan" not in st.session_state:
             st.session_state.active_project_plan = self.df.copy()
 
@@ -646,7 +648,7 @@ class PMOTable(Etable):
         st.session_state["df_to_save"] = st.session_state["active_project_plan"].copy(
         )
         # Show the dataframe and make it editable
-        self.df = st.data_editor(self.active_project_plan().reset_index(), column_order=self.DEFAULT_COLUMNS_LIST, use_container_width=True, hide_index=True, key="editor", num_rows="dynamic", height=self.calculate_height(),
+        self.df = st.data_editor(self.active_project_plan().reset_index(), column_order=self.DEFAULT_COLUMNS_LIST, use_container_width=True, hide_index=True, key="editor", num_rows=self.dynamic_df, height=self.calculate_height(),
                                  column_config={
             self.NAME_COLUMN_START_DATE: st.column_config.DateColumn(self.NAME_COLUMN_START_DATE, format="DD MM YYYY"),
             self.NAME_COLUMN_END_DATE: st.column_config.DateColumn(self.NAME_COLUMN_END_DATE, format="DD MM YYYY"),
