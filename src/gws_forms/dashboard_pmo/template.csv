@@ -1,4 +1,4 @@
 Project Name,Mission Name,Mission Referee,Team Members,Start Date,End Date,Milestones,Status,Priority,Progress (%),Next Steps,Comments,Visibility
-XXX,xxx,Person1 ,,2024-11-14 12:42:59,2024-11-28 12:44:04,,ðŸ“ Todo,ðŸ”´ High,0.0,,,
-XXX_1,xxx,Person2,"Person1, Person5",2024-10-22 08:00:00,2024-11-30 12:44:09,,ðŸ“ˆ In progress,ðŸŸ¡ Medium,10.0,,,
-XXX_1,xxx,Person3,Person4,2024-11-14 15:42:58,2024-11-28 15:43:03,,ðŸ“ Todo,ðŸŸ¢ Low,0.0,,,
+XXX,xxx,Person1 ,,2024-11-14 12:42:59,2024-11-28,,,,0.0,,,
+XXX_1,xxx,Person2,"Person1, Person5",2024-10-22 08:00:00,2024-11-30 12:44:09,,,,10.0,,,
+XXX_1,xxx,Person3,Person4,2024-11-14 15:42:58,2024-11-28,,,,0.0,,,
