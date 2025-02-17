@@ -136,6 +136,8 @@ class PMOTable(Etable):
         ### Identify rows where 'status' has changed
         if "level_0" in new_df.columns:
             new_df.set_index("level_0", inplace=True)
+        if "index" in new_df.columns:
+            new_df.set_index("index", inplace=True)
 
         # Ensure old_df contains all indices from new_df
         missing_indices = new_df.index.difference(old_df.index)
@@ -578,14 +580,14 @@ class PMOTable(Etable):
                     label=PMOTable.NAME_COLUMN_PROJECT_NAME, placeholder=PMOTable.NAME_COLUMN_PROJECT_NAME)
                 selected_regex_filter_mission_name = st.text_input(
                     label=PMOTable.NAME_COLUMN_MISSION_NAME, placeholder=PMOTable.NAME_COLUMN_MISSION_NAME)
-                selected_mission_referee: str = st.selectbox(label=PMOTable.NAME_COLUMN_MISSION_REFEREE, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_MISSION_REFEREE].unique(
-                ), index=None, placeholder=PMOTable.NAME_COLUMN_MISSION_REFEREE)
+                selected_mission_referee: str = st.multiselect(label=PMOTable.NAME_COLUMN_MISSION_REFEREE, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_MISSION_REFEREE].unique(
+                ), default=None, placeholder=PMOTable.NAME_COLUMN_MISSION_REFEREE)
                 selected_regex_filter_team_members = st.text_input(
                     label=PMOTable.NAME_COLUMN_TEAM_MEMBERS, placeholder=PMOTable.NAME_COLUMN_TEAM_MEMBERS)
-                selected_status: str = st.selectbox(label=PMOTable.NAME_COLUMN_STATUS, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_STATUS].unique(
-                ), index=None, placeholder=PMOTable.NAME_COLUMN_STATUS)
-                selected_priority: str = st.selectbox(label=PMOTable.NAME_COLUMN_PRIORITY, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_PRIORITY].unique(
-                ), index=None, placeholder=PMOTable.NAME_COLUMN_PRIORITY)
+                selected_status: str = st.multiselect(label=PMOTable.NAME_COLUMN_STATUS, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_STATUS].unique(
+                ), placeholder=PMOTable.NAME_COLUMN_STATUS, default = None)
+                selected_priority: str = st.multiselect(label=PMOTable.NAME_COLUMN_PRIORITY, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_PRIORITY].unique(
+                ), default=None, placeholder=PMOTable.NAME_COLUMN_PRIORITY)
 
             # Set edition to False and mark the project plan as inactive if any filter is applied
             if any([selected_regex_filter_project_name, selected_regex_filter_mission_name, selected_mission_referee, selected_regex_filter_team_members, selected_status, selected_priority]):
@@ -601,18 +603,18 @@ class PMOTable(Etable):
             if selected_regex_filter_mission_name:
                 filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_MISSION_NAME].str.contains(
                     selected_regex_filter_mission_name, case=False)
-            if selected_mission_referee is not None:
-                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_MISSION_REFEREE].isin([
-                                                                                                                       selected_mission_referee])
+            if selected_mission_referee:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_MISSION_REFEREE].isin(
+                                                                                                                       selected_mission_referee)
             if selected_regex_filter_team_members:
                 filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_TEAM_MEMBERS].str.contains(
                     selected_regex_filter_team_members, case=False)
-            if selected_status is not None:
-                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_STATUS].isin([
-                                                                                                              selected_status])
-            if selected_priority is not None:
-                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_PRIORITY].isin([
-                                                                                                                selected_priority])
+            if selected_status:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_STATUS].isin(
+                                                                                                              selected_status)
+            if selected_priority:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_PRIORITY].isin(
+                                                                                                                selected_priority)
 
             # Apply the combined filter to mark rows as active
             st.session_state["active_project_plan"].loc[filter_condition,
