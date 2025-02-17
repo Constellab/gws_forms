@@ -741,9 +741,8 @@ class PMOTable(Etable):
         if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
             st.warning("Please save your project plan first")
         else:
-            self.df = self.validate_columns(self.df)
             # Sort the DataFrame
-            df_closed_projects = self.df[self.df[self.NAME_COLUMN_STATUS] == "☑️ Closed"].copy(
+            df_closed_projects = st.session_state["active_project_plan"][st.session_state["active_project_plan"][self.NAME_COLUMN_STATUS] == "☑️ Closed"].copy(
             )
             if not df_closed_projects.empty:
                 if "index" in df_closed_projects.columns:
