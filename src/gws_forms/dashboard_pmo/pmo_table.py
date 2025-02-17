@@ -585,7 +585,7 @@ class PMOTable(Etable):
                 selected_regex_filter_team_members = st.text_input(
                     label=PMOTable.NAME_COLUMN_TEAM_MEMBERS, placeholder=PMOTable.NAME_COLUMN_TEAM_MEMBERS)
                 selected_status: str = st.multiselect(label=PMOTable.NAME_COLUMN_STATUS, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_STATUS].unique(
-                ), placeholder=PMOTable.NAME_COLUMN_STATUS, default = None)
+                ), placeholder=PMOTable.NAME_COLUMN_STATUS, default = ["📝 Todo","📈 In progress","✅ Done","nan"])
                 selected_priority: str = st.multiselect(label=PMOTable.NAME_COLUMN_PRIORITY, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_PRIORITY].unique(
                 ), default=None, placeholder=PMOTable.NAME_COLUMN_PRIORITY)
 
