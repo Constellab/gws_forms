@@ -33,8 +33,9 @@ class PMOTable(Etable):
     NAME_COLUMN_STATUS = "Status"
     NAME_COLUMN_ACTIVE = "Active"
     NAME_COLUMN_UNIQUE_ID = "ID"
+    NAME_COLUMN_DELETE = "Delete"
     DEFAULT_COLUMNS_LIST = [NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MISSION_REFEREE, NAME_COLUMN_TEAM_MEMBERS, NAME_COLUMN_START_DATE,
-                            NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY, NAME_COLUMN_PROGRESS, NAME_COLUMN_COMMENTS, NAME_COLUMN_VISIBILITY]
+                            NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY, NAME_COLUMN_PROGRESS, NAME_COLUMN_COMMENTS, NAME_COLUMN_VISIBILITY, NAME_COLUMN_DELETE]
     # Constants for height calculation
     ROW_HEIGHT = 35  # Height per row in pixels
     HEADER_HEIGHT = 38  # Height for the header in pixels
@@ -71,13 +72,14 @@ class PMOTable(Etable):
             self.NAME_COLUMN_COMMENTS: self.TEXT,
             self.NAME_COLUMN_VISIBILITY: self.TEXT,
             self.NAME_COLUMN_ACTIVE: self.BOOLEAN,
-            self.NAME_COLUMN_UNIQUE_ID: self.TEXT
+            self.NAME_COLUMN_UNIQUE_ID: self.TEXT,
+            self.NAME_COLUMN_DELETE: self.BOOLEAN
         }
         self.df = self.validate_columns(self.df)
         self.df_example = pd.DataFrame({self.NAME_COLUMN_PROJECT_NAME: ["Project 1"],self.NAME_COLUMN_MISSION_NAME: ["Mission 1"],self.NAME_COLUMN_MISSION_REFEREE: ["Person1"],
                             self.NAME_COLUMN_TEAM_MEMBERS: ["Person1, Person2"],self.NAME_COLUMN_START_DATE: "", self.NAME_COLUMN_END_DATE: "",self.NAME_COLUMN_MILESTONES: ["- step 1"],
                             self.NAME_COLUMN_STATUS: ["📝 Todo"],self.NAME_COLUMN_PRIORITY: ["🔴 High"],self.NAME_COLUMN_PROGRESS: [0],
-                            self.NAME_COLUMN_COMMENTS: [""],self.NAME_COLUMN_VISIBILITY: [""],self.NAME_COLUMN_ACTIVE: [False],self.NAME_COLUMN_UNIQUE_ID: [StringHelper.generate_uuid()]})
+                            self.NAME_COLUMN_COMMENTS: [""],self.NAME_COLUMN_VISIBILITY: [""],self.NAME_COLUMN_ACTIVE: [False],self.NAME_COLUMN_UNIQUE_ID: [StringHelper.generate_uuid()], self.NAME_COLUMN_DELETE : [False]})
         self.tab_widgets = {
             # Base tab widget
             "Table": self.display_project_plan_tab,
@@ -246,8 +248,10 @@ class PMOTable(Etable):
                                                                                   '', 'None'], 'nan')
         df[self.NAME_COLUMN_UNIQUE_ID] = df[self.NAME_COLUMN_UNIQUE_ID].replace([
                                                                                 '', 'None'], 'nan')
-        # Set active to False if empty
+        # Set active and delete to False if empty
         df[self.NAME_COLUMN_ACTIVE] = df[self.NAME_COLUMN_ACTIVE].replace(
+            '', False)
+        df[self.NAME_COLUMN_DELETE] = df[self.NAME_COLUMN_DELETE].replace(
             '', False)
         # Convert None to pd.NaT
         df[self.NAME_COLUMN_START_DATE] = df[self.NAME_COLUMN_START_DATE].apply(
@@ -478,10 +482,13 @@ class PMOTable(Etable):
         if st.session_state.editor["edited_rows"]:
             for row in st.session_state.editor["edited_rows"]:
                 row_index = self.get_index(row)
-
+                
                 for key, value in st.session_state.editor["edited_rows"][row].items():
                     st.session_state["active_project_plan"].at[row_index, key] = value
-
+                    #For rows where the column delete is true, then we add the index to st.session_state.editor["deleted_rows"]
+                    # in order that these rows will be deleted just after
+                    if key == self.NAME_COLUMN_DELETE and value == True:
+                        st.session_state.editor["deleted_rows"].append(int(row))
         # Check if added_rows is not empty
         if st.session_state.editor["added_rows"]:
             for row in st.session_state.editor["added_rows"]:
@@ -666,7 +673,8 @@ class PMOTable(Etable):
                 options=[
                     "🔴 High",
                     "🟡 Medium",
-                    "🟢 Low"])
+                    "🟢 Low"]),
+            self.NAME_COLUMN_DELETE: st.column_config.CheckboxColumn(default=False)
         })
 
         if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
@@ -704,7 +712,13 @@ class PMOTable(Etable):
         with st_fixed_container(mode="sticky", position="bottom", border=False, transparent=False):
             cols = st.columns([1, 2])
             with cols[0]:
-                if st.button("Save changes", use_container_width=False, icon=":material/save:"):
+                #if at least there is one True in the column delete, we change the name of the button to inform the user
+                # that rows will be deleted
+                if self.df[self.NAME_COLUMN_DELETE].any():
+                    name_button = "Delete selected and save"
+                else:
+                    name_button = "Save changes"
+                if st.button(name_button, use_container_width=False, icon=":material/save:"):
                     self.df = self.fill_na_df(self.df)
                     self.track_and_log_status(old_df=self.active_project_plan(), new_df=self.df)
                     self.commit()
