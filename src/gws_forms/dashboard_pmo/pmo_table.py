@@ -584,8 +584,10 @@ class PMOTable(Etable):
                 ), default=None, placeholder=PMOTable.NAME_COLUMN_MISSION_REFEREE)
                 selected_regex_filter_team_members = st.text_input(
                     label=PMOTable.NAME_COLUMN_TEAM_MEMBERS, placeholder=PMOTable.NAME_COLUMN_TEAM_MEMBERS)
-                selected_status: str = st.multiselect(label=PMOTable.NAME_COLUMN_STATUS, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_STATUS].unique(
-                ), placeholder=PMOTable.NAME_COLUMN_STATUS, default = ["📝 Todo","📈 In progress","✅ Done","nan"])
+                options = st.session_state.active_project_plan[PMOTable.NAME_COLUMN_STATUS].unique()
+                #We want to remove "☑️ Closed" if it exists to the default options:
+                default_options = [opt for opt in options if opt != "☑️ Closed"]
+                selected_status: str = st.multiselect(label=PMOTable.NAME_COLUMN_STATUS, options=options, placeholder=PMOTable.NAME_COLUMN_STATUS, default = default_options)
                 selected_priority: str = st.multiselect(label=PMOTable.NAME_COLUMN_PRIORITY, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_PRIORITY].unique(
                 ), default=None, placeholder=PMOTable.NAME_COLUMN_PRIORITY)
 
