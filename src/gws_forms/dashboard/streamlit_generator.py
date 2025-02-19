@@ -2,10 +2,10 @@
 import os
 
 from gws_core import (BoolParam, ConfigParams, ConfigSpecs, Dashboard,
-                      DashboardType, Folder, InputSpec, InputSpecs, JSONDict,
-                      OutputSpec, OutputSpecs, StreamlitResource, StrParam,
-                      Task, TaskInputs, TaskOutputs, TypingStyle,
-                      dashboard_decorator, task_decorator)
+                      DashboardType, File, Folder, InputSpec, InputSpecs,
+                      JSONDict, OutputSpec, OutputSpecs, StreamlitResource,
+                      StrParam, Task, TaskInputs, TaskOutputs, Text,
+                      TypingStyle, dashboard_decorator, task_decorator)
 
 
 @dashboard_decorator("GenerateFormsDashboard", dashboard_type=DashboardType.STREAMLIT)
@@ -34,17 +34,16 @@ class StreamlitFormsDashbaordGenerator(Task):
     Output : a Streamlit app.
 
     """
-    input_specs: InputSpecs = InputSpecs({'questions_file': InputSpec(
-        JSONDict, human_name="JSONDict containing the questions")})
+    input_specs: InputSpecs = InputSpecs(
+        {
+            'questions_file': InputSpec(JSONDict, human_name="JSONDict containing the questions"),
+            'banner': InputSpec([File, Text], human_name="Banner")
+        }
+    )
     output_specs: OutputSpecs = OutputSpecs({
         'streamlit_form_app': OutputSpec(StreamlitResource, human_name="Streamlit Form app")
     })
     config_specs: ConfigSpecs = {
-        'logo':
-        StrParam(
-            human_name="Form logo",
-            short_description="Url of the logo that will be printed next to the form title",
-            optional=False),
         'title': StrParam(
             human_name="Title",
             short_description="Title of the form",
@@ -58,6 +57,12 @@ class StreamlitFormsDashbaordGenerator(Task):
 
     def run(self, params: ConfigParams, inputs: TaskInputs) -> TaskOutputs:
 
+        banner = inputs.get('banner')
+        if isinstance(banner, File):
+            banner = banner.path
+        elif isinstance(banner, Text):
+            banner = banner.get_data()
+
         folder_sessions: Folder = Folder(self.create_tmp_dir())
         folder_sessions.name = "Answers"
 
@@ -70,6 +75,7 @@ class StreamlitFormsDashbaordGenerator(Task):
             questions_file, create_new_resource=False)
         streamlit_resource.add_resource(
             folder_sessions, create_new_resource=True)
+        params['banner'] = banner
         streamlit_resource.set_params(params)
         # set the app folder
         streamlit_resource.set_dashboard(GenerateFormsDashboard())

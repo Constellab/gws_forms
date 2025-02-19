@@ -1,0 +1,4 @@
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-left: 8px solid red;
+    border-radius: 12px;
+} 
