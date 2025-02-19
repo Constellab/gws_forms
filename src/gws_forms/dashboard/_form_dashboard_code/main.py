@@ -61,8 +61,13 @@ def get_questions_by_section_and_subsection(questions):
 
 
 # Function to check if all required questions are answered
-def all_required_answered(questions):
-    for question_data in questions:
+def all_required_answered(answer_questions, conf_questions):
+    for question_data in conf_questions:
+        for answer_question in answer_questions:
+            if question_data["section"] == answer_question["section"] and question_data["question"] == answer_question["question"]:
+                question_data["answer"] = answer_question["answer"]
+                break
+
         if question_data["required"] and (question_data["answer"] is None or question_data["answer"] == ""):
             return False
     return True
@@ -153,6 +158,103 @@ def session_token_exists(email: str) -> bool:
         return email in json.load(f)
 
 
+@st.fragment
+def question_component(section, question_number, question_data):
+    with st.container(key=f"{section}-{question_number}"):
+        border_left_red(f"{section}-{question_number}")
+        question_key = question_data['question']
+        st.markdown(
+            f"##### {question_number}. {question_data.get('question_head')}: {question_key}")
+        st.write(question_data['helper_text'])
+
+        # Populate answers from saved session if available
+        questions_json = st.session_state['saved_answers'].get('questions', [])
+        saved_answer = next(
+            (question["answer"] for question in questions_json
+                if question["section"] == section and question["question"] == question_key),
+            None)
+
+        # Générer le champ correspondant au type de réponse attendu
+        response = None
+        if question_data.get('allowed_values'):
+            if question_data.get('multiselect'):
+                response = st.multiselect(
+                    label=question_key, label_visibility="collapsed",
+                    options=question_data['allowed_values'],
+                    default=saved_answer if saved_answer else [],
+                    placeholder="Select a single or several options")
+
+            else:
+                response = st.selectbox(
+                    label=question_key, label_visibility="collapsed",
+                    options=question_data['allowed_values'],
+                    index=question_data['allowed_values'].index(saved_answer)
+                    if saved_answer in question_data['allowed_values'] else None,
+                    placeholder="Select an option")
+        else:
+            if question_data['response_type'] == "short_text":
+                response = st.text_input(
+                    label=question_key, label_visibility="collapsed",
+                    placeholder="Enter a response", value=saved_answer if saved_answer else None)
+            elif question_data['response_type'] == "long_text":
+                response = st.text_area(
+                    label=question_key, label_visibility="collapsed", value=saved_answer
+                    if saved_answer else None, placeholder="Enter a response",
+                    key=f"{section}-{question_number}-input")
+            elif question_data['response_type'] == "numeric":
+                response = st.number_input(
+                    label=question_key, label_visibility="collapsed", value=saved_answer
+                    if saved_answer else None, min_value=question_data.get('min_value', None),
+                    max_value=question_data.get('max_value', None),
+                    placeholder="Enter a number")
+            elif question_data['response_type'] == "range":
+                response = st.slider(
+                    label=question_key, label_visibility="collapsed", value=saved_answer
+                    if saved_answer else None, min_value=question_data.get('min_value', None),
+                    max_value=question_data.get('max_value', None),
+                    placeholder="Select a range")
+        # Update the original JSON structure with the captured answer
+        question_data['answer'] = response
+        # check if question is in questions_json
+        question_exists = next(
+            (question for question in questions_json
+                if question["section"] == section and question["question"] == question_key),
+            None)
+
+        # Si la question est obligatoire
+        if question_data.get(
+                "required", True) and (
+                response is None or response == "" or response == []):
+            st.write(":red[*Required]")
+            if question_exists:
+                # Update the saved answers with the current question
+                for question in questions_json:
+                    if question["section"] == section and question["question"] == question_key:
+                        question["answer"] = response
+        else:
+            if not question_exists:
+                # Add the current question to the saved answers
+                questions_json.append(question_data)
+            else:
+                # Update the saved answers with the current question
+                for question in questions_json:
+                    if question["section"] == section and question["question"] == question_key:
+                        question["answer"] = response
+
+        save_current_session(
+            questions=questions_json, session_directory=SESSIONS_DIR,
+            token=st.session_state['token'])
+
+
+@st.fragment
+def submit():
+    save_current_session(
+        questions=st.session_state['saved_answers']['questions'],
+        session_directory=SESSIONS_SUBMITTED_DIR, token=st.session_state['token'],
+        multi=True)
+    st.session_state['submitted'] = True
+
+
 def show_content():
     tab_questions = None
     tab_visu = None
@@ -164,17 +266,6 @@ def show_content():
         tab_questions = st.tabs(["Questions"])[0]
 
     with tab_questions:
-        # User choice: new session or continue previous one
-        # if session_list:
-        #     session_choice = st.selectbox(label="Select a previous session to load it.",
-        #                                   options=session_list, index=None, placeholder="Select a session")
-        #     if session_choice:
-        #         session_choice = session_choice + ".json"
-
-        # User name
-        # name_user = st.text_input(label="Enter your name", placeholder="Name",
-        #                           value=session_choice.split("-")[1] if session_choice else "")
-
         if 'first_email_run' not in st.session_state:
             st.session_state['first_email_run'] = False
 
@@ -254,11 +345,9 @@ def show_content():
 
         st.markdown("---")
 
-        # Load previous answers if available
-        saved_answers = load_session(session_directory=SESSIONS_DIR,
-                                     token=st.session_state['token'])
-        if saved_answers is None:
-            saved_answers = {'questions': []}
+        if 'saved_answers' not in st.session_state:
+            st.session_state['saved_answers'] = load_session(
+                session_directory=SESSIONS_DIR, token=st.session_state['token'])
 
         # Regrouper les questions par section
         sections = get_questions_by_section_and_subsection(
@@ -275,111 +364,27 @@ def show_content():
 
                     # Loop through each question in the section
                     for question_data in questions:
-                        with st.container(key=f"{section}-{question_number}"):
-                            border_left_red(f"{section}-{question_number}")
-                            question_key = question_data['question']
-                            st.markdown(
-                                f"##### {question_number}. {question_data.get('question_head')}: {question_key}")
-                            st.write(question_data['helper_text'])
-
-                            # Populate answers from saved session if available
-                            questions_json = saved_answers.get('questions', [])
-                            saved_answer = next(
-                                (question["answer"] for question in questions_json
-                                 if question["section"] == section and question["question"] == question_key),
-                                None)
-
-                            # Générer le champ correspondant au type de réponse attendu
-                            response = None
-                            if question_data.get('allowed_values'):
-                                if question_data.get('multiselect'):
-                                    response = st.multiselect(
-                                        label=question_key, label_visibility="collapsed",
-                                        options=question_data['allowed_values'],
-                                        default=saved_answer if saved_answer else [],
-                                        placeholder="Select a single or several options")
-
-                                else:
-                                    response = st.selectbox(
-                                        label=question_key, label_visibility="collapsed",
-                                        options=question_data['allowed_values'],
-                                        index=question_data['allowed_values'].index(saved_answer)
-                                        if saved_answer in question_data['allowed_values'] else None,
-                                        placeholder="Select an option")
-                            else:
-                                if question_data['response_type'] == "short_text":
-                                    response = st.text_input(
-                                        label=question_key, label_visibility="collapsed",
-                                        placeholder="Enter a response", value=saved_answer if saved_answer else None)
-                                elif question_data['response_type'] == "long_text":
-                                    response = st.text_area(
-                                        label=question_key, label_visibility="collapsed",
-                                        placeholder="Enter a response", value=saved_answer if saved_answer else None)
-                                elif question_data['response_type'] == "numeric":
-                                    response = st.number_input(
-                                        label=question_key, label_visibility="collapsed", value=saved_answer
-                                        if saved_answer else None, min_value=question_data.get('min_value', None),
-                                        max_value=question_data.get('max_value', None),
-                                        placeholder="Enter a number")
-                                elif question_data['response_type'] == "range":
-                                    response = st.slider(
-                                        label=question_key, label_visibility="collapsed", value=saved_answer
-                                        if saved_answer else None, min_value=question_data.get('min_value', None),
-                                        max_value=question_data.get('max_value', None),
-                                        placeholder="Select a range")
-                            # Update the original JSON structure with the captured answer
-                            question_data['answer'] = response
-
-                            # check if question is in questions_json
-                            question_exists = next(
-                                (question for question in questions_json
-                                    if question["section"] == section and question["question"] == question_key),
-                                None)
-
-                            # Si la question est obligatoire
-                            if question_data.get(
-                                    "required", True) and (
-                                    response is None or response == "" or response == []):
-                                st.write(":red[*Required]")
-                                if question_exists:
-                                    # Update the saved answers with the current question
-                                    for question in questions_json:
-                                        if question["section"] == section and question["question"] == question_key:
-                                            question["answer"] = response
-                            else:
-                                if not question_exists:
-                                    # Add the current question to the saved answers
-                                    questions_json.append(question_data)
-                                else:
-                                    # Update the saved answers with the current question
-                                    for question in questions_json:
-                                        if question["section"] == section and question["question"] == question_key:
-                                            question["answer"] = response
-
-                                save_current_session(
-                                    questions=questions_json, session_directory=SESSIONS_DIR,
-                                    token=st.session_state['token'])
-
-                            question_number += 1
+                        question_component(section, question_number, question_data)
+                        question_number += 1
                     st.markdown("---")
 
-        saved_answers = load_session(session_directory=SESSIONS_DIR,
-                                     token=st.session_state['token'])
+        st.session_state['saved_answers'] = load_session(session_directory=SESSIONS_DIR,
+                                                         token=st.session_state['token'])
         # Submit button will only be enabled if all required answers are filled
         submit_disabled = not all_required_answered(
-            saved_answers['questions'])
+            answer_questions=st.session_state['saved_answers']['questions'], conf_questions=json_questions['questions'])
 
         # Bouton de soumission (disabled if not all required fields are filled)
         st.write(
             "Submit the form once completed. Please note that after submission, the form can no longer be edited.")
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            if st.button("Submit", disabled=submit_disabled, type="primary", use_container_width=True):
-                save_current_session(
-                    questions=saved_answers['questions'],
-                    session_directory=SESSIONS_SUBMITTED_DIR, token=st.session_state['token'],
-                    multi=True)
-                st.success("Form successfully submitted!")
+            st.button("Submit", disabled=submit_disabled, type="primary",
+                      use_container_width=True, key="submit", on_click=submit)
+            if 'submitted' in st.session_state:
+                st.success("Form submitted successfully.")
+                del st.session_state['submitted']
+
     if params['results_visible']:
         with tab_visu:
             st.write("## Viewing submitted sessions")
