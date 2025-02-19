@@ -33,13 +33,14 @@ class PMOTable(Etable):
     NAME_COLUMN_STATUS = "Status"
     NAME_COLUMN_ACTIVE = "Active"
     NAME_COLUMN_UNIQUE_ID = "ID"
+    NAME_COLUMN_DELETE = "Delete"
     DEFAULT_COLUMNS_LIST = [NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MISSION_REFEREE, NAME_COLUMN_TEAM_MEMBERS, NAME_COLUMN_START_DATE,
-                            NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY, NAME_COLUMN_PROGRESS, NAME_COLUMN_COMMENTS, NAME_COLUMN_VISIBILITY]
+                            NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY, NAME_COLUMN_PROGRESS, NAME_COLUMN_COMMENTS, NAME_COLUMN_VISIBILITY, NAME_COLUMN_DELETE]
     # Constants for height calculation
     ROW_HEIGHT = 35  # Height per row in pixels
     HEADER_HEIGHT = 38  # Height for the header in pixels
 
-    def __init__(self, json_path=None, folder_project_plan=None, folder_details=None, missions_order=[], folder_change_log=None):
+    def __init__(self, json_path=None, folder_project_plan=None, folder_details=None, missions_order=[], folder_change_log=None, dynamic_df = "dynamic"):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
@@ -71,13 +72,14 @@ class PMOTable(Etable):
             self.NAME_COLUMN_COMMENTS: self.TEXT,
             self.NAME_COLUMN_VISIBILITY: self.TEXT,
             self.NAME_COLUMN_ACTIVE: self.BOOLEAN,
-            self.NAME_COLUMN_UNIQUE_ID: self.TEXT
+            self.NAME_COLUMN_UNIQUE_ID: self.TEXT,
+            self.NAME_COLUMN_DELETE: self.BOOLEAN
         }
         self.df = self.validate_columns(self.df)
         self.df_example = pd.DataFrame({self.NAME_COLUMN_PROJECT_NAME: ["Project 1"],self.NAME_COLUMN_MISSION_NAME: ["Mission 1"],self.NAME_COLUMN_MISSION_REFEREE: ["Person1"],
                             self.NAME_COLUMN_TEAM_MEMBERS: ["Person1, Person2"],self.NAME_COLUMN_START_DATE: "", self.NAME_COLUMN_END_DATE: "",self.NAME_COLUMN_MILESTONES: ["- step 1"],
                             self.NAME_COLUMN_STATUS: ["📝 Todo"],self.NAME_COLUMN_PRIORITY: ["🔴 High"],self.NAME_COLUMN_PROGRESS: [0],
-                            self.NAME_COLUMN_COMMENTS: [""],self.NAME_COLUMN_VISIBILITY: [""],self.NAME_COLUMN_ACTIVE: [False],self.NAME_COLUMN_UNIQUE_ID: [StringHelper.generate_uuid()]})
+                            self.NAME_COLUMN_COMMENTS: [""],self.NAME_COLUMN_VISIBILITY: [""],self.NAME_COLUMN_ACTIVE: [False],self.NAME_COLUMN_UNIQUE_ID: [StringHelper.generate_uuid()], self.NAME_COLUMN_DELETE : [False]})
         self.tab_widgets = {
             # Base tab widget
             "Table": self.display_project_plan_tab,
@@ -90,6 +92,8 @@ class PMOTable(Etable):
         self.edition = True
         self.choice_project_plan = None
         self.original_project_plan_df = None
+        #By default, we allow user to add rows to the dataframe Project Plan
+        self.dynamic_df = dynamic_df
         if "active_project_plan" not in st.session_state:
             st.session_state.active_project_plan = self.df.copy()
 
@@ -134,6 +138,8 @@ class PMOTable(Etable):
         ### Identify rows where 'status' has changed
         if "level_0" in new_df.columns:
             new_df.set_index("level_0", inplace=True)
+        if "index" in new_df.columns:
+            new_df.set_index("index", inplace=True)
 
         # Ensure old_df contains all indices from new_df
         missing_indices = new_df.index.difference(old_df.index)
@@ -242,8 +248,10 @@ class PMOTable(Etable):
                                                                                   '', 'None'], 'nan')
         df[self.NAME_COLUMN_UNIQUE_ID] = df[self.NAME_COLUMN_UNIQUE_ID].replace([
                                                                                 '', 'None'], 'nan')
-        # Set active to False if empty
+        # Set active and delete to False if empty
         df[self.NAME_COLUMN_ACTIVE] = df[self.NAME_COLUMN_ACTIVE].replace(
+            '', False)
+        df[self.NAME_COLUMN_DELETE] = df[self.NAME_COLUMN_DELETE].replace(
             '', False)
         # Convert None to pd.NaT
         df[self.NAME_COLUMN_START_DATE] = df[self.NAME_COLUMN_START_DATE].apply(
@@ -474,10 +482,13 @@ class PMOTable(Etable):
         if st.session_state.editor["edited_rows"]:
             for row in st.session_state.editor["edited_rows"]:
                 row_index = self.get_index(row)
-
+                
                 for key, value in st.session_state.editor["edited_rows"][row].items():
                     st.session_state["active_project_plan"].at[row_index, key] = value
-
+                    #For rows where the column delete is true, then we add the index to st.session_state.editor["deleted_rows"]
+                    # in order that these rows will be deleted just after
+                    if key == self.NAME_COLUMN_DELETE and value == True:
+                        st.session_state.editor["deleted_rows"].append(int(row))
         # Check if added_rows is not empty
         if st.session_state.editor["added_rows"]:
             for row in st.session_state.editor["added_rows"]:
@@ -576,14 +587,16 @@ class PMOTable(Etable):
                     label=PMOTable.NAME_COLUMN_PROJECT_NAME, placeholder=PMOTable.NAME_COLUMN_PROJECT_NAME)
                 selected_regex_filter_mission_name = st.text_input(
                     label=PMOTable.NAME_COLUMN_MISSION_NAME, placeholder=PMOTable.NAME_COLUMN_MISSION_NAME)
-                selected_mission_referee: str = st.selectbox(label=PMOTable.NAME_COLUMN_MISSION_REFEREE, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_MISSION_REFEREE].unique(
-                ), index=None, placeholder=PMOTable.NAME_COLUMN_MISSION_REFEREE)
+                selected_mission_referee: str = st.multiselect(label=PMOTable.NAME_COLUMN_MISSION_REFEREE, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_MISSION_REFEREE].unique(
+                ), default=None, placeholder=PMOTable.NAME_COLUMN_MISSION_REFEREE)
                 selected_regex_filter_team_members = st.text_input(
                     label=PMOTable.NAME_COLUMN_TEAM_MEMBERS, placeholder=PMOTable.NAME_COLUMN_TEAM_MEMBERS)
-                selected_status: str = st.selectbox(label=PMOTable.NAME_COLUMN_STATUS, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_STATUS].unique(
-                ), index=None, placeholder=PMOTable.NAME_COLUMN_STATUS)
-                selected_priority: str = st.selectbox(label=PMOTable.NAME_COLUMN_PRIORITY, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_PRIORITY].unique(
-                ), index=None, placeholder=PMOTable.NAME_COLUMN_PRIORITY)
+                options = st.session_state.active_project_plan[PMOTable.NAME_COLUMN_STATUS].unique()
+                #We want to remove "☑️ Closed" if it exists to the default options:
+                default_options = [opt for opt in options if opt != "☑️ Closed"]
+                selected_status: str = st.multiselect(label=PMOTable.NAME_COLUMN_STATUS, options=options, placeholder=PMOTable.NAME_COLUMN_STATUS, default = default_options)
+                selected_priority: str = st.multiselect(label=PMOTable.NAME_COLUMN_PRIORITY, options=st.session_state.active_project_plan[PMOTable.NAME_COLUMN_PRIORITY].unique(
+                ), default=None, placeholder=PMOTable.NAME_COLUMN_PRIORITY)
 
             # Set edition to False and mark the project plan as inactive if any filter is applied
             if any([selected_regex_filter_project_name, selected_regex_filter_mission_name, selected_mission_referee, selected_regex_filter_team_members, selected_status, selected_priority]):
@@ -599,18 +612,18 @@ class PMOTable(Etable):
             if selected_regex_filter_mission_name:
                 filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_MISSION_NAME].str.contains(
                     selected_regex_filter_mission_name, case=False)
-            if selected_mission_referee is not None:
-                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_MISSION_REFEREE].isin([
-                                                                                                                       selected_mission_referee])
+            if selected_mission_referee:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_MISSION_REFEREE].isin(
+                                                                                                                       selected_mission_referee)
             if selected_regex_filter_team_members:
                 filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_TEAM_MEMBERS].str.contains(
                     selected_regex_filter_team_members, case=False)
-            if selected_status is not None:
-                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_STATUS].isin([
-                                                                                                              selected_status])
-            if selected_priority is not None:
-                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_PRIORITY].isin([
-                                                                                                                selected_priority])
+            if selected_status:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_STATUS].isin(
+                                                                                                              selected_status)
+            if selected_priority:
+                filter_condition &= st.session_state["active_project_plan"][PMOTable.NAME_COLUMN_PRIORITY].isin(
+                                                                                                                selected_priority)
 
             # Apply the combined filter to mark rows as active
             st.session_state["active_project_plan"].loc[filter_condition,
@@ -646,7 +659,7 @@ class PMOTable(Etable):
         st.session_state["df_to_save"] = st.session_state["active_project_plan"].copy(
         )
         # Show the dataframe and make it editable
-        self.df = st.data_editor(self.active_project_plan().reset_index(), column_order=self.DEFAULT_COLUMNS_LIST, use_container_width=True, hide_index=True, key="editor", num_rows="dynamic", height=self.calculate_height(),
+        self.df = st.data_editor(self.active_project_plan().reset_index(), column_order=self.DEFAULT_COLUMNS_LIST, use_container_width=True, hide_index=True, key="editor", num_rows=self.dynamic_df, height=self.calculate_height(),
                                  column_config={
             self.NAME_COLUMN_START_DATE: st.column_config.DateColumn(self.NAME_COLUMN_START_DATE, format="DD MM YYYY"),
             self.NAME_COLUMN_END_DATE: st.column_config.DateColumn(self.NAME_COLUMN_END_DATE, format="DD MM YYYY"),
@@ -660,7 +673,8 @@ class PMOTable(Etable):
                 options=[
                     "🔴 High",
                     "🟡 Medium",
-                    "🟢 Low"])
+                    "🟢 Low"]),
+            self.NAME_COLUMN_DELETE: st.column_config.CheckboxColumn(default=False)
         })
 
         if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
@@ -698,7 +712,13 @@ class PMOTable(Etable):
         with st_fixed_container(mode="sticky", position="bottom", border=False, transparent=False):
             cols = st.columns([1, 2])
             with cols[0]:
-                if st.button("Save changes", use_container_width=False, icon=":material/save:"):
+                #if at least there is one True in the column delete, we change the name of the button to inform the user
+                # that rows will be deleted
+                if self.df[self.NAME_COLUMN_DELETE].any():
+                    name_button = "Delete selected and save"
+                else:
+                    name_button = "Save changes"
+                if st.button(name_button, use_container_width=False, icon=":material/save:"):
                     self.df = self.fill_na_df(self.df)
                     self.track_and_log_status(old_df=self.active_project_plan(), new_df=self.df)
                     self.commit()
@@ -737,9 +757,8 @@ class PMOTable(Etable):
         if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
             st.warning("Please save your project plan first")
         else:
-            self.df = self.validate_columns(self.df)
             # Sort the DataFrame
-            df_closed_projects = self.df[self.df[self.NAME_COLUMN_STATUS] == "☑️ Closed"].copy(
+            df_closed_projects = st.session_state["active_project_plan"][st.session_state["active_project_plan"][self.NAME_COLUMN_STATUS] == "☑️ Closed"].copy(
             )
             if not df_closed_projects.empty:
                 if "index" in df_closed_projects.columns:
