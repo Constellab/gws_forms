@@ -1,13 +1,15 @@
 import json
 import os
 import io
+import pytz
 from datetime import datetime, timedelta
+from typing import Any, Literal, Optional
+from abc import abstractmethod
+from PIL import Image
 import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from PIL import Image
-import pytz
 from gws_forms.e_table.e_table import Etable
 from gws_forms.dashboard_pmo._dashboard_code.container.container import st_fixed_container
 from gws_core.streamlit import rich_text_editor
@@ -15,6 +17,24 @@ from gws_core import RichText, StringHelper
 
 # Code inspired by this tutorial : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
 
+
+class Event:
+    def __init__(self, event_type: Literal['create_line', 'delete_line', 'update_line'], data: Any = None):
+        self.event_type = event_type
+        self.data = data
+
+
+class EventLine(Event):
+    def __init__(self, event_type: Literal['create_line', 'delete_line', 'update_line'], data: Optional[pd.Series] = None, line_number: int = 0):
+        super().__init__(event_type, data)
+        self.line_number = line_number  # Store row index
+
+
+class MessageObserver:
+    @abstractmethod
+    def update(self, event: Event) -> bool:
+        """Method called when a message is dispatched"""
+        pass
 
 class PMOTable(Etable):
 
@@ -209,6 +229,10 @@ class PMOTable(Etable):
             for new_entry_log in st.session_state.status_change_log:
                 if new_entry_log not in st.session_state.status_change_json:
                     st.session_state.status_change_json.append(new_entry_log)
+            for entry in st.session_state.status_change_json:
+                if isinstance(entry["status_before"], pd.Series):
+                    entry["status_before"] = entry["status_before"].to_string()
+
             with open(self.file_path_change_log, 'w', encoding="utf-8") as f:
                 f.write(json.dumps(st.session_state.status_change_json,
                         indent=4, ensure_ascii=False))
@@ -408,33 +432,36 @@ class PMOTable(Etable):
             for new_entry_log in st.session_state.status_change_log:
                 if new_entry_log not in st.session_state.status_change_json:
                     st.session_state.status_change_json.append(new_entry_log)
+            for entry in st.session_state.status_change_json:
+                if isinstance(entry["status_before"], pd.Series):
+                    entry["status_before"] = entry["status_before"].to_string()
             with open(self.file_path_change_log, 'w', encoding="utf-8") as f:
                 f.write(json.dumps(st.session_state.status_change_json,
                         indent=4, ensure_ascii=False))
 
-        # Filter rows in order to show "In progress", "Todo" before "Done" and "Closed" -> for a better use
-        # group by project name
-        # Define the custom order for the "status" column
-        status_order = {"📈 In progress": 0,
-                        "📝 Todo": 1, "✅ Done": 2, "☑️ Closed": 3}
+            # Filter rows in order to show "In progress", "Todo" before "Done" and "Closed" -> for a better use
+            # group by project name
+            # Define the custom order for the "status" column
+            status_order = {"📈 In progress": 0,
+                            "📝 Todo": 1, "✅ Done": 2, "☑️ Closed": 3}
 
-        # Create a temporary column for the sort order based on "status"
-        df["status_order"] = df[self.NAME_COLUMN_STATUS].map(status_order)
+            # Create a temporary column for the sort order based on "status"
+            df["status_order"] = df[self.NAME_COLUMN_STATUS].map(status_order)
 
-        # Sort the DataFrame
-        df = (
-            df.sort_values(by=[self.NAME_COLUMN_PROJECT_NAME, "status_order"])
-            # Group by project_name
-            .groupby(self.NAME_COLUMN_PROJECT_NAME, group_keys=False)
-            # Sort within each group
-            .apply(lambda group: group.sort_values("status_order"))
-        )
+            # Sort the DataFrame
+            df = (
+                df.sort_values(by=[self.NAME_COLUMN_PROJECT_NAME, "status_order"])
+                # Group by project_name
+                .groupby(self.NAME_COLUMN_PROJECT_NAME, group_keys=False)
+                # Sort within each group
+                .apply(lambda group: group.sort_values("status_order"))
+            )
 
-        # Drop the temporary column if no longer needed
-        df = df.drop(columns=["status_order"])
+            # Drop the temporary column if no longer needed
+            df = df.drop(columns=["status_order"])
 
-        # Reset index
-        df = df.reset_index(drop=True)
+            # Reset index
+            df = df.reset_index(drop=True)
 
         return df
 
@@ -482,7 +509,7 @@ class PMOTable(Etable):
         if st.session_state.editor["edited_rows"]:
             for row in st.session_state.editor["edited_rows"]:
                 row_index = self.get_index(row)
-                
+
                 for key, value in st.session_state.editor["edited_rows"][row].items():
                     st.session_state["active_project_plan"].at[row_index, key] = value
                     #For rows where the column delete is true, then we add the index to st.session_state.editor["deleted_rows"]
@@ -555,32 +582,56 @@ class PMOTable(Etable):
                                 uploaded_file)
                             st.session_state.active_project_plan = self.validate_columns(
                                 st.session_state.active_project_plan)
+                            # Save dataframe in the folder
+                            timestamp = datetime.now(tz=pytz.timezone(
+                                'Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M")
+                            path_csv = os.path.join(
+                                self.folder_project_plan, f"{timestamp}.csv")
+                            path_json = os.path.join(
+                                self.folder_project_plan, f"{timestamp}.json")
+                            st.session_state.active_project_plan.to_csv(
+                                path_csv, index=False)
+                            with open(path_json, 'w', encoding='utf-8') as f:
+                                json.dump(st.session_state.active_project_plan.to_json(
+                                    orient="records", indent=2), f, ensure_ascii=False, indent=4)
                         else:
                             st.warning('You need to upload a csv file.')
                             st.session_state.active_project_plan = self.df_example
                             st.session_state.active_project_plan = self.validate_columns(
                                 st.session_state.active_project_plan)
+                            # Save dataframe in the folder
+                            timestamp = datetime.now(tz=pytz.timezone(
+                                'Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M")
+                            path_csv = os.path.join(
+                                self.folder_project_plan, f"{timestamp}.csv")
+                            path_json = os.path.join(
+                                self.folder_project_plan, f"{timestamp}.json")
+                            st.session_state.active_project_plan.to_csv(
+                                path_csv, index=False)
+                            with open(path_json, 'w', encoding='utf-8') as f:
+                                json.dump(st.session_state.active_project_plan.to_json(
+                                    orient="records", indent=2), f, ensure_ascii=False, indent=4)
                 else:
                     st.session_state.active_project_plan = self.df_example
                     st.session_state.active_project_plan = self.validate_columns(
                                 st.session_state.active_project_plan)
+                    # Save dataframe in the folder
+                    timestamp = datetime.now(tz=pytz.timezone(
+                        'Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M")
+                    path_csv = os.path.join(
+                        self.folder_project_plan, f"{timestamp}.csv")
+                    path_json = os.path.join(
+                        self.folder_project_plan, f"{timestamp}.json")
+                    st.session_state.active_project_plan.to_csv(
+                        path_csv, index=False)
+                    with open(path_json, 'w', encoding='utf-8') as f:
+                        json.dump(st.session_state.active_project_plan.to_json(
+                            orient="records", indent=2), f, ensure_ascii=False, indent=4)
 
         self.original_project_plan_df = st.session_state.active_project_plan.copy()
 
         with st.sidebar:
-            st.write("**Filtering/Sortering**")
-            # Sortering
-            with st.expander('Sort', icon=":material/swap_vert:"):
-                selected_column_order: str = st.selectbox(label="Select the column to sort", options=[
-                                                          col for col in st.session_state["active_project_plan"].columns if col in self.DEFAULT_COLUMNS_LIST], index=0, placeholder="Select a column")
-                selected_order = st.selectbox(label="Sort", options=[
-                                              "A-Z", "Z-A"], index=0, placeholder="Select a sort")
-            if selected_order == "A-Z":
-                st.session_state["active_project_plan"] = st.session_state["active_project_plan"].sort_values(
-                    by=selected_column_order).reset_index(drop=True)
-            elif selected_order == "Z-A":
-                st.session_state["active_project_plan"] = st.session_state["active_project_plan"].sort_values(
-                    by=selected_column_order, ascending=False).reset_index(drop=True)
+            st.write("**Filtering**")
             # Filtering
             with st.expander('Filter', icon=":material/filter_alt:"):
                 selected_regex_filter_project_name = st.text_input(
@@ -629,7 +680,7 @@ class PMOTable(Etable):
             st.session_state["active_project_plan"].loc[filter_condition,
                                                         self.NAME_COLUMN_ACTIVE] = True
 
-    def display_project_plan_tab(self):
+    def display_project_plan_tab(self, observer: Optional[MessageObserver] = None):
         """Display the DataFrame in Streamlit tabs."""
 
         # Custom css
@@ -680,7 +731,7 @@ class PMOTable(Etable):
         if not self.active_project_plan()[self.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True).equals(self.df[self.DEFAULT_COLUMNS_LIST]):
             with st.sidebar:
                 self.placeholder_warning_filtering.error(
-                    "Save your project plan before filtering/sorting.", icon="🚨")
+                    "Save your project plan before filtering.", icon="🚨")
 
         if self.choice_project_plan != "Load":
             # Add a template screenshot as an example
@@ -723,9 +774,9 @@ class PMOTable(Etable):
                     self.track_and_log_status(old_df=self.active_project_plan(), new_df=self.df)
                     self.commit()
                     self.df = self.validate_columns(self.df)
+                    st.session_state["active_project_plan"] = self.validate_columns(
+                        st.session_state["active_project_plan"])
                     st.session_state["df_to_save"] = st.session_state["active_project_plan"].copy()
-                    st.session_state["df_to_save"] = self.validate_columns(
-                        st.session_state["df_to_save"])
                     # Save dataframe in the folder
                     timestamp = datetime.now(tz=pytz.timezone(
                         'Europe/Paris')).strftime(f"plan_%Y-%m-%d-%Hh%M")
@@ -739,6 +790,12 @@ class PMOTable(Etable):
                     with open(path_json, 'w', encoding='utf-8') as f:
                         json.dump(st.session_state["df_to_save"].to_json(
                             orient="records", indent=2), f, ensure_ascii=False, indent=4)
+
+                    # Apply the observer -> Update tag folder
+                    if observer :
+                        check = observer.update(EventLine(event_type='update_line'))
+                        if not check:
+                            raise Exception ("Something got wrong, close the app and try again.")
                     st.session_state["show_success_project_plan"] = True
                     st.rerun()
             with cols[1]:
@@ -967,7 +1024,7 @@ class PMOTable(Etable):
                 st.warning(
                     f"Please complete the {self.NAME_COLUMN_PROJECT_NAME} column first")
 
-    def display_todo_tab(self):
+    def display_todo_tab(self, observer: Optional[MessageObserver] = None):
         if "df_to_save" not in st.session_state:
             st.session_state.df_to_save = PMOTable().df
         if "active_project_plan" not in st.session_state:
@@ -1060,6 +1117,11 @@ class PMOTable(Etable):
                                 self.folder_project_plan, timestamp)
                             st.session_state["df_to_save"].to_csv(
                                 path, index=False)
+                            # Apply the observer -> Update tag folder
+                            if observer :
+                                check = observer.update(EventLine(event_type='update_line'))
+                                if not check:
+                                    raise Exception ("Something got wrong, close the app and try again.")
                             st.session_state["show_success_todo"] = True
                             st.rerun()
                     with cols[1]:
