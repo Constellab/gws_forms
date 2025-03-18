@@ -105,8 +105,8 @@ class PMOTable(Etable):
             "Table": self.display_project_plan_tab,
             "Closed projects": self.display_project_plan_closed_tab,
             "Gantt": self.display_gantt_tab,
-            "Plot overview": self.display_plot_overview_tab,
-            "Details": self.display_details_tab,
+            "KPIs": self.display_plot_overview_tab,
+            "Notes": self.display_details_tab,
             "Todo": self.display_todo_tab
         }
         self.edition = True
@@ -633,7 +633,7 @@ class PMOTable(Etable):
         with st.sidebar:
             st.write("**Filtering**")
             # Filtering
-            with st.expander('Filter', icon=":material/filter_alt:"):
+            with st.expander('Filter', icon=":material/filter_alt:", expanded = True):
                 selected_regex_filter_project_name = st.text_input(
                     label=PMOTable.NAME_COLUMN_PROJECT_NAME, placeholder=PMOTable.NAME_COLUMN_PROJECT_NAME)
                 selected_regex_filter_mission_name = st.text_input(

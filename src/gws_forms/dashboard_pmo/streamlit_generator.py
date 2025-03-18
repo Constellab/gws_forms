@@ -43,7 +43,7 @@ class StreamlitPMOGenerator(Task):
             folder_project_plan, create_new_resource=True)
 
         folder_details: Folder = Folder(self.create_tmp_dir())
-        folder_details.name = "Details"
+        folder_details.name = "Notes"
         streamlit_resource.add_resource(
             folder_details, create_new_resource=True)
 
