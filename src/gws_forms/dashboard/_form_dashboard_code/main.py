@@ -37,7 +37,7 @@ def border_left_red(component: str):
 st.image(image=params['banner'])
 
 st.title(params['title'])
-
+st.markdown(params['description'])
 
 # Fonction pour regrouper les questions par section et sous-section
 

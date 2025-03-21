@@ -4,7 +4,7 @@ import os
 from gws_core import (BoolParam, ConfigParams, ConfigSpecs, Dashboard,
                       DashboardType, File, Folder, InputSpec, InputSpecs,
                       JSONDict, OutputSpec, OutputSpecs, StreamlitResource,
-                      StrParam, Task, TaskInputs, TaskOutputs, Text,
+                      StrParam, Task, TaskInputs, TaskOutputs, Text, TextParam,
                       TypingStyle, dashboard_decorator, task_decorator)
 
 
@@ -47,6 +47,10 @@ class StreamlitFormsDashbaordGenerator(Task):
         'title': StrParam(
             human_name="Title",
             short_description="Title of the form",
+            optional=False),
+        'description': TextParam(
+            human_name="Description",
+            short_description="Description of the form",
             optional=False),
         'results_visible':
         BoolParam(
