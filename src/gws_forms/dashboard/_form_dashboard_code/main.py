@@ -42,21 +42,13 @@ st.title(params['title'])
 # Fonction pour regrouper les questions par section et sous-section
 
 
-def get_questions_by_section_and_subsection(questions):
+def get_questions_by_section(questions):
     sections = {}
     for question in questions:
         section = question['section']
-        subsection = question.get('subsection', None)
         if section not in sections:
-            sections[section] = {}
-        if subsection:
-            if subsection not in sections[section]:
-                sections[section][subsection] = []
-            sections[section][subsection].append(question)
-        else:
-            if None not in sections[section]:
-                sections[section][None] = []
-            sections[section][None].append(question)
+            sections[section] = []
+        sections[section].append(question)
     return sections
 
 
@@ -122,7 +114,7 @@ def send_mail(email: str, token: int):
         },
         subject=f"Form {params['title']} - Session token"
     )
-    SpaceService.send_mail_to_mails(mail_data)
+    SpaceService.get_instance().send_mail_to_mails(mail_data)
 
 
 def store_session_token(email: str, token: int):
@@ -350,23 +342,19 @@ def show_content():
                 session_directory=SESSIONS_DIR, token=st.session_state['token'])
 
         # Regrouper les questions par section
-        sections = get_questions_by_section_and_subsection(
+        sections = get_questions_by_section(
             json_questions['questions'])
 
         question_number = 1
         # Parcourir chaque section et afficher les questions correspondantes
-        for section, subsections in sections.items():
+        for section, questions in sections.items():
             st.header(section)
             with st.expander(section, expanded=True, icon=":material/edit_note:"):
-                for subsection, questions in subsections.items():
-                    if subsection:
-                        st.subheader(subsection)
-
-                    # Loop through each question in the section
-                    for question_data in questions:
-                        question_component(section, question_number, question_data)
-                        question_number += 1
-                    st.markdown("---")
+                # Loop through each question in the section
+                for question_data in questions:
+                    question_component(section, question_number, question_data)
+                    question_number += 1
+                st.markdown("---")
 
         st.session_state['saved_answers'] = load_session(session_directory=SESSIONS_DIR,
                                                          token=st.session_state['token'])
