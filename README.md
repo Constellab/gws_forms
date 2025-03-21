@@ -18,7 +18,7 @@
 
 ## ✅ Features
 
-Here’s what `gws_forms` brings ools to generate interactive form or project dashboards
+Here’s what `gws_forms` brings tools to generate interactive form or project dashboards
 
 Whether you're building survey tools, diagnostic forms, project trackers, or interactive dashboards — `gws_forms` gives you the building blocks to do it quickly and efficiently.
 
