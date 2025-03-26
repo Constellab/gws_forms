@@ -9,7 +9,7 @@ class Etable:
     CATEGORICAL = "categorical"
     BOOLEAN = "boolean"
 
-    def __init__(self, json_path=None):
+    def __init__(self, json_path : str = None):
         self.json_path = json_path
         if self.json_path:
             self.json_data = self._load_json()
@@ -43,12 +43,8 @@ class Etable:
                 df[column] = df[column].astype("category")
         return df
 
-    def update_row(self, index, column, value):
-        """Update a cell in the DataFrame."""
-        if column in self.df.columns:
-            self.df.at[index, column] = value
 
-    def download(self, file_format="csv"):
+    def download(self, file_format : str ="csv"):
         """Download the DataFrame as CSV or JSON."""
         if file_format == "csv":
             return self.df.to_csv(index=False)
