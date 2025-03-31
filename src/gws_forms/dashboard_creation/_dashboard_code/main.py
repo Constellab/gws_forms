@@ -1,7 +1,7 @@
 import os
 import json
 import streamlit as st
-from gws_forms.dashboard._dashboard_code.session_management.session_functions import list_sessions, load_session, save_current_session
+from gws_forms.dashboard_creation._dashboard_code.session_management.session_functions import list_sessions, load_session, save_current_session
 from gws_core import JSONDict, ResourceModel, FrontService
 from gws_core.resource.resource_dto import ResourceOrigin
 
