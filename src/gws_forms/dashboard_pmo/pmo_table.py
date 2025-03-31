@@ -6,9 +6,9 @@ from abc import abstractmethod
 from enum import Enum
 import pytz
 import pandas as pd
-import streamlit as st
 from gws_forms.e_table.e_table import Etable
 from gws_forms.dashboard_pmo.pmo_state import PMOState
+from gws_forms.dashboard_pmo.streamlit_data_editor import StreamlitDataEditor
 from gws_core import StringHelper
 
 # Code inspired by this tutorial : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
@@ -126,6 +126,7 @@ class PMOTable(Etable):
         #By default, we allow user to add rows to the dataframe Project Plan
         self.dynamic_df = dynamic_df
         self.placeholder_warning_filtering = None
+        self.streamlit_data_editor = StreamlitDataEditor()
 
     # Function to calculate progress
     def calculate_progress(self, row : pd.Series) -> float:
@@ -440,30 +441,11 @@ class PMOTable(Etable):
         return self.pmo_state.active_project_plan(self.df, self.NAME_COLUMN_ACTIVE).iloc[row].name
 
     def commit(self) -> None:
-        # Check if edited_rows is not empty
-        if st.session_state.editor["edited_rows"]:
-            for row in st.session_state.editor["edited_rows"]:
-                row_index = self.get_index(row)
-
-                for key, value in st.session_state.editor["edited_rows"][row].items():
-                    self.pmo_state.get_active_project_plan().at[row_index, key] = value
-                    #For rows where the column delete is true, then we add the index to st.session_state.editor["deleted_rows"]
-                    # in order that these rows will be deleted just after
-                    if key == self.NAME_COLUMN_DELETE and value == True:
-                        st.session_state.editor["deleted_rows"].append(int(row))
-        # Check if added_rows is not empty
-        if st.session_state.editor["added_rows"]:
-            for row in st.session_state.editor["added_rows"]:
-                row_index = len(self.pmo_state.get_active_project_plan())
-
-                for key, value in row.items():
-                    self.pmo_state.get_active_project_plan().at[row_index, key] = value
-
+        # Apply edits, additions, and deletions
+        dataframe_to_modify = self.streamlit_data_editor.process_changes(dataframe_to_modify = self.pmo_state.get_active_project_plan(),
+                                                                        dataframe_displayed = self.pmo_state.active_project_plan(self.df, self.NAME_COLUMN_ACTIVE),
+                                                                        handle_deleted_rows = True,
+                                                                        column_deleted=self.NAME_COLUMN_DELETE)
         # Check if deleted_rows is not empty
-        if st.session_state.editor["deleted_rows"]:
-            rows_to_delete = []
-            for row in st.session_state.editor["deleted_rows"]:
-                row_index = self.get_index(row)
-                rows_to_delete.append(row_index)
-            self.pmo_state.set_active_project_plan(self.pmo_state.get_active_project_plan().drop(
-                index=rows_to_delete, inplace=True))
+        if self.streamlit_data_editor.get_deleted_rows():
+            self.pmo_state.set_active_project_plan(dataframe_to_modify)
