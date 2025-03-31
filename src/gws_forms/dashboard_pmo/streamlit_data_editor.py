@@ -14,15 +14,6 @@ class StreamlitDataEditor():
     ADDED_ROWS_KEY = "added_rows"
     DELETED_ROWS_KEY = "deleted_rows"
 
-    def __init__(self):
-        a = None
-        """if self.EDITOR_KEY not in st.session_state:
-            st.session_state.editor = {
-                self.EDITED_ROWS_KEY: {},
-                self.ADDED_ROWS_KEY: [],
-                self.DELETED_ROWS_KEY: []
-            }"""
-
     def get_edited_rows(self) -> Dict[int, Dict[str, Any]]:
         return st.session_state[self.EDITOR_KEY].get(self.EDITED_ROWS_KEY, {})
 
