@@ -42,10 +42,12 @@ def display_sidebar(pmo_table : PMOTable):
                     else:
                         st.warning('You need to upload a csv file.')
                         pmo_table.df = pmo_table.df_example
+                        pmo_table.validate_columns()
                         # Save dataframe in the folder
                         pmo_table.save_df_in_folder()
             else:
                 pmo_table.df = pmo_table.df_example
+                pmo_table.validate_columns()
                 # Save dataframe in the folder
                 pmo_table.save_df_in_folder()
 

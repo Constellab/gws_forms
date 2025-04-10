@@ -146,7 +146,7 @@ class PMOTable(Etable):
                                         self.NAME_COLUMN_START_DATE: datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
                                         self.NAME_COLUMN_END_DATE: "",self.NAME_COLUMN_MILESTONES: ["- step 1"],
                                         self.NAME_COLUMN_STATUS: [Status.TODO.value],self.NAME_COLUMN_PRIORITY: [Priority.HIGH.value],self.NAME_COLUMN_PROGRESS: [0],
-                                        self.NAME_COLUMN_COMMENTS: [""],self.NAME_COLUMN_VISIBILITY: [""],
+                                        self.NAME_COLUMN_COMMENTS: ["/"],self.NAME_COLUMN_VISIBILITY: ["/"],
                                         self.NAME_COLUMN_UNIQUE_ID: [StringHelper.generate_uuid()], self.NAME_COLUMN_DELETE : [False]})
         self.choice_project_plan = None
         #By default, we allow user to add rows to the dataframe Project Plan
@@ -204,7 +204,7 @@ class PMOTable(Etable):
 
     # Function to calculate progress
     def calculate_progress(self, row : pd.Series) -> float:
-        if row[self.NAME_COLUMN_MILESTONES] == "nan" or pd.isna(row[self.NAME_COLUMN_MILESTONES]):
+        if pd.isna(row[self.NAME_COLUMN_MILESTONES]) or row[self.NAME_COLUMN_MILESTONES] == "nan":
             return 0
         # Count the number of steps (total "-"" and "✅")
         total_steps = row[self.NAME_COLUMN_MILESTONES].count(
@@ -298,7 +298,7 @@ class PMOTable(Etable):
             if col_type == self.DATE:
                 self.df[column] = self.df[column].fillna('').astype('datetime64[ns]')
             elif col_type == self.TEXT:
-                self.df[column] = self.df[column].astype(str)
+                self.df[column] = self.df[column].astype("string")
             elif col_type == self.NUMERIC:
                 self.df[column] = self.df[column].astype(float)
             elif col_type == self.BOOLEAN:
@@ -309,23 +309,23 @@ class PMOTable(Etable):
                                                                                       '', 'None', 'nan'], 'No members')
         # Replace empty text columns by 'nan'
         self.df[self.NAME_COLUMN_PROJECT_NAME] = self.df[self.NAME_COLUMN_PROJECT_NAME].replace([
-                                                                                      '', 'None'], 'nan')
+                                                                                      '', 'None'], '/')
         self.df[self.NAME_COLUMN_MISSION_NAME] = self.df[self.NAME_COLUMN_MISSION_NAME].replace([
-                                                                                      '', 'None'], 'nan')
+                                                                                      '', 'None'], '/')
         self.df[self.NAME_COLUMN_MISSION_REFEREE] = self.df[self.NAME_COLUMN_MISSION_REFEREE].replace([
-                                                                                            '', 'None'], 'nan')
+                                                                                            '', 'None'], '/')
         self.df[self.NAME_COLUMN_MILESTONES] = self.df[self.NAME_COLUMN_MILESTONES].replace([
-                                                                                  '', 'None'], 'nan')
+                                                                                  '', 'None'], '/')
         self.df[self.NAME_COLUMN_STATUS] = self.df[self.NAME_COLUMN_STATUS].replace([
                                                                           '', 'None'], 'nan')
         self.df[self.NAME_COLUMN_PRIORITY] = self.df[self.NAME_COLUMN_PRIORITY].replace([
                                                                               '', 'None'], 'nan')
         self.df[self.NAME_COLUMN_COMMENTS] = self.df[self.NAME_COLUMN_COMMENTS].replace([
-                                                                              '', 'None'], 'nan')
+                                                                              '', 'None'], "/")
         self.df[self.NAME_COLUMN_VISIBILITY] = self.df[self.NAME_COLUMN_VISIBILITY].replace([
-                                                                                  '', 'None'], 'nan')
+                                                                                  '', 'None'], "/")
         self.df[self.NAME_COLUMN_UNIQUE_ID] = self.df[self.NAME_COLUMN_UNIQUE_ID].replace([
-                                                                                '', 'None'], 'nan')
+                                                                                '', 'None'], '/')
         # Set delete to False if empty
         self.df[self.NAME_COLUMN_DELETE] = self.df[self.NAME_COLUMN_DELETE].replace(
             '', False)
@@ -340,7 +340,7 @@ class PMOTable(Etable):
 
         # Add a unique id to each line if not set yet
         self.df[self.NAME_COLUMN_UNIQUE_ID] = self.df[self.NAME_COLUMN_UNIQUE_ID].apply(
-            lambda x: StringHelper.generate_uuid() if x == "nan" else x)
+            lambda x: StringHelper.generate_uuid() if pd.isna(x) or x == "/" else x)
 
     def validate_columns(self) -> None:
         """Ensures the required columns are present and have the correct types
@@ -354,7 +354,10 @@ class PMOTable(Etable):
 
         # If status is Done and there is no end date, then set current date to the column end date
         for idx, row in self.df.iterrows():
-            if row[self.NAME_COLUMN_STATUS] == Status.DONE.value and pd.isna(row[self.NAME_COLUMN_END_DATE]):
+            if (not pd.isna(row[self.NAME_COLUMN_STATUS])
+                and row[self.NAME_COLUMN_STATUS] == Status.DONE.value
+                and pd.isna(row[self.NAME_COLUMN_END_DATE])
+            ):
                 # Auto set end date for DONE status
                 self.df.at[idx, self.NAME_COLUMN_END_DATE] = current_date_str
 
@@ -440,7 +443,6 @@ class PMOTable(Etable):
             return self.HEADER_HEIGHT + self.ROW_HEIGHT * self.ROWS_TO_SHOW
 
     def commit(self, streamlit_data_editor : StreamlitDataEditor) -> None:
-        ##########self.fill_na_df()#TODO : avant j'avais ça est-ce que je garde ??
         self.track_and_log_status(new_df=streamlit_data_editor.dataframe_displayed)
         # Apply edits, additions, and deletions
         self.df = streamlit_data_editor.process_changes(dataframe_to_modify = self.df,

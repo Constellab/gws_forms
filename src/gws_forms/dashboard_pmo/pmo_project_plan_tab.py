@@ -39,7 +39,9 @@ def display_project_plan_tab(pmo_table : PMOTable):
             options=[s.value for s in Status]),
         pmo_table.NAME_COLUMN_PRIORITY: st.column_config.SelectboxColumn(
             options=[p.value for p in Priority]),
-        pmo_table.NAME_COLUMN_DELETE: st.column_config.CheckboxColumn(default=False)
+        pmo_table.NAME_COLUMN_DELETE: st.column_config.CheckboxColumn(default=False),
+        pmo_table.NAME_COLUMN_COMMENTS : st.column_config.TextColumn(),
+        pmo_table.NAME_COLUMN_VISIBILITY : st.column_config.TextColumn()
     }
 
     project_plan_edited = st.data_editor(data,
