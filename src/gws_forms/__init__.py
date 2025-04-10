@@ -10,3 +10,4 @@ from .dashboard_pmo.pmo_plot_overview_tab import display_plot_overview_tab
 from .dashboard_pmo.pmo_details_tab import display_details_tab
 from .dashboard_pmo.pmo_todo_tab import display_todo_tab
 from .dashboard_pmo._dashboard_code.container.container import st_fixed_container
+from .dashboard_pmo.streamlit_data_editor import StreamlitDataEditor
