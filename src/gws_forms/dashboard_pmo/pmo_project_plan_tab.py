@@ -42,12 +42,20 @@ def display_project_plan_tab(pmo_table : PMOTable):
         pmo_table.NAME_COLUMN_DELETE: st.column_config.CheckboxColumn(default=False)
     }
 
-    pmo_table.project_plan_edited = st.data_editor(data,
+    project_plan_edited = st.data_editor(data,
                                     column_order=pmo_table.DEFAULT_COLUMNS_LIST,
                                     use_container_width=True,
                                     hide_index=True,
                                     num_rows=pmo_table.dynamic_df, height=pmo_table.calculate_height(),
                                     column_config=column_config, key="editor")
+
+    # Check if the project plan has been edited
+    pmo_table.table_editing_state = not (
+        pmo_table.get_filter_df()[pmo_table.DEFAULT_COLUMNS_LIST]
+        .copy()
+        .reset_index(drop=True)
+        .equals(project_plan_edited[pmo_table.DEFAULT_COLUMNS_LIST])
+    )
 
     check_if_project_plan_is_edited_sidebar(pmo_table)
 
@@ -82,12 +90,12 @@ def display_project_plan_tab(pmo_table : PMOTable):
         with cols[0]:
             #if at least there is one True in the column delete, we change the name of the button to inform the user
             # that rows will be deleted
-            if pmo_table.project_plan_edited[pmo_table.NAME_COLUMN_DELETE].any():
+            if project_plan_edited[pmo_table.NAME_COLUMN_DELETE].any():
                 name_button = "Delete selected and save"
             else:
                 name_button = "Save changes"
             if st.button(name_button, use_container_width=False, icon=":material/save:"):
-                streamlit_data_editor = StreamlitDataEditor(dataframe_displayed = pmo_table.project_plan_edited, key = "editor")
+                streamlit_data_editor = StreamlitDataEditor(dataframe_displayed = project_plan_edited, key = "editor")
                 pmo_table.commit(streamlit_data_editor)
                 # Save dataframe in the folder
                 pmo_table.save_df_in_folder()
