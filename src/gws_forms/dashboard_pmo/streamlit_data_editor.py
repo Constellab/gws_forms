@@ -8,29 +8,45 @@ class StreamlitDataEditor():
     This class uses the session state of the st.data_editor from Streamlit.
     It provides functions to work with this component.
     """
-
-    EDITOR_KEY = "editor"
     EDITED_ROWS_KEY = "edited_rows"
     ADDED_ROWS_KEY = "added_rows"
     DELETED_ROWS_KEY = "deleted_rows"
 
+    def __init__(self, dataframe_displayed : pd.DataFrame, key : str):
+        """dataframe_displayed (pd.DataFrame): The DataFrame reflecting user modifications."""
+        self.dataframe_displayed = dataframe_displayed
+        self.editor_key = key
+
     def get_edited_rows(self) -> Dict[int, Dict[str, Any]]:
-        return st.session_state[self.EDITOR_KEY].get(self.EDITED_ROWS_KEY, {})
+        return st.session_state[self.editor_key].get(self.EDITED_ROWS_KEY, {})
 
     def get_added_rows(self) -> List[Dict[str, Any]]:
-        return st.session_state[self.EDITOR_KEY].get(self.ADDED_ROWS_KEY, [])
+        return st.session_state[self.editor_key].get(self.ADDED_ROWS_KEY, [])
 
     def get_deleted_rows(self) -> List[int]:
-        return st.session_state[self.EDITOR_KEY].get(self.DELETED_ROWS_KEY, [])
+        return st.session_state[self.editor_key].get(self.DELETED_ROWS_KEY, [])
 
     def append_deleted_rows(self, value) -> None:
-        st.session_state[self.EDITOR_KEY][self.DELETED_ROWS_KEY].append(value)
+        st.session_state[self.editor_key][self.DELETED_ROWS_KEY].append(value)
 
-    def get_index(self, row : pd.Series, dataframe_displayed : pd.DataFrame) -> int:
-        return dataframe_displayed.iloc[row].name
+    def get_row_by_unique_id(self, row : pd.Series, dataframe_to_modify : pd.Series, column_unique_id : str) -> int:
+        """
+        Retrieves the index of a row in the main DataFrame based on the unique ID from the filtered DataFrame.
 
+        Args:
+            row (pd.Series): A row from the filtered DataFrame.
+            dataframe_to_modify (pd.DataFrame): The main DataFrame to search within.
+            column_unique_id (str): The column name containing the unique identifier.
 
-    def apply_edited_rows(self, dataframe_to_modify : pd.DataFrame, dataframe_displayed: pd.DataFrame) -> pd.DataFrame:
+        Returns:
+            int: The index of the matching row in the main DataFrame.
+        """
+        unique_id = self.dataframe_displayed.loc[row, column_unique_id]
+        #retrieve the index in the main df thanks to the unique id
+        index = int(dataframe_to_modify[dataframe_to_modify[column_unique_id] == unique_id].index[0])
+        return index
+
+    def apply_edited_rows(self, dataframe_to_modify : pd.DataFrame, column_unique_id : str) -> pd.DataFrame:
         """
         Apply user edits from the displayed DataFrame to the original DataFrame.
 
@@ -40,7 +56,6 @@ class StreamlitDataEditor():
 
         Parameters:
             dataframe_to_modify (pd.DataFrame): The original DataFrame to be updated with user edits.
-            dataframe_displayed (pd.DataFrame): The DataFrame reflecting user modifications.
 
         Returns:
             pd.DataFrame: The updated DataFrame with applied edits.
@@ -49,12 +64,12 @@ class StreamlitDataEditor():
         # Apply edited rows
         if self.get_edited_rows():
             for row in self.get_edited_rows():
-                row_index = self.get_index(row, dataframe_displayed)
+                row_index = self.get_row_by_unique_id(row, dataframe_to_modify, column_unique_id)
                 for key, value in self.get_edited_rows()[row].items():
                     dataframe_to_modify.at[row_index, key] = value
         return dataframe_to_modify
 
-    def apply_edited_rows_and_handle_deleted_rows(self, dataframe_to_modify: pd.DataFrame, dataframe_displayed: pd.DataFrame, column_deleted : str) -> pd.DataFrame:
+    def apply_edited_rows_and_handle_deleted_rows(self, dataframe_to_modify: pd.DataFrame, column_unique_id : str, column_deleted : str) -> pd.DataFrame:
         """
         Apply edits from the displayed DataFrame to the original DataFrame and handle row deletions.
 
@@ -64,7 +79,6 @@ class StreamlitDataEditor():
 
         Parameters:
             dataframe_to_modify (pd.DataFrame): The original DataFrame to be updated.
-            dataframe_displayed (pd.DataFrame): The DataFrame containing user edits.
             column_deleted (str): The name of the column used to mark rows for deletion.
                                 This column must contain boolean values (True/False).
 
@@ -75,15 +89,13 @@ class StreamlitDataEditor():
         # Apply edited rows
         if self.get_edited_rows():
             for row in self.get_edited_rows():
-                row_index = self.get_index(row, dataframe_displayed)
-
+                row_index = self.get_row_by_unique_id(row, dataframe_to_modify, column_unique_id)
                 for key, value in self.get_edited_rows()[row].items():
                     dataframe_to_modify.at[row_index, key] = value
 
                     # If the "delete" column is set to True, add the index to deleted_rows
                     if key == column_deleted and value is True:
                         self.append_deleted_rows(int(row))  # Ensure row is stored as an integer
-
         return dataframe_to_modify
 
     def apply_added_rows(self, dataframe_to_modify : pd.DataFrame) -> pd.DataFrame:
@@ -107,7 +119,7 @@ class StreamlitDataEditor():
                     dataframe_to_modify.at[row_index, key] = value
         return dataframe_to_modify
 
-    def apply_deleted_rows(self, dataframe_to_modify : pd.DataFrame, dataframe_displayed: pd.DataFrame)-> pd.DataFrame:
+    def apply_deleted_rows(self, dataframe_to_modify : pd.DataFrame, column_unique_id : str)-> pd.DataFrame:
         """
         Remove rows marked for deletion from the original DataFrame.
 
@@ -116,7 +128,6 @@ class StreamlitDataEditor():
 
         Parameters:
             dataframe_to_modify (pd.DataFrame): The original DataFrame from which rows will be removed.
-            dataframe_displayed (pd.DataFrame): The DataFrame containing deletion flags.
 
         Returns:
             pd.DataFrame: The updated DataFrame with deleted rows removed.
@@ -125,12 +136,12 @@ class StreamlitDataEditor():
         if self.get_deleted_rows():
             rows_to_delete = []
             for row in self.get_deleted_rows():
-                row_index = self.get_index(row, dataframe_displayed)
+                row_index = self.get_row_by_unique_id(row, dataframe_to_modify, column_unique_id)
                 rows_to_delete.append(row_index)
             dataframe_to_modify.drop(index = rows_to_delete, inplace = True)
         return dataframe_to_modify
 
-    def process_changes(self, dataframe_to_modify: pd.DataFrame, dataframe_displayed: pd.DataFrame, handle_deleted_rows : bool = False, column_deleted : str = None) -> pd.DataFrame:
+    def process_changes(self, dataframe_to_modify: pd.DataFrame, column_unique_id : str, handle_deleted_rows : bool = False, column_deleted : str = None ) -> pd.DataFrame:
         """
         Apply edits, additions, and deletions to the given DataFrame.
 
@@ -142,17 +153,15 @@ class StreamlitDataEditor():
 
         Parameters:
             dataframe_to_modify (pd.DataFrame): The original DataFrame to be updated.
-            dataframe_displayed (pd.DataFrame): The modified DataFrame containing user edits, new rows, and deletion markers.
 
         Returns:
             pd.DataFrame: The updated DataFrame with all applied changes.
         """
         if handle_deleted_rows :
-            dataframe_to_modify = self.apply_edited_rows_and_handle_deleted_rows(dataframe_to_modify, dataframe_displayed, column_deleted)
+            dataframe_to_modify = self.apply_edited_rows_and_handle_deleted_rows(dataframe_to_modify, column_unique_id, column_deleted)
         else:
-            dataframe_to_modify = self.apply_edited_rows(dataframe_to_modify, dataframe_displayed)
+            dataframe_to_modify = self.apply_edited_rows(dataframe_to_modify, column_unique_id)
         dataframe_to_modify = self.apply_added_rows(dataframe_to_modify)
-        dataframe_to_modify = self.apply_deleted_rows(dataframe_to_modify, dataframe_displayed)
+        dataframe_to_modify = self.apply_deleted_rows(dataframe_to_modify, column_unique_id)
 
         return dataframe_to_modify
-
