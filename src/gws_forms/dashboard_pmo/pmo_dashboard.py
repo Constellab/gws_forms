@@ -13,12 +13,12 @@ def display_tabs(pmo_table : PMOTable):
 
     tab_widgets = {
         # Base tab widget
-        "Table": display_project_plan_tab,
+        "Home": display_project_plan_tab,
         "Closed projects": display_project_plan_closed_tab,
         "Gantt": display_gantt_tab,
         "KPIs": display_plot_overview_tab,
         "Notes": display_details_tab,
-        "Todo": display_todo_tab
+        "Milestones": display_todo_tab
     }
 
     names = list(tab_widgets.keys())
