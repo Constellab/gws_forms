@@ -33,7 +33,7 @@ class Status(Enum):
     CLOSED = "☑️ Closed"
 
     @classmethod
-    def get_order(cls) -> Dict:
+    def get_order(cls) -> Dict[str, int]:
         """
         Define the custom order for the "status" column
         Return the order of the status
@@ -152,7 +152,8 @@ class PMOTable(Etable):
         #By default, we allow user to add rows to the dataframe Project Plan
         self.dynamic_df = dynamic_df
         self.placeholder_warning_filtering = None
-        self.project_plan_edited = None
+        self.table_editing_state = False
+
 
     def get_filter_df(self, only_closed_status : bool = False) -> pd.DataFrame:
         """
@@ -421,20 +422,11 @@ class PMOTable(Etable):
         # Define the categorical order for sorting
         status_order = Status.get_order()
 
-        # Create a temporary column for the sort order based on "status"
-        self.df["status_order"] = self.df[self.NAME_COLUMN_STATUS].map(status_order)
-
         # Sort the DataFrame
-        self.df = (
-            self.df.sort_values(by=[self.NAME_COLUMN_PROJECT_NAME, "status_order"])
-            # Group by project_name
-            .groupby(self.NAME_COLUMN_PROJECT_NAME, group_keys=False)
-            # Sort within each group
-            .apply(lambda group: group.sort_values("status_order"))
-        )
-
-        # Drop the temporary column if no longer needed
-        self.df = self.df.drop(columns=["status_order"])
+        self.df = self.df.sort_values(
+            by=[self.NAME_COLUMN_PROJECT_NAME, self.NAME_COLUMN_STATUS],
+            key=lambda col: col.map(status_order) if col.name == self.NAME_COLUMN_STATUS else col
+            )
 
         # Reset index
         self.df = self.df.reset_index(drop=True)
