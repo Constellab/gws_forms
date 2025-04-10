@@ -7,33 +7,48 @@ import pandas as pd
 class PMOState():
 
     STATUS_CHANGE_LOG_KEY = "status_change_log"
-    ACTIVE_PROJECT_PLAN_KEY = "active_project_plan"
     STATUS_CHANGE_JSON_KEY = "status_change_json"
-    DF_TO_SAVE_KEY = "df_to_save"
     SHOW_SUCCESS_PROJECT_PLAN_KEY = "show_success_project_plan"
     SHOW_SUCCESS_TODO_KEY = "show_success_todo"
+    SELECTED_REGEX_FILTER_PROJECT_NAME_KEY = "selected_regex_filter_project_name"
+    SELECTED_REGEX_FILTER_MISSION_NAME_KEY = "selected_regex_filter_mission_name"
+    SELECTED_MISSION_REFEREE_KEY = "selected_mission_referee"
+    SELECTED_REGEX_FILTER_TEAM_MEMBERS_KEY = "selected_regex_filter_team_members"
+    SELECTED_STATUS_KEY = "selected_status"
+    SELECTED_PRIORITY_KEY ="selected_priority"
 
-    def __init__(self, df : pd.DataFrame, file_path_change_log : str):
+    def __init__(self, file_path_change_log : str):
         self.file_path_change_log = file_path_change_log
         # Initialize a log list for status changes
         st.session_state[self.STATUS_CHANGE_LOG_KEY] = self.get_status_change_log()
-        st.session_state[self.ACTIVE_PROJECT_PLAN_KEY] = self.get_active_project_plan(df)
         # Initialize a log list for status changes
         st.session_state[self.STATUS_CHANGE_JSON_KEY] = self.get_status_change_json()
-        # Initialize a df to save
-        st.session_state[self.DF_TO_SAVE_KEY] = df
 
-    # Active project plan
-    def active_project_plan(self, df : pd.DataFrame, name_column_active : str) -> pd.DataFrame:
-        if self.ACTIVE_PROJECT_PLAN_KEY not in st.session_state or self.get_active_project_plan().empty:
-            self.set_active_project_plan(df.copy())
-        return st.session_state[self.ACTIVE_PROJECT_PLAN_KEY][st.session_state[self.ACTIVE_PROJECT_PLAN_KEY][name_column_active] == True].copy()
+    ### Filters
+    # Get the filters values
+    def get_selected_regex_filter_project_name(self) -> str:
+        #It's the value of text input selected_regex_filter_project_name
+        return st.session_state.get(self.SELECTED_REGEX_FILTER_PROJECT_NAME_KEY, "")
 
-    def set_active_project_plan(self, df: pd.DataFrame) -> None:
-        st.session_state[self.ACTIVE_PROJECT_PLAN_KEY] = df
+    def get_selected_regex_filter_mission_name(self) -> str:
+        #It's the value of text input selected_regex_filter_mission_name
+        return st.session_state.get(self.SELECTED_REGEX_FILTER_MISSION_NAME_KEY, "")
 
-    def get_active_project_plan(self, df : pd.DataFrame = pd.DataFrame()) -> List:
-        return st.session_state.get(self.ACTIVE_PROJECT_PLAN_KEY, df.copy())
+    def get_selected_mission_referee(self) -> List:
+        #It's the value of multiselect selected_mission_referee
+        return st.session_state.get(self.SELECTED_MISSION_REFEREE_KEY, "")
+
+    def get_selected_regex_filter_team_members(self) -> str:
+        #It's the value of text input selected_regex_filter_team_members
+        return st.session_state.get(self.SELECTED_REGEX_FILTER_TEAM_MEMBERS_KEY, "")
+
+    def get_selected_status(self) -> List:
+        #It's the value of multiselect selected_status
+        return st.session_state.get(self.SELECTED_STATUS_KEY, "")
+
+    def get_selected_priority(self) -> List:
+        #It's the value of multiselect selected_priority
+        return st.session_state.get(self.SELECTED_PRIORITY_KEY, "")
 
     # Show success
     def get_show_success_todo(self) -> List:
@@ -48,45 +63,39 @@ class PMOState():
     def set_show_success_project_plan(self, boolean_success : bool) -> None:
         st.session_state[self.SHOW_SUCCESS_PROJECT_PLAN_KEY] = boolean_success
 
-    # Df to save
-    def get_df_to_save(self) -> List:
-        return st.session_state.get(self.DF_TO_SAVE_KEY)
-
-    def set_df_to_save(self, df: pd.DataFrame) -> None:
-        st.session_state[self.DF_TO_SAVE_KEY] = df
-
     # Status change
-    def get_status_change_json(self, nomenclature : str = "list") -> List:
-        if nomenclature == "dict":
-            nomenclature = {}
-        elif nomenclature == "list":
-            nomenclature = []
-        if self.STATUS_CHANGE_JSON_KEY not in st.session_state or st.session_state[self.STATUS_CHANGE_JSON_KEY] == nomenclature:
+    def get_status_change_json(self) -> List:
+        if self.STATUS_CHANGE_JSON_KEY not in st.session_state or st.session_state[self.STATUS_CHANGE_JSON_KEY] == []:
+            st.session_state[self.STATUS_CHANGE_JSON_KEY] = []
             if self.file_path_change_log and os.path.exists(self.file_path_change_log):
                 with open(self.file_path_change_log, 'r', encoding="utf-8") as file:
-                    st.session_state[self.STATUS_CHANGE_JSON_KEY] = json.load(file)
-            else:
-                st.session_state[self.STATUS_CHANGE_JSON_KEY] = nomenclature
-
+                    content = file.read().strip()
+                    if content:
+                        st.session_state[self.STATUS_CHANGE_JSON_KEY] = json.loads(content)
         return st.session_state.get(self.STATUS_CHANGE_JSON_KEY)
-
 
     def set_status_change_json(self, list_change_log : List) -> None:
         st.session_state[self.STATUS_CHANGE_JSON_KEY] = list_change_log
 
+    def append_status_change_json(self, value) -> None:
+        st.session_state[self.STATUS_CHANGE_JSON_KEY].append(value)
+
     def get_status_change_log(self) -> List:
         return st.session_state.get(self.STATUS_CHANGE_LOG_KEY, [])
 
+    def append_status_change_log(self, value) -> None:
+        st.session_state[self.STATUS_CHANGE_LOG_KEY].append(value)
+
     def convert_log_to_json(self) -> None:
         if self.get_status_change_log():
-            if isinstance(self.get_status_change_json(), dict):
-                # Ensure `status_change_json` is a list of dictionaries
-                if not isinstance(self.get_status_change_json(), list):
-                    self.set_status_change_json([self.get_status_change_json()])  # Convert to list
+            existing_logs = self.get_status_change_json()
+            logs_to_add = [
+                entry for entry in self.get_status_change_log()
+                if entry not in existing_logs
+            ]
+            for entry in logs_to_add:
+                self.append_status_change_json(entry)
 
-            for new_entry_log in self.get_status_change_log():
-                if new_entry_log not in self.get_status_change_json():
-                    self.get_status_change_json().append(new_entry_log)
             for entry in self.get_status_change_json():
                 if isinstance(entry["status_before"], pd.Series):
                     entry["status_before"] = entry["status_before"].to_string()

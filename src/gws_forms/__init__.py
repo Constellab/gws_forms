@@ -11,3 +11,4 @@ from .dashboard_pmo.pmo_details_tab import display_details_tab
 from .dashboard_pmo.pmo_todo_tab import display_todo_tab
 from .dashboard_pmo._dashboard_code.container.container import st_fixed_container
 from .dashboard_pmo.streamlit_data_editor import StreamlitDataEditor
+from .dashboard_pmo.pmo_component import check_if_project_plan_is_edited, check_if_project_plan_is_edited_sidebar

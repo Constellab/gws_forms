@@ -1,25 +1,17 @@
 import streamlit as st
 import plotly.graph_objects as go
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Priority
+from gws_forms.dashboard_pmo.pmo_component import check_if_project_plan_is_edited
 
 def display_plot_overview_tab(pmo_table : PMOTable):
-    pmo_table.pmo_state.get_df_to_save()
-    pmo_table.pmo_state.get_active_project_plan(pmo_table.df)
-
-    if not (
-        pmo_table.pmo_state.active_project_plan(pmo_table.df, pmo_table.NAME_COLUMN_ACTIVE)
-        [pmo_table.DEFAULT_COLUMNS_LIST].copy().reset_index(drop=True)
-        .equals(pmo_table.df[pmo_table.DEFAULT_COLUMNS_LIST])
-    ):
-        st.warning("Please save your project plan first")
+    if check_if_project_plan_is_edited(pmo_table):
         return
-    pmo_table.df = pmo_table.validate_columns(pmo_table.df)
-    cols = st.columns(2)
 
+    cols = st.columns(2)
     with cols[0]:
         # Data for the donut chart
         # Calculate the count of each status
-        status_counts = pmo_table.df[pmo_table.NAME_COLUMN_STATUS].value_counts()
+        status_counts = pmo_table.get_filter_df()[pmo_table.NAME_COLUMN_STATUS].value_counts()
         labels = status_counts.index.tolist()
         values = status_counts.values.tolist()
 
@@ -48,23 +40,18 @@ def display_plot_overview_tab(pmo_table : PMOTable):
     with cols[1]:
         # Data for the donut chart
         # Filter rows where the column has values different from None
-        non_none_values = pmo_table.df[pmo_table.NAME_COLUMN_PRIORITY].notna()
+        non_none_values = pmo_table.get_filter_df()[pmo_table.NAME_COLUMN_PRIORITY].notna()
 
         # Perform value_counts only on non-None values
         if non_none_values.any():
             # Calculate the count of each status
-            status_counts = pmo_table.df[pmo_table.NAME_COLUMN_PRIORITY].value_counts(
+            status_counts = pmo_table.get_filter_df()[pmo_table.NAME_COLUMN_PRIORITY].value_counts(
             )
             labels = status_counts.index.tolist()
             values = status_counts.values.tolist()
 
             # Colors for each section
-            status_colors = {
-                Priority.HIGH.value: "#ff4c4c",
-                Priority.MEDIUM.value: "#f2eb1d",
-                Priority.LOW.value: "#59d95e",
-                "nan": "#abaa93"
-            }
+            status_colors = Priority.get_colors()
             colors = [status_colors[status] for status in labels]
 
             # Create the donut chart

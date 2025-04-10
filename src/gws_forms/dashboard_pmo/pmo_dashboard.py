@@ -9,11 +9,6 @@ from gws_forms.dashboard_pmo.pmo_details_tab import display_details_tab
 from gws_forms.dashboard_pmo.pmo_todo_tab import display_todo_tab
 
 def display_tabs(pmo_table : PMOTable):
-    pmo_table.pmo_state.get_df_to_save()
-    pmo_table.pmo_state.get_active_project_plan(pmo_table.df)
-    pmo_table.pmo_state.get_status_change_log()
-    pmo_table.pmo_state.get_status_change_json(nomenclature = "dict")
-
     display_sidebar(pmo_table)
 
     tab_widgets = {
