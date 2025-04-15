@@ -443,6 +443,10 @@ class PMOTable(Etable):
             return self.HEADER_HEIGHT + self.ROW_HEIGHT * self.ROWS_TO_SHOW
 
     def commit(self, streamlit_data_editor : StreamlitDataEditor) -> None:
+        # Add a unique id to each line if not set yet
+        streamlit_data_editor.dataframe_displayed[self.NAME_COLUMN_UNIQUE_ID] = streamlit_data_editor.dataframe_displayed[self.NAME_COLUMN_UNIQUE_ID].apply(
+            lambda x: StringHelper.generate_uuid() if pd.isna(x) or x == "/" else x)
+
         self.track_and_log_status(new_df=streamlit_data_editor.dataframe_displayed)
         # Apply edits, additions, and deletions
         self.df = streamlit_data_editor.process_changes(dataframe_to_modify = self.df,

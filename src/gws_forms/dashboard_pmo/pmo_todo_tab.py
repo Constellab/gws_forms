@@ -71,8 +71,9 @@ def display_todo_tab(pmo_table : PMOTable):
     number_project = 0
     for project_name, group in grouped_by_project:
         if pd.notna(group[pmo_table.NAME_COLUMN_MILESTONES]).any():
-            st.subheader(f"**Project:** {project_name}")
-            group.apply(process_mission, args = (pmo_table, project_name, updated_milestones, number_project, ), axis=1)
+            with st.expander(f"**Project:** {project_name}", expanded= True):
+                st.subheader(f"**Project:** {project_name}")
+                group.apply(process_mission, args = (pmo_table, project_name, updated_milestones, number_project, ), axis=1)
         number_project += 1
 
     pmo_state.get_show_success_todo()
