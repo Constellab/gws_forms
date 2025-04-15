@@ -35,7 +35,5 @@ def render_display_tab(metadata_state : MetadataState):
         return
 
     with StreamlitContainers.full_width_dataframe_container('container-full-dataframe'):
-        #TODO : quand il y aura une nouvelle version de gws_core pour pouvoir utiliser use_container_width et hide_index
-        """dataframe_paginated(df, use_container_width=True, hide_index = True, paginate_rows=True, row_page_size_options=[25, 50, 100],
-            transformer = lambda df: df.style.format(thousands=" ", precision=1), key='row_paginated')"""
-        st.dataframe(df, use_container_width=True, hide_index = True)
+        dataframe_paginated(df, use_container_width=True, hide_index = True, paginate_rows=True, row_page_size_options=[25, 50, 100],
+            transformer = lambda df: df.style.format(thousands=" ", precision=1), key='row_paginated')

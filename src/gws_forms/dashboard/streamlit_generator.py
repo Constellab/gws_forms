@@ -43,7 +43,7 @@ class StreamlitFormsDashbaordGenerator(Task):
     output_specs: OutputSpecs = OutputSpecs({
         'streamlit_form_app': OutputSpec(StreamlitResource, human_name="Streamlit Form app")
     })
-    config_specs: ConfigSpecs = {
+    config_specs: ConfigSpecs = ConfigSpecs ({
         'title': StrParam(
             human_name="Title",
             short_description="Title of the form",
@@ -57,7 +57,7 @@ class StreamlitFormsDashbaordGenerator(Task):
             human_name="Results visible",
             short_description="If True, users will be able to see all results of the forms",
             default_value=True)
-    }
+    })
 
     def run(self, params: ConfigParams, inputs: TaskInputs) -> TaskOutputs:
 
