@@ -2,9 +2,8 @@ from .e_table.e_table import Etable
 from .dashboard_pmo.pmo_table import PMOTable, MessageObserver, Event, Status
 from .dashboard_pmo.pmo_state import PMOState
 from .dashboard_pmo.pmo_sidebar import display_sidebar
-from .dashboard_pmo.pmo_dashboard import display_tabs
+from .dashboard_pmo.pmo_dashboard import run, get_project_plan_page, get_gantt_page, get_kpis_page, get_notes_page, get_milestones_page
 from .dashboard_pmo.pmo_project_plan_tab import display_project_plan_tab
-from .dashboard_pmo.pmo_project_plan_closed_tab import display_project_plan_closed_tab
 from .dashboard_pmo.pmo_gantt_tab import display_gantt_tab
 from .dashboard_pmo.pmo_plot_overview_tab import display_plot_overview_tab
 from .dashboard_pmo.pmo_details_tab import display_details_tab
