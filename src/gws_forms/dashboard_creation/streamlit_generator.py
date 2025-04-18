@@ -1,8 +1,9 @@
 
 import os
 
-from gws_core import (ConfigParams, OutputSpec, OutputSpecs, StreamlitResource, Task, TaskInputs, TaskOutputs, task_decorator,
-                      dashboard_decorator, Dashboard, DashboardType, Folder, TypingStyle)
+from gws_core import (ConfigParams, OutputSpec, OutputSpecs, StreamlitResource, Task, TaskInputs,
+                      TaskOutputs, task_decorator, dashboard_decorator, Dashboard, DashboardType, Folder, TypingStyle)
+
 
 @dashboard_decorator("GenerateDashboardCreationForms", dashboard_type=DashboardType.STREAMLIT)
 class GenerateDashboardCreationForms(Dashboard):
@@ -14,6 +15,7 @@ class GenerateDashboardCreationForms(Dashboard):
             os.path.abspath(os.path.dirname(__file__)),
             "_dashboard_code"
         )
+
 
 @task_decorator("StreamlitCreationFormsGenerator", human_name="Forms creation dashboard",
                 short_description="Task to generate a custom Streamlit dashboard to create form",
