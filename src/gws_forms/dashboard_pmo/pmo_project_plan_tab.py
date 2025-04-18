@@ -7,7 +7,8 @@ from gws_forms.dashboard_pmo._dashboard_code.container.container import st_fixed
 from gws_forms.dashboard_pmo.streamlit_data_editor import StreamlitDataEditor
 from gws_forms.dashboard_pmo.pmo_component import check_if_project_plan_is_edited_sidebar
 
-def display_project_plan_tab(pmo_table : PMOTable):
+
+def display_project_plan_tab(pmo_table: PMOTable):
     """Display the DataFrame in Streamlit tabs."""
     # Define the variable pmo_state
     pmo_state = pmo_table.pmo_state
@@ -32,24 +33,22 @@ def display_project_plan_tab(pmo_table : PMOTable):
     # Show the dataframe and make it editable
     data = pmo_table.get_filter_df().reset_index()
     # Define column configurations
-    column_config = {
-        pmo_table.NAME_COLUMN_START_DATE: st.column_config.DateColumn(pmo_table.NAME_COLUMN_START_DATE, format="DD MM YYYY"),
-        pmo_table.NAME_COLUMN_END_DATE: st.column_config.DateColumn(pmo_table.NAME_COLUMN_END_DATE, format="DD MM YYYY"),
+    column_config = {pmo_table.NAME_COLUMN_START_DATE: st.column_config.DateColumn(
+        pmo_table.NAME_COLUMN_START_DATE, format="DD MM YYYY"),
+        pmo_table.NAME_COLUMN_END_DATE: st.column_config.DateColumn(
+        pmo_table.NAME_COLUMN_END_DATE, format="DD MM YYYY"),
         pmo_table.NAME_COLUMN_STATUS: st.column_config.SelectboxColumn(
-            options=[s.value for s in Status]),
+        options=[s.value for s in Status]),
         pmo_table.NAME_COLUMN_PRIORITY: st.column_config.SelectboxColumn(
-            options=[p.value for p in Priority]),
-        pmo_table.NAME_COLUMN_DELETE: st.column_config.CheckboxColumn(default=False),
-        pmo_table.NAME_COLUMN_COMMENTS : st.column_config.TextColumn(),
-        pmo_table.NAME_COLUMN_VISIBILITY : st.column_config.TextColumn()
-    }
+        options=[p.value for p in Priority]),
+        pmo_table.NAME_COLUMN_DELETE: st.column_config.CheckboxColumn(default=False), }
 
     project_plan_edited = st.data_editor(data,
-                                    column_order=pmo_table.DEFAULT_COLUMNS_LIST,
-                                    use_container_width=True,
-                                    hide_index=True,
-                                    num_rows=pmo_table.dynamic_df, height=pmo_table.calculate_height(),
-                                    column_config=column_config, key="editor")
+                                         column_order=pmo_table.DEFAULT_COLUMNS_LIST,
+                                         use_container_width=True,
+                                         hide_index=True,
+                                         num_rows=pmo_table.dynamic_df, height=pmo_table.calculate_height(),
+                                         column_config=column_config, key="editor")
 
     # Check if the project plan has been edited
     pmo_table.table_editing_state = not (
@@ -67,7 +66,7 @@ def display_project_plan_tab(pmo_table : PMOTable):
 
             # Allow users to download the template
             @st.cache_data
-            def convert_df(df : pd.DataFrame) -> pd.DataFrame:
+            def convert_df(df: pd.DataFrame) -> pd.DataFrame:
                 return df.to_csv().encode('utf-8')
             df_template = pd.read_csv(os.path.join(os.path.abspath(
                 os.path.dirname(__file__)), "template.csv"), index_col=False)
@@ -90,23 +89,23 @@ def display_project_plan_tab(pmo_table : PMOTable):
     with st_fixed_container(mode="sticky", position="bottom", border=False, transparent=False):
         cols = st.columns([1, 2])
         with cols[0]:
-            #if at least there is one True in the column delete, we change the name of the button to inform the user
+            # if at least there is one True in the column delete, we change the name of the button to inform the user
             # that rows will be deleted
             if project_plan_edited[pmo_table.NAME_COLUMN_DELETE].any():
                 name_button = "Delete selected and save"
             else:
                 name_button = "Save changes"
             if st.button(name_button, use_container_width=False, icon=":material/save:"):
-                streamlit_data_editor = StreamlitDataEditor(dataframe_displayed = project_plan_edited, key = "editor")
+                streamlit_data_editor = StreamlitDataEditor(dataframe_displayed=project_plan_edited, key="editor")
                 pmo_table.commit(streamlit_data_editor)
                 # Save dataframe in the folder
                 pmo_table.save_df_in_folder()
 
                 # Apply the observer -> Update tag folder
-                if pmo_table.observer :
+                if pmo_table.observer:
                     check = pmo_table.observer.update(Event(event_type='update_line'))
                     if not check:
-                        raise Exception ("Something got wrong, close the app and try again.")
+                        raise Exception("Something got wrong, close the app and try again.")
                 pmo_state.set_show_success_project_plan(True)
                 st.rerun()
         with cols[1]:
