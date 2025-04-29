@@ -1,19 +1,20 @@
 import streamlit as st
 import plotly.graph_objects as go
+from collections import Counter
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Priority
-from gws_forms.dashboard_pmo.pmo_component import check_if_project_plan_is_edited
 
-def display_plot_overview_tab(pmo_table : PMOTable):
-    if check_if_project_plan_is_edited(pmo_table):
-        return
+
+def display_plot_overview_tab(pmo_table: PMOTable):
 
     cols = st.columns(2)
     with cols[0]:
         # Data for the donut chart
-        # Calculate the count of each status
-        status_counts = pmo_table.get_filter_df()[pmo_table.NAME_COLUMN_STATUS].value_counts()
-        labels = status_counts.index.tolist()
-        values = status_counts.values.tolist()
+        # Calculate the count of each status using Counter
+        status_counts = Counter(item[pmo_table.NAME_COLUMN_STATUS]
+                                for item in pmo_table.processed_data)
+
+        labels = list(status_counts.keys())
+        values = list(status_counts.values())
 
         colors = ["#3f78e0", "#8cb2ff", "#ff9e4a", "#ff4c4c"]
 
@@ -31,7 +32,7 @@ def display_plot_overview_tab(pmo_table : PMOTable):
         fig.update_layout(
             title_text="Overall Task Status",
             annotations=[dict(text=pmo_table.NAME_COLUMN_STATUS,
-                                x=0.5, y=0.5, font_size=20, showarrow=False)]
+                              x=0.5, y=0.5, font_size=20, showarrow=False)]
         )
 
         # Display the chart in Streamlit
@@ -39,16 +40,16 @@ def display_plot_overview_tab(pmo_table : PMOTable):
 
     with cols[1]:
         # Data for the donut chart
-        # Filter rows where the column has values different from None
-        non_none_values = pmo_table.get_filter_df()[pmo_table.NAME_COLUMN_PRIORITY].notna()
+        # Filter and count priorities
+        priority_counts = Counter(
+            item[pmo_table.NAME_COLUMN_PRIORITY]
+            for item in pmo_table.processed_data
+            if item.get(pmo_table.NAME_COLUMN_PRIORITY) is not None
+        )
 
-        # Perform value_counts only on non-None values
-        if non_none_values.any():
-            # Calculate the count of each status
-            status_counts = pmo_table.get_filter_df()[pmo_table.NAME_COLUMN_PRIORITY].value_counts(
-            )
-            labels = status_counts.index.tolist()
-            values = status_counts.values.tolist()
+        if priority_counts:
+            labels = list(priority_counts.keys())
+            values = list(priority_counts.values())
 
             # Colors for each section
             status_colors = Priority.get_colors()

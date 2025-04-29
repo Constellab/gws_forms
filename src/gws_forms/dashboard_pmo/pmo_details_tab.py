@@ -2,17 +2,19 @@ import os
 import json
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
-from gws_forms.dashboard_pmo.pmo_component import check_if_project_plan_is_edited
 from gws_core.streamlit import rich_text_editor
 from gws_core import RichText
 
-def display_details_tab(pmo_table : PMOTable):
-    if check_if_project_plan_is_edited(pmo_table):
-        return
+
+def display_details_tab(pmo_table: PMOTable):
 
     cols_1 = st.columns(2)
-    list_projects = pmo_table.get_filter_df()[pmo_table.NAME_COLUMN_PROJECT_NAME].unique()
-    if len(list_projects) == 0 :
+    # Get unique project names from processed data
+    list_projects = list(set(
+        item[pmo_table.NAME_COLUMN_PROJECT_NAME]
+        for item in pmo_table.processed_data
+    ))
+    if len(list_projects) == 0:
         st.warning(
             f"Please complete the {pmo_table.NAME_COLUMN_PROJECT_NAME} column first")
         return
@@ -21,15 +23,19 @@ def display_details_tab(pmo_table : PMOTable):
         project_selected: str = st.selectbox(
             label=r"$\textbf{\textsf{\large{Choose a project}}}$", options=list_projects)
     if project_selected:
-        list_missions = pmo_table.get_filter_df()[pmo_table.get_filter_df()[pmo_table.NAME_COLUMN_PROJECT_NAME]
-                                == project_selected][pmo_table.NAME_COLUMN_MISSION_NAME]
+        list_missions = list(set(
+            item[pmo_table.NAME_COLUMN_MISSION_NAME]
+            for item in pmo_table.processed_data
+            if item[pmo_table.NAME_COLUMN_PROJECT_NAME] == project_selected
+        ))
+
         with cols_1[1]:
             mission_selected: str = st.selectbox(
                 label=r"$\textbf{\textsf{\large{Choose a mission}}}$", options=list_missions)
         if mission_selected:
             # Display note
-            # Key for the file note
-            key = f"{project_selected}_{mission_selected}"
+            # Key for the file note - replace spaces with underscores
+            key = f"{project_selected.replace(' ', '_')}_{mission_selected.replace(' ', '_')}"
 
             file_path = os.path.join(
                 pmo_table.folder_details, f'{key}.json')
