@@ -16,7 +16,7 @@ def display_plot_overview_tab(pmo_table: PMOTable):
         labels = list(status_counts.keys())
         values = list(status_counts.values())
 
-        colors = ["#3f78e0", "#8cb2ff", "#ff9e4a", "#ff4c4c"]
+        colors = ["#3f78e0", "#8cb2ff", "#ff9e4a", "#ff4c4c", "#ffcf40"]
 
         # Create the donut chart
         fig = go.Figure(data=[go.Pie(
