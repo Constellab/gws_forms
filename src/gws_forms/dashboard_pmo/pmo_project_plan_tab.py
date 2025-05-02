@@ -607,29 +607,6 @@ def display_project_plan_tab(pmo_table: PMOTable):
 
                             i += 1
 
-    if pmo_table.choice_project_plan != "Load":
-        # Add a template screenshot as an example
-        with st.expander('Download the project plan template', icon=":material/help_outline:"):
-
-            # Allow users to download the template
-            @st.cache_data
-            def convert_df(df: pd.DataFrame) -> pd.DataFrame:
-                return df.to_csv().encode('utf-8')
-            df_template = pd.read_csv(os.path.join(os.path.abspath(
-                os.path.dirname(__file__)), "template.csv"), index_col=False)
-
-            csv = convert_df(df_template)
-            st.download_button(
-                label="Download Template",
-                data=csv,
-                file_name='project_template.csv',
-                mime='text/csv',
-            )
-
-            image = Image.open(os.path.join(os.path.abspath(os.path.dirname(
-                __file__)), "example_template_pmo.png"))  # template screenshot provided as an example
-            st.image(
-                image,  caption='Make sure you use the same column names as in the template')
 
     # TODO apply the observer somewhere
     """# Apply the observer -> Update tag folder
