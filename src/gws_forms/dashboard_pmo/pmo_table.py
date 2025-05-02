@@ -106,13 +106,13 @@ class PMOTable(Etable):
     NAME_COLUMN_MISSION_REFEREE = 'Mission Referee'
     NAME_COLUMN_TEAM_MEMBERS = 'Team Members'
     NAME_COLUMN_STATUS = "Status"
-    NAME_COLUMN_UNIQUE_ID = "ID"
-    NAME_COLUMN_DELETE = "Delete"
-    NAME_PROJECT_ID = "id"
+    NAME_MISSION_ID = "Mission ID"
+    NAME_PROJECT_ID = "Project ID"
+    NAME_MILESTONE_ID = "Milestone ID"
     DEFAULT_COLUMNS_LIST = [
         NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MISSION_REFEREE, NAME_COLUMN_TEAM_MEMBERS,
         NAME_COLUMN_START_DATE, NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY,
-        NAME_COLUMN_PROGRESS, NAME_COLUMN_DELETE]
+        NAME_COLUMN_PROGRESS]
     # Constants for height calculation
     ROW_HEIGHT = 35  # Height per row in pixels
     HEADER_HEIGHT = 38  # Height for the header in pixels
@@ -144,11 +144,13 @@ class PMOTable(Etable):
             self.NAME_COLUMN_STATUS: self.TEXT,
             self.NAME_COLUMN_PRIORITY: self.TEXT,
             self.NAME_COLUMN_PROGRESS: self.NUMERIC,
-            self.NAME_COLUMN_UNIQUE_ID: self.TEXT,
-            self.NAME_COLUMN_DELETE: self.BOOLEAN
+            self.NAME_MISSION_ID: self.TEXT,
+            self.NAME_PROJECT_ID: self.TEXT,
+            self.NAME_MILESTONE_ID: self.TEXT
         }
 
         example_milestone = MilestoneDTO(
+            id=StringHelper.generate_uuid(),
             name="step 1",
             done=False
         )
@@ -226,6 +228,7 @@ class PMOTable(Etable):
                         self.NAME_COLUMN_PROJECT_NAME: project.name,
                         self.NAME_PROJECT_ID: project.id,
                         self.NAME_COLUMN_MISSION_NAME: mission.mission_name,
+                        self.NAME_MISSION_ID: mission.id,
                         self.NAME_COLUMN_MISSION_REFEREE: mission.mission_referee,
                         self.NAME_COLUMN_TEAM_MEMBERS: mission.team_members,
                         self.NAME_COLUMN_START_DATE: mission.start_date,
@@ -313,7 +316,7 @@ class PMOTable(Etable):
 
     def _create_log_entry(self, row, old_status, new_status, date_str):
         return {
-            "id": row[self.NAME_COLUMN_UNIQUE_ID],
+            "id": row[self.NAME_MISSION_ID],
             "project": row[self.NAME_COLUMN_PROJECT_NAME],
             "mission": row[self.NAME_COLUMN_MISSION_NAME],
             "status_before": old_status,
@@ -362,11 +365,8 @@ class PMOTable(Etable):
             '', 'None'], 'nan')
         self.df[self.NAME_COLUMN_PRIORITY] = self.df[self.NAME_COLUMN_PRIORITY].replace([
             '', 'None'], 'nan')
-        self.df[self.NAME_COLUMN_UNIQUE_ID] = self.df[self.NAME_COLUMN_UNIQUE_ID].replace([
+        self.df[self.NAME_MISSION_ID] = self.df[self.NAME_MISSION_ID].replace([
             '', 'None'], '/')
-        # Set delete to False if empty
-        self.df[self.NAME_COLUMN_DELETE] = self.df[self.NAME_COLUMN_DELETE].replace(
-            '', False)
         # Convert None to pd.NaT
         self.df[self.NAME_COLUMN_START_DATE] = self.df[self.NAME_COLUMN_START_DATE].apply(
             lambda x: pd.NaT if x is None else x)
@@ -378,7 +378,7 @@ class PMOTable(Etable):
         self.df[self.NAME_COLUMN_END_DATE] = pd.to_datetime(self.df[self.NAME_COLUMN_END_DATE], errors='coerce').dt.date
 
         # Add a unique id to each line if not set yet
-        self.df[self.NAME_COLUMN_UNIQUE_ID] = self.df[self.NAME_COLUMN_UNIQUE_ID].apply(
+        self.df[self.NAME_MISSION_ID] = self.df[self.NAME_MISSION_ID].apply(
             lambda x: StringHelper.generate_uuid() if pd.isna(x) or x == "/" else x)"""
 
     """def validate_columns(self) -> None:
@@ -476,15 +476,10 @@ class PMOTable(Etable):
     def commit(self, edited_data: List[Dict]) -> None:
         # Add a unique id to each line if not set yet
         for item in edited_data:
-            if not item.get(self.NAME_COLUMN_UNIQUE_ID) or item[self.NAME_COLUMN_UNIQUE_ID] == "/":
-                item[self.NAME_COLUMN_UNIQUE_ID] = StringHelper.generate_uuid()
+            if not item.get(self.NAME_MISSION_ID) or item[self.NAME_MISSION_ID] == "/":
+                item[self.NAME_MISSION_ID] = StringHelper.generate_uuid()
 
-        """self.track_and_log_status(new_df=edited_data)"""
-        # Apply edits, additions, and deletions
-        """self.df = streamlit_data_editor.process_changes(dataframe_to_modify=self.df,
-                                                        column_unique_id=self.NAME_COLUMN_UNIQUE_ID,
-                                                        handle_deleted_rows=True,
-                                                        column_deleted=self.NAME_COLUMN_DELETE)
+        """self.track_and_log_status(new_df=edited_data)
         self.validate_columns()"""
 
     def save_data_in_folder(self) -> None:

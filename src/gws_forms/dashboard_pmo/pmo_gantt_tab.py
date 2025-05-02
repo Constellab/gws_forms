@@ -21,6 +21,10 @@ def display_gantt_tab(pmo_table: PMOTable):
             item[pmo_table.NAME_COLUMN_START_DATE] = pd.to_datetime(item[pmo_table.NAME_COLUMN_START_DATE])
         if item.get(pmo_table.NAME_COLUMN_END_DATE):
             item[pmo_table.NAME_COLUMN_END_DATE] = pd.to_datetime(item[pmo_table.NAME_COLUMN_END_DATE])
+        # Convert team members list to string
+        if item.get(pmo_table.NAME_COLUMN_TEAM_MEMBERS):
+            item[pmo_table.NAME_COLUMN_TEAM_MEMBERS] = ", ".join(
+                item[pmo_table.NAME_COLUMN_TEAM_MEMBERS]) if item[pmo_table.NAME_COLUMN_TEAM_MEMBERS] else ""
 
     fig = px.timeline(
         processed_data,
