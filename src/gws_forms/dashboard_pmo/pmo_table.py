@@ -6,7 +6,6 @@ from enum import Enum
 from typing import Any, Literal, Optional, List, Dict
 from abc import abstractmethod
 import streamlit as st
-from gws_forms.e_table.e_table import Etable
 from gws_forms.dashboard_pmo.pmo_state import PMOState
 from gws_core import StringHelper
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
@@ -91,7 +90,15 @@ class Priority(Enum):
         return [priority.value for priority in cls]
 
 
-class PMOTable(Etable):
+class PMOTable:
+    # Add the constants from Etable
+    TEXT = "text"
+    NUMERIC = "numeric"
+    DATE = "date"
+    CATEGORICAL = "categorical"
+    BOOLEAN = "boolean"
+    LIST = "list"
+    LIST_OBJECT = "list<object>"
 
     # Define columns names
     NAME_COLUMN_START_DATE = 'Start Date'
@@ -129,32 +136,34 @@ class PMOTable(Etable):
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
         """
-        super().__init__(json_path)
-
-        example_milestone = MilestoneDTO(
-            id=StringHelper.generate_uuid(),
-            name="step 1",
-            done=False
-        )
-        example_mission = MissionDTO(
-            mission_name="Mission 1",
-            mission_referee="Person1",
-            team_members=["Person1", "Person2"],
-            start_date=datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
-            end_date=None,
-            milestones=[example_milestone],
-            status=Status.TODO.value,
-            priority=Priority.HIGH.value,
-            progress=0,
-            id=StringHelper.generate_uuid()
-        )
-        example_project = ProjectDTO(
-            id=StringHelper.generate_uuid(),
-            name="Project 1",
-            missions=[example_mission]
-        )
-        if not self.json_path:
-            # Initialize with example data if no json_path is provided
+        self.json_path = json_path
+        if self.json_path:
+            self.data = self._load_json()
+            self.processed_data = self._process_data()
+        else:
+            # Initialize example data if no json_path is provided
+            example_milestone = MilestoneDTO(
+                id=StringHelper.generate_uuid(),
+                name="step 1",
+                done=False
+            )
+            example_mission = MissionDTO(
+                mission_name="Mission 1",
+                mission_referee="Person1",
+                team_members=["Person1", "Person2"],
+                start_date=datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
+                end_date=None,
+                milestones=[example_milestone],
+                status=Status.TODO.value,
+                priority=Priority.HIGH.value,
+                progress=0,
+                id=StringHelper.generate_uuid()
+            )
+            example_project = ProjectDTO(
+                id=StringHelper.generate_uuid(),
+                name="Project 1",
+                missions=[example_mission]
+            )
             self.data = {
                 "data": [example_project.to_json_dict()]
             }
@@ -186,6 +195,16 @@ class PMOTable(Etable):
 
         self.choice_project_plan = None
         self.table_editing_state = False
+
+    def _load_json(self) -> Dict:
+        """Load JSON data from file."""
+        try:
+            with open(self.json_path, 'r', encoding="utf-8") as file:
+                return json.load(file)
+        except FileNotFoundError:
+            raise ValueError(f"The file at {self.json_path} was not found.")
+        except json.JSONDecodeError:
+            raise ValueError(f"The file at {self.json_path} is not a valid JSON.")
 
     def _process_data(self) -> List[Dict[str, Any]]:
         """Process the PMO data into DTO format."""
@@ -226,6 +245,21 @@ class PMOTable(Etable):
         except Exception as e:
             st.error(f"Error processing data: {str(e)}")
             return []
+
+    def download(self, file_format: str = "csv") -> str:
+        """Download the DataFrame as CSV or JSON."""
+        if file_format == "csv":
+            # Create CSV string manually
+            if not self.processed_data:
+                return ""
+            headers = list(self.processed_data[0].keys())
+            csv_lines = [",".join(headers)]
+            for item in self.processed_data:
+                row = [str(item.get(header, "")) for header in headers]
+                csv_lines.append(",".join(row))
+            return "\n".join(csv_lines)
+        elif file_format == "json":
+            return json.dumps(self.processed_data, indent=2)
 
     # Function to calculate progress
     def calculate_progress(self, item: Dict) -> float:

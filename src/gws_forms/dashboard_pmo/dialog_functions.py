@@ -172,7 +172,7 @@ def add_mission(pmo_table: PMOTable, selected_project: str):
 
 @st.dialog("Delete project")
 def delete_project(pmo_table: PMOTable, project_id: str):
-    project_name = ProjectPlanDTO.get_project_name_by_id(pmo_table.data, project_id)
+    project_name = ProjectPlanDTO.get_project_by_id(pmo_table.data, project_id).name
     st.warning(
         f"Are you sure you want to delete the project {project_name}? This action cannot be undone. All missions will be deleted.")
     if st.button("Delete", use_container_width=True, icon=":material/delete:"):
