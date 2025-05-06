@@ -1,0 +1,74 @@
+{
+  "data": [
+    {
+      "id": "a124e29e-309d-4eae-ac6a-04772fd2545f",
+      "name": "XXX",
+      "missions": [
+        {
+          "mission_name": "xxx",
+          "mission_referee": "Person1",
+          "team_members": [
+            ""
+          ],
+          "start_date": "2025-05-19",
+          "end_date": "2025-05-31",
+          "milestones": [],
+          "status": "No status",
+          "priority": "No priority",
+          "progress": 0.0,
+          "id": "a53db347-11e2-4249-9e6c-16cb99953bfc"
+        }
+      ]
+    },
+    {
+      "id": "4cc17603-89c2-46b5-8cfe-b62090c14468",
+      "name": "XXX_1",
+      "missions": [
+        {
+          "mission_name": "xxx",
+          "mission_referee": "Person2",
+          "team_members": [
+            "Person1",
+            "Person5"
+          ],
+          "start_date": "2025-05-01",
+          "end_date": "2025-05-29",
+          "milestones": [],
+          "status": "\ud83d\udcc8 In progress",
+          "priority": "\ud83d\udfe1 Medium",
+          "progress": 10.0,
+          "id": "7699b609-29e1-432a-a24e-7b18bf7d785d"
+        },
+        {
+          "mission_name": "xxx_1",
+          "mission_referee": "Person3",
+          "team_members": [
+            "Person4"
+          ],
+          "start_date": "2025-06-13",
+          "end_date": "2025-06-26",
+          "milestones": [],
+          "status": "No status",
+          "priority": "No priority",
+          "progress": 0.0,
+          "id": "7388ba86-06ae-4b31-8a7f-136aa1110953"
+        }
+      ]
+    }
+  ],
+  "column_types": {
+    "Project Name": "text",
+    "Mission Name": "text",
+    "Mission Referee": "text",
+    "Team Members": "list",
+    "Start Date": "date",
+    "End Date": "date",
+    "Milestones": "list<object>",
+    "Status": "text",
+    "Priority": "text",
+    "Progress (%)": "numeric",
+    "Mission ID": "text",
+    "Project ID": "text",
+    "Milestone ID": "text"
+  }
+}

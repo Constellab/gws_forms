@@ -1,8 +1,6 @@
 import os
 import json
 import streamlit as st
-import pandas as pd
-from PIL import Image
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO
 
@@ -15,7 +13,7 @@ def display_settings_tab(pmo_table: PMOTable):
         pmo_table.folder_project_plan) if f.endswith(".json")], reverse=True)
 
     cols = st.columns(2)
-    options = ["Load", "Upload", "Fill manually"] if files else ["Upload", "Fill manually"]
+    options = ["Load", "Upload"] if files else ["Upload"]
     with cols[0]:
         pmo_table.choice_project_plan = st.selectbox("Select an option", options, key="choice_project_plan")
 
@@ -28,18 +26,10 @@ def display_settings_tab(pmo_table: PMOTable):
                 placeholder="Select a project plan", key="selected_file_settings")
             # Load the selected file and display its contents
             if selected_file:
-                selected_file = selected_file + ".json"
-                file_path = os.path.join(
-                    pmo_table.folder_project_plan, selected_file)
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    loaded_data = json.load(f)
-                    pmo_table.data = ProjectPlanDTO.from_json(loaded_data)
-                    pmo_table.processed_data = pmo_table._process_data()
-                    pmo_table.save_data_in_folder()
-                    pmo_table.pmo_state.set_current_pmo_table(pmo_table)
-                    # Set current project to None
-                    pmo_table.pmo_state.set_current_project(None)
-                    pmo_table.pmo_state.set_current_mission(None)
+                pmo_table = pmo_table.load_pmo_data(selected_file)
+                # Set current project to None
+                pmo_table.pmo_state.set_current_project(None)
+                pmo_table.pmo_state.set_current_mission(None)
 
     # Upload data
     # Add a file uploader to allow users to upload their project plan file
@@ -50,10 +40,7 @@ def display_settings_tab(pmo_table: PMOTable):
             if uploaded_file is not None:
                 loaded_data = json.loads(uploaded_file.getvalue().decode('utf-8'))
                 pmo_table.data = ProjectPlanDTO.from_json(loaded_data)
-                pmo_table.processed_data = pmo_table._process_data()
-                # pmo_table.validate_columns()
-                # Save data in the folder
-                pmo_table.save_data_in_folder()
+                pmo_table.commit_and_save()
                 pmo_table.pmo_state.set_current_pmo_table(pmo_table)
                 # Set current project to None
                 pmo_table.pmo_state.set_current_project(None)
@@ -61,7 +48,6 @@ def display_settings_tab(pmo_table: PMOTable):
             else:
                 st.warning('You need to upload a JSON file.')
                 # Use example data - already in the pmo_table
-                # pmo_table.validate_columns()
                 # Save data in the folder
                 pmo_table = PMOTable(json_path=None, folder_project_plan=pmo_table.folder_project_plan,
                                      folder_details=pmo_table.folder_details, folder_change_log=pmo_table.folder_change_log)
@@ -70,41 +56,21 @@ def display_settings_tab(pmo_table: PMOTable):
                 # Set current project to None
                 pmo_table.pmo_state.set_current_project(None)
                 pmo_table.pmo_state.set_current_mission(None)
-    else:
-        # Use example data - already in the pmo_table
-        # pmo_table.validate_columns()
-        # Save data in the folder
-        pmo_table = PMOTable(json_path=None, folder_project_plan=pmo_table.folder_project_plan,
-                             folder_details=pmo_table.folder_details, folder_change_log=pmo_table.folder_change_log)
-        pmo_table.save_data_in_folder()
-        pmo_table.pmo_state.set_current_pmo_table(pmo_table)
-        # Set current project to None
-        pmo_table.pmo_state.set_current_project(None)
-        pmo_table.pmo_state.set_current_mission(None)
 
-    if pmo_table.choice_project_plan != "Load":
-        # Add a template screenshot as an example
-        with st.expander('Download the project plan template', icon=":material/help_outline:"):
+        # Load and allow users to download the JSON template
+        template_path = os.path.join(os.path.abspath(
+            os.path.dirname(__file__)), "template.json")
 
-            # Allow users to download the template
-            @st.cache_data
-            def convert_df(df: pd.DataFrame) -> pd.DataFrame:
-                return df.to_csv().encode('utf-8')
-            df_template = pd.read_csv(os.path.join(os.path.abspath(
-                os.path.dirname(__file__)), "template.csv"), index_col=False)
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_json = f.read()
 
-            csv = convert_df(df_template)
-            st.download_button(
-                label="Download Template",
-                data=csv,
-                file_name='project_template.csv',
-                mime='text/csv',
-            )
-
-            image = Image.open(os.path.join(os.path.abspath(os.path.dirname(
-                __file__)), "example_template_pmo.png"))  # template screenshot provided as an example
-            st.image(
-                image,  caption='Make sure you use the same column names as in the template')
+        st.download_button(
+            label="Download template",
+            icon=":material/help_outline:",
+            data=template_json,
+            file_name='project_template.json',
+            mime='application/json',
+        )
 
     st.write("**Language**")
     # TODO faire le choix de la langue

@@ -1,9 +1,10 @@
 import io
 import streamlit as st
 import plotly.express as px
-from datetime import datetime
 import pandas as pd
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
+
+# Code inspired by this tutorial : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
 
 
 def display_gantt_tab(pmo_table: PMOTable):
