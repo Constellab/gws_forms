@@ -50,7 +50,6 @@ class ProjectDTO(BaseModelDTO):
 class ProjectPlanDTO(BaseModelDTO):
     """Root structure for the project plan data"""
     data: List[ProjectDTO]
-    column_types: dict
 
     @classmethod
     def get_project_id_by_name(cls, projects: "ProjectPlanDTO", project_name: str) -> Optional[str]:

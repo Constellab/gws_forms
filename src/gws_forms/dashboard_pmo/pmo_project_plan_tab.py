@@ -163,7 +163,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
                     end_date = mission.get(pmo_table.NAME_COLUMN_END_DATE)
                     if start_date or end_date:
                         date_str = f"{start_date if start_date else ''}"
-                        date_str += f" - {end_date if end_date else ''}"
+                        date_str += f" **-** {end_date if end_date else ''}"
                         st.markdown(f"**Date:** {date_str}")
 
                     # Only display team members if exists

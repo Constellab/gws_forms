@@ -55,20 +55,5 @@
         }
       ]
     }
-  ],
-  "column_types": {
-    "Project Name": "text",
-    "Mission Name": "text",
-    "Mission Referee": "text",
-    "Team Members": "list",
-    "Start Date": "date",
-    "End Date": "date",
-    "Milestones": "list<object>",
-    "Status": "text",
-    "Priority": "text",
-    "Progress (%)": "numeric",
-    "Mission ID": "text",
-    "Project ID": "text",
-    "Milestone ID": "text"
-  }
+  ]
 }
