@@ -1,4 +1,3 @@
-from .e_table.e_table import Etable
 from .dashboard_pmo.pmo_table import PMOTable, MessageObserver, Event, Status
 from .dashboard_pmo.pmo_state import PMOState
 from .dashboard_pmo.pmo_dashboard import run, add_notes_page, add_home_page, add_gantt_page, add_kpis_page, add_settings_page
