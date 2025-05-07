@@ -1,6 +1,6 @@
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority, Event
-from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, ProjectPlanDTO, MilestoneDTO
+from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO
 from gws_forms.dashboard_pmo.dialog_functions import delete_milestone, delete_project, delete_mission, add_milestone, add_mission, edit_mission, edit_milestone, edit_project, create_project
 from gws_core.streamlit import StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
 
@@ -225,11 +225,12 @@ def display_project_plan_tab(pmo_table: PMOTable):
                             button_menu_milestone = StreamlitMenuButton(key=button_key)
                             edit_milestone_button = StreamlitMenuButtonItem(
                                 label='Edit milestone', material_icon='edit',
-                                on_click=lambda: edit_milestone(pmo_table, milestone.id))
+                                on_click=lambda milestone=milestone: edit_milestone(pmo_table, milestone.id))
                             button_menu_milestone.add_button_item(edit_milestone_button)
                             delete_milestone_button = StreamlitMenuButtonItem(
                                 label='Delete milestone', material_icon='delete', color='warn',
-                                on_click=lambda: delete_milestone(pmo_table, project_id, mission_id, milestone))
+                                on_click=lambda mission_id=mission_id,
+                                milestone=milestone: delete_milestone(pmo_table, project_id, mission_id, milestone))
                             button_menu_milestone.add_button_item(delete_milestone_button)
 
                             button_menu_milestone.render()
