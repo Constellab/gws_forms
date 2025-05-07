@@ -1,5 +1,4 @@
 import streamlit as st
-from gws_core import StringHelper
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority, Event
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, ProjectPlanDTO, MilestoneDTO
 from gws_forms.dashboard_pmo.dialog_functions import delete_milestone, delete_project, delete_mission, add_milestone, add_mission, edit_mission, edit_milestone, edit_project, create_project
@@ -7,8 +6,9 @@ from gws_core.streamlit import StreamlitMenuButton, StreamlitRouter, StreamlitMe
 
 
 def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO):
+    """Update the milestone status when the checkbox is clicked."""
     # Update the milestone status
-    milestone.done = st.session_state[key]
+    pmo_table.update_milestone_status_by_id(milestone.id, st.session_state[key])
     pmo_table.commit_and_save()
     # TODO mettre l'observer ici
     """# Apply the observer -> Update tag folder

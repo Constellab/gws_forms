@@ -313,6 +313,21 @@ class PMOTable:
         if self.pmo_state.get_status_change_log():
             self.pmo_state.convert_log_to_json()
 
+    def update_milestone_status_by_id(self, milestone_id: str, done: bool) -> None:
+        """
+        Update the status of a milestone by its ID.
+
+        Args:
+            milestone_id: The ID of the milestone to update.
+            done: The new status of the milestone (True if done, False otherwise).
+        """
+        for project in self.data.data:
+            for mission in project.missions:
+                milestone = MilestoneDTO.get_milestone_by_id(mission.milestones, milestone_id)
+                if milestone:
+                    milestone.done = done
+                    return
+
     def save_data_in_folder(self) -> None:
         """Save data as JSON using DTOs"""
         timestamp = datetime.now().strftime("plan_%Y-%m-%d-%Hh%M")
