@@ -143,5 +143,7 @@ class ProjectPlanDTO(BaseModelDTO):
         """
         for project in projects.data:
             for mission in project.missions:
-                return MilestoneDTO.get_milestone_by_id(mission.milestones, milestone_id)
+                milestone = MilestoneDTO.get_milestone_by_id(mission.milestones, milestone_id)
+                if milestone:
+                    return milestone
             return None

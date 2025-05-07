@@ -321,12 +321,19 @@ class PMOTable:
             milestone_id: The ID of the milestone to update.
             done: The new status of the milestone (True if done, False otherwise).
         """
-        for project in self.data.data:
-            for mission in project.missions:
-                milestone = MilestoneDTO.get_milestone_by_id(mission.milestones, milestone_id)
-                if milestone:
-                    milestone.done = done
-                    return
+        milestone = ProjectPlanDTO.get_milestone_by_id(self.data, milestone_id)
+        milestone.done = done
+
+    def update_project_name_by_id(self, project_id: str, project_name: str) -> None:
+        """
+        Update the name of a project by its ID.
+
+        Args:
+            project_id: The ID of the project to update.
+            project_name: The new name for the project.
+        """
+        project = ProjectPlanDTO.get_project_by_id(self.data, project_id)
+        project.name = project_name
 
     def save_data_in_folder(self) -> None:
         """Save data as JSON using DTOs"""

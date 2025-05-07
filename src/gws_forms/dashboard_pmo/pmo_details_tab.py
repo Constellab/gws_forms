@@ -8,8 +8,8 @@ from gws_core import RichText
 def display_details_tab(pmo_table: PMOTable):
 
     # Display the details tab for the current mission
-    project_selected = pmo_table.pmo_state.get_current_project()
-    mission_selected = pmo_table.pmo_state.get_current_mission()
+    project_selected = pmo_table.pmo_state.get_current_project().name
+    mission_selected = pmo_table.pmo_state.get_current_mission().mission_name
 
     # Display note
     # Key for the file note - replace spaces with underscores

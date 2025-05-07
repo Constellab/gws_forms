@@ -4,6 +4,8 @@ from typing import List
 import streamlit as st
 import pandas as pd
 
+from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
+
 
 class PMOState():
 
@@ -29,13 +31,13 @@ class PMOState():
     def get_current_project(self) -> str:
         return st.session_state.get(self.CURRENT_PROJECT_KEY, None)
 
-    def set_current_project(self, project: str) -> None:
+    def set_current_project(self, project: ProjectDTO) -> None:
         st.session_state[self.CURRENT_PROJECT_KEY] = project
 
     def get_current_mission(self) -> str:
         return st.session_state.get(self.CURRENT_MISSION_KEY, None)
 
-    def set_current_mission(self, mission: str) -> None:
+    def set_current_mission(self, mission: MissionDTO) -> None:
         st.session_state[self.CURRENT_MISSION_KEY] = mission
 
     def get_current_pmo_table(self):
