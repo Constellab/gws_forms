@@ -27,7 +27,6 @@ def display_project_plan_tab(pmo_table: PMOTable):
     # Display success message in a toast format
     pmo_state.display_success_message()
 
-    data = pmo_table.processed_data.copy()
     # Create two columns for layout
     left_col, right_col = st.columns([1, 4])
 
@@ -38,8 +37,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
             create_project(pmo_table)
 
         # Get unique project names, ordered alphabetically
-        project_names = sorted(list(set(item[pmo_table.NAME_COLUMN_PROJECT_NAME]
-                                        for item in data)))
+        project_names = sorted(list(set(project.name for project in pmo_table.data.data)))
 
         # Create radio buttons for project selection
         selected_project = st.radio(
@@ -74,26 +72,29 @@ def display_project_plan_tab(pmo_table: PMOTable):
 
                 button_menu_project.render()
 
+            project_data = []
             # Filter data for selected project
-            project_data = [item for item in data
-                            if item[pmo_table.NAME_COLUMN_PROJECT_NAME] == selected_project]
+            for project in pmo_table.data.data:
+                if project.id == project_id:
+                    # Get the project data
+                    project_data = project.missions
             # If there is no mission set yet, return
-            if pmo_table.NAME_COLUMN_MISSION_NAME not in project_data[0]:
+            if not project_data:
                 return
             # Define status order mapping
             status_order = Status.get_order()
 
             # Sort project_data by status first, then mission name
             project_data.sort(key=lambda x: (
-                status_order.get(x.get(pmo_table.NAME_COLUMN_STATUS)),  # Status order
-                x.get(pmo_table.NAME_COLUMN_MISSION_NAME).lower()  # Mission name alphabetically
+                status_order.get(x.status),  # Status order
+                x.mission_name.lower()  # Mission name alphabetically
             ))
 
             # Display project information
             for mission in project_data:
-                mission_name = mission.get(pmo_table.NAME_COLUMN_MISSION_NAME)
+                mission_name = mission.mission_name
                 pmo_table.pmo_state.set_current_mission(mission_name)
-                mission_id = mission.get(pmo_table.NAME_MISSION_ID)
+                mission_id = mission.id
                 st.markdown("---")
 
                 header_col1, header_col2, header_col3 = st.columns([3, 1, 1])
@@ -135,46 +136,45 @@ def display_project_plan_tab(pmo_table: PMOTable):
                 col1, col2, col3 = st.columns(3)
 
                 # Only display if priority exists
-                priority = mission.get(pmo_table.NAME_COLUMN_PRIORITY)
+                priority = mission.priority
                 if priority and priority != Priority.NONE.value:
                     with col1:
                         st.write(priority)
 
                 # Only display if status exists
-                status = mission.get(pmo_table.NAME_COLUMN_STATUS)
+                status = mission.status
                 if status and status != Status.NONE.value:
                     with col2:
                         st.write(status)
 
                 # Only display if progress exists
-                progress = mission.get(pmo_table.NAME_COLUMN_PROGRESS)
+                progress = mission.progress
                 if progress is not None:
                     with col3:
                         # Display progress as a percentage
                         st.write(f"{str(progress)}%")
 
                 # Only display referee if exists
-                referee = mission.get(pmo_table.NAME_COLUMN_MISSION_REFEREE)
+                referee = mission.mission_referee
                 if referee:
                     st.markdown(f"**{pmo_table.NAME_COLUMN_MISSION_REFEREE}:** {referee}")
 
                 # Only display dates if they exist
-                start_date = mission.get(pmo_table.NAME_COLUMN_START_DATE)
-                end_date = mission.get(pmo_table.NAME_COLUMN_END_DATE)
+                start_date = mission.start_date
+                end_date = mission.end_date
                 if start_date or end_date:
                     date_str = f"{start_date if start_date else ''}"
                     date_str += f" **-** {end_date if end_date else ''}"
                     st.markdown(f"**Date:** {date_str}")
 
                 # Only display team members if exists
-                team_members = mission.get(pmo_table.NAME_COLUMN_TEAM_MEMBERS)
+                team_members = mission.team_members
                 if team_members and team_members != "No members" and team_members != [""]:
                     team_members_str = ", ".join(team_members)
                     st.markdown(f"**{pmo_table.NAME_COLUMN_TEAM_MEMBERS}:** {team_members_str}")
 
-                # Only display milestones if exists
-                milestones = mission.get(pmo_table.NAME_COLUMN_MILESTONES)
-
+                # Milestones
+                milestones = mission.milestones
                 title_col, button_col = StreamlitContainers.columns_with_fit_content(
                     key=f"milestone_container_{mission_id}",
                     cols=[1, 'fit-content'])
@@ -184,6 +184,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
                               key=f"add_milestone_{mission_id}",
                               on_click=add_milestone,
                               args=(pmo_table, project_id, mission_id,))
+                # Only display milestones if exists
                 if milestones:
                     with title_col:
                         st.markdown(f"**{pmo_table.NAME_COLUMN_MILESTONES}:**")
@@ -210,7 +211,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
 
                             # Format the milestone display
                             task_label = f"~~{name.strip()}~~" if done else name
-                            key = f"{name}_{mission.get(pmo_table.NAME_PROJECT_ID)}_{mission.get(pmo_table.NAME_MISSION_ID)}_{i}"
+                            key = f"{name}_{project_id}_{mission_id}_{i}"
 
                             st.checkbox(
                                 label=task_label,
