@@ -5,7 +5,6 @@ from .dashboard_pmo.pmo_project_plan_tab import display_project_plan_tab
 from .dashboard_pmo.pmo_gantt_tab import display_gantt_tab
 from .dashboard_pmo.pmo_plot_overview_tab import display_plot_overview_tab
 from .dashboard_pmo.pmo_details_tab import display_details_tab
-from .dashboard_pmo._dashboard_code.container.container import st_fixed_container
 from .dashboard_pmo.streamlit_data_editor import StreamlitDataEditor
 from .dashboard_pmo.pmo_dto import ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
 from .dashboard_pmo.pmo_config import PMOConfig
