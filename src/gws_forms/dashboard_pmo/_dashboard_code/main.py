@@ -1,3 +1,4 @@
+import os
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
 from gws_forms.dashboard_pmo.pmo_dashboard import run
 
@@ -6,9 +7,10 @@ from gws_forms.dashboard_pmo.pmo_dashboard import run
 sources: list
 params: dict
 
-folder_project_plan = sources[0].path
-folder_details = sources[1].path
-folder_change_log = sources[2].path
+data_folder = sources[0].path
+folder_project_plan = os.path.join(data_folder, "Project Plan")
+folder_details = os.path.join(data_folder, "Notes")
+folder_change_log = os.path.join(data_folder, "Change Log")
 
 pmo_table = PMOTable(folder_project_plan=folder_project_plan,
                      folder_details=folder_details, folder_change_log=folder_change_log)

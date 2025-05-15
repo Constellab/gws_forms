@@ -1,7 +1,9 @@
 import os
 
-from gws_core import (ConfigParams, OutputSpec, OutputSpecs, StreamlitResource, Task, TaskInputs, TaskOutputs, task_decorator,
-                      dashboard_decorator, Dashboard, DashboardType, Folder, TypingStyle)
+from gws_core import (
+    ConfigParams, InputSpecs, InputSpec, OutputSpec, OutputSpecs, StreamlitResource, Task, TaskInputs, TaskOutputs,
+    task_decorator, dashboard_decorator, Dashboard, DashboardType, Folder, TypingStyle)
+
 
 @dashboard_decorator("GenerateDashboardPMO", dashboard_type=DashboardType.STREAMLIT)
 class GenerateDashboardPMO(Dashboard):
@@ -14,10 +16,11 @@ class GenerateDashboardPMO(Dashboard):
             "_dashboard_code"
         )
 
+
 @task_decorator("StreamlitPMOGenerator", human_name="PMO dashboard",
                 short_description="Task to generate a PMO Streamlit dashboard",
                 style=TypingStyle.community_icon(icon_technical_name="dashboard",
-                                                     background_color="#b57fb4"))
+                                                 background_color="#b57fb4"))
 class StreamlitPMOGenerator(Task):
 
     """
@@ -27,6 +30,7 @@ class StreamlitPMOGenerator(Task):
     Output : a Streamlit app.
 
     """
+    input_specs: InputSpecs = InputSpecs({'data': InputSpec(Folder, human_name="Folder containing the data")})
     output_specs: OutputSpecs = OutputSpecs({
         'streamlit_app': OutputSpec(StreamlitResource, human_name="Streamlit app")
     })
@@ -36,21 +40,15 @@ class StreamlitPMOGenerator(Task):
         # build the streamlit resource with the code and the resources
         streamlit_resource = StreamlitResource()
 
-        folder_project_plan: Folder = Folder(self.create_tmp_dir())
-        folder_project_plan.name = "Project Plan"
-        streamlit_resource.add_resource(
-            folder_project_plan, create_new_resource=True)
+        data_folder: Folder = inputs.get('data')
 
-        folder_details: Folder = Folder(self.create_tmp_dir())
-        folder_details.name = "Notes"
-        streamlit_resource.add_resource(
-            folder_details, create_new_resource=True)
+        # Create the 3 required folders if they do not exist
+        data_folder.create_dir_if_not_exist("Project Plan")
+        data_folder.create_dir_if_not_exist("Change Log")
+        data_folder.create_dir_if_not_exist("Notes")
 
-        folder_change_log: Folder = Folder(self.create_tmp_dir())
-        folder_change_log.name = "Change Log"
         streamlit_resource.add_resource(
-            folder_change_log, create_new_resource=True)
-
+            data_folder, create_new_resource=False)
 
         # set dashboard reference
         streamlit_resource.set_dashboard(GenerateDashboardPMO())
