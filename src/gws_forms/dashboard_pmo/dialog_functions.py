@@ -262,33 +262,33 @@ def edit_mission(pmo_table: PMOTable, project_id: str, selected_mission: str):
 
 
 @st.dialog("Edit project")
-def edit_project(pmo_table: PMOTable, selected_project: str):
+def edit_project(pmo_table: PMOTable, project_id: str):
+
     with st.form(key="edit_project_form", clear_on_submit=False, enter_to_submit=True):
+        existing_project_name = ProjectPlanDTO.get_project_by_id(pmo_table.data, project_id).name
         # Add fields for project details
-        project_name = st.text_input("Insert your project name", value=selected_project)
+        project_name = st.text_input("Insert your project name", value=existing_project_name)
 
         submit_button = st.form_submit_button(label="Submit")
 
         if submit_button:
             # Check if the project name is the same as previously
             # If so, do nothing and return
-            if project_name == selected_project:
+            if project_name == existing_project_name:
                 return
             if check_project_name_unique_and_not_empty(project_name, pmo_table):
                 return
 
             # Update project name
-            for project in pmo_table.data.data:
-                if project.name == selected_project:
-                    project.name = project_name
-                    break
+            pmo_table.update_project_name_by_id(project_id, project_name)
 
             pmo_table.commit_and_save()
             st.rerun()
 
 
 @st.dialog("Edit milestone")
-def edit_milestone(pmo_table: PMOTable, milestone: MilestoneDTO):
+def edit_milestone(pmo_table: PMOTable, milestone_id: MilestoneDTO):
+    milestone = ProjectPlanDTO.get_milestone_by_id(pmo_table.data, milestone_id)
     with st.form(key="edit_milestone_form", clear_on_submit=False, enter_to_submit=True):
         # Add fields for milestone details with existing values
         milestone_name, milestone_done = get_fields_milestone(milestone=milestone)
@@ -361,5 +361,5 @@ def create_project(pmo_table: PMOTable):
             pmo_table.commit_and_save()
             # Set success message in session state
             pmo_table.pmo_state.set_show_success_project_created(True)
-            pmo_table.pmo_state.set_current_project(name_project)
+            pmo_table.pmo_state.set_current_project(new_project)
             st.rerun()

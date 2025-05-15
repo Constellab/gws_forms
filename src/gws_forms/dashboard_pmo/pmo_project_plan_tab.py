@@ -43,27 +43,28 @@ def display_project_plan_tab(pmo_table: PMOTable):
         selected_project = st.radio(
             "Select a project",
             options=project_names,
-            index=project_names.index(pmo_state.get_current_project()) if pmo_state.get_current_project() else 0,
+            index=project_names.index(pmo_state.get_current_project().name) if pmo_state.get_current_project() else 0,
             label_visibility="collapsed"
         )
         project_id = ProjectPlanDTO.get_project_by_name(pmo_table.data, selected_project).id
+        project = ProjectPlanDTO.get_project_by_id(pmo_table.data, project_id)
 
     # Right column - Project details
     with right_col:
-        if selected_project:
-            pmo_table.pmo_state.set_current_project(selected_project)
+        if project:
+            pmo_table.pmo_state.set_current_project(project)
             # Create a container for the header with project title and action buttons
             header_col1, header_col2 = st.columns([6, 1])
             with header_col1:
-                st.header(f"{selected_project}")
+                st.header(f"{project.name}")
             with header_col2:
                 button_menu_project = StreamlitMenuButton(key="button_menu_project")
                 add_mission_button = StreamlitMenuButtonItem(label='Add mission', material_icon='add',
-                                                             on_click=lambda: add_mission(pmo_table, selected_project))
+                                                             on_click=lambda: add_mission(pmo_table, project.name))
                 button_menu_project.add_button_item(add_mission_button)
                 edit_project_button = StreamlitMenuButtonItem(
                     label='Edit project', material_icon='edit',
-                    on_click=lambda: edit_project(pmo_table, selected_project))
+                    on_click=lambda: edit_project(pmo_table, project_id))
                 button_menu_project.add_button_item(edit_project_button)
                 delete_project_button = StreamlitMenuButtonItem(
                     label='Delete project', material_icon='delete', color='warn',
@@ -93,7 +94,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
             # Display project information
             for mission in project_data:
                 mission_name = mission.mission_name
-                pmo_table.pmo_state.set_current_mission(mission_name)
+                pmo_table.pmo_state.set_current_mission(mission)
                 mission_id = mission.id
                 st.markdown("---")
 
@@ -224,7 +225,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
                             button_menu_milestone = StreamlitMenuButton(key=button_key)
                             edit_milestone_button = StreamlitMenuButtonItem(
                                 label='Edit milestone', material_icon='edit',
-                                on_click=lambda: edit_milestone(pmo_table, milestone))
+                                on_click=lambda: edit_milestone(pmo_table, milestone.id))
                             button_menu_milestone.add_button_item(edit_milestone_button)
                             delete_milestone_button = StreamlitMenuButtonItem(
                                 label='Delete milestone', material_icon='delete', color='warn',
