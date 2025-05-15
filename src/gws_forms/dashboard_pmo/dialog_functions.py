@@ -12,8 +12,7 @@ def check_project_name_unique_and_not_empty(project_name: str, pmo_table: PMOTab
         return True
 
     # Check for existing project names
-    existing_projects = [item[pmo_table.NAME_COLUMN_PROJECT_NAME]
-                         for item in pmo_table.processed_data]
+    existing_projects = [project.name for project in pmo_table.data.data]
     if project_name in existing_projects:
         st.warning("Project name must be unique. A project with this name already exists.")
         return True
@@ -190,7 +189,7 @@ def delete_project(pmo_table: PMOTable, project_id: str):
 
 @st.dialog("Delete mission")
 def delete_mission(pmo_table: PMOTable, project_id: str, mission_id: str):
-    mission_name = ProjectPlanDTO.get_mission_by_id(pmo_table.data, mission_id).name
+    mission_name = ProjectPlanDTO.get_mission_by_id(pmo_table.data, mission_id).mission_name
     st.warning(
         f"Are you sure you want to delete the mission {mission_name}? This action cannot be undone.")
     if st.button("Delete", use_container_width=True, icon=":material/delete:"):

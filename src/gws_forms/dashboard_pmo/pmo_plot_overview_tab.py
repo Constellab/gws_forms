@@ -10,9 +10,11 @@ def display_plot_overview_tab(pmo_table: PMOTable):
     with cols[0]:
         # Data for the donut chart
         # Calculate the count of each status using Counter
-        status_counts = Counter(item[pmo_table.NAME_COLUMN_STATUS]
-                                for item in pmo_table.processed_data
-                                if pmo_table.NAME_COLUMN_STATUS in item)
+        status_counts = Counter(
+            mission.status
+            for project in pmo_table.data.data
+            for mission in project.missions
+        )
 
         labels = list(status_counts.keys())
         values = list(status_counts.values())
@@ -43,9 +45,9 @@ def display_plot_overview_tab(pmo_table: PMOTable):
         # Data for the donut chart
         # Filter and count priorities
         priority_counts = Counter(
-            item[pmo_table.NAME_COLUMN_PRIORITY]
-            for item in pmo_table.processed_data
-            if pmo_table.NAME_COLUMN_PRIORITY in item
+            mission.priority
+            for project in pmo_table.data.data
+            for mission in project.missions
         )
 
         if priority_counts:

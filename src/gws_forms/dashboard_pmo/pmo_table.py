@@ -105,10 +105,6 @@ class PMOTable:
     NAME_MISSION_ID = "Mission ID"
     NAME_PROJECT_ID = "Project ID"
     NAME_MILESTONE_ID = "Milestone ID"
-    DEFAULT_COLUMNS_LIST = [
-        NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MISSION_REFEREE, NAME_COLUMN_TEAM_MEMBERS,
-        NAME_COLUMN_START_DATE, NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY,
-        NAME_COLUMN_PROGRESS]
 
     folder_project_plan: str
     folder_details: str
@@ -117,10 +113,11 @@ class PMOTable:
     observer: Optional[MessageObserver]
     data: ProjectPlanDTO
     pmo_state: PMOState
-    selected_file : str
+    selected_file: str
+    file_path_change_log: str
 
     def __init__(self, folder_project_plan=None, folder_details=None, missions_order=None,
-                 folder_change_log=None, observer=None, selected_file = None):
+                 folder_change_log=None, observer=None, selected_file=None):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
@@ -144,13 +141,9 @@ class PMOTable:
         else:
             self.file_path_change_log = None
 
-        self.processed_data = self._process_data()
         self.pmo_state = PMOState(self.file_path_change_log)
-
-        self.update_mission_statuses_and_progress()
         self.pmo_state.set_current_pmo_table(self)
         self.commit_and_save()
-
 
     def load_pmo_data(self):
         if self.folder_project_plan:
@@ -183,7 +176,7 @@ class PMOTable:
             name="Project 1",
             missions=[example_mission]
         )
-        return ProjectPlanDTO(data = [example_project])
+        return ProjectPlanDTO(data=[example_project])
 
     def load_pmo_data_from_json(self) -> Dict:
         """Load PMO data from file or create new if none exists
@@ -211,61 +204,6 @@ class PMOTable:
             # Convert raw data to ProjectPlanDTO
             return ProjectPlanDTO.from_json(loaded_data)
 
-    def _process_data(self) -> List[Dict[str, Any]]:
-        """Process the PMO data into DTO format."""
-        try:
-            # Convert raw data to ProjectPlanDTO
-            processed = []
-
-            # Process each project and its missions
-            for project in self.data.data:
-                if not project.missions:
-                    # Add empty project
-                    processed.append({
-                        self.NAME_COLUMN_PROJECT_NAME: project.name,
-                        self.NAME_PROJECT_ID: project.id
-                    })
-                    continue
-
-                # Process missions
-                for mission in project.missions:
-                    mission_data = {
-                        self.NAME_COLUMN_PROJECT_NAME: project.name,
-                        self.NAME_PROJECT_ID: project.id,
-                        self.NAME_COLUMN_MISSION_NAME: mission.mission_name,
-                        self.NAME_MISSION_ID: mission.id,
-                        self.NAME_COLUMN_MISSION_REFEREE: mission.mission_referee,
-                        self.NAME_COLUMN_TEAM_MEMBERS: mission.team_members,
-                        self.NAME_COLUMN_START_DATE: mission.start_date,
-                        self.NAME_COLUMN_END_DATE: mission.end_date,
-                        self.NAME_COLUMN_MILESTONES: mission.milestones,
-                        self.NAME_COLUMN_STATUS: mission.status,
-                        self.NAME_COLUMN_PRIORITY: mission.priority,
-                        self.NAME_COLUMN_PROGRESS: mission.progress,
-                        "id": mission.id
-                    }
-                    processed.append(mission_data)
-
-            return processed
-        except Exception as e:
-            st.error(f"Error processing data: {str(e)}")
-            return []
-
-    def download(self, file_format: str = "csv") -> str:
-        """Download the DataFrame as CSV or JSON."""
-        if file_format == "csv":
-            # Create CSV string manually
-            if not self.processed_data:
-                return ""
-            headers = list(self.processed_data[0].keys())
-            csv_lines = [",".join(headers)]
-            for item in self.processed_data:
-                row = [str(item.get(header, "")) for header in headers]
-                csv_lines.append(",".join(row))
-            return "\n".join(csv_lines)
-        elif file_format == "json":
-            return json.dumps(self.processed_data, indent=2)
-
     # Function to calculate progress
     def calculate_progress(self, item: Dict) -> float:
         """Calculate progress based on milestones"""
@@ -281,16 +219,6 @@ class PMOTable:
                 return round((completed_steps / total_steps) * 100, 2)
             else:
                 return 0.0
-
-    def _load_existing_log(self):
-        """Helper function for reading the log file"""
-        if self.file_path_change_log:
-            try:
-                with open(self.file_path_change_log, 'r', encoding="utf-8") as f:
-                    return json.load(f)
-            except (FileNotFoundError, json.JSONDecodeError):
-                return []
-        return []
 
     def log_status_change(self, mission_id: str, project_name: str, mission_name: str,
                           old_status: str, new_status: str) -> None:
@@ -385,11 +313,8 @@ class PMOTable:
         if self.pmo_state.get_status_change_log():
             self.pmo_state.convert_log_to_json()
 
-        # Update processed data with the validated changes
-        self.processed_data = self._process_data()
-
     def save_data_in_folder(self) -> None:
-        """Save data as JSON and CSV using DTOs"""
+        """Save data as JSON using DTOs"""
         timestamp = datetime.now().strftime("plan_%Y-%m-%d-%Hh%M")
 
         # Save JSON using ProjectPlanDTO
@@ -397,15 +322,7 @@ class PMOTable:
         with open(path_json, 'w', encoding='utf-8') as f:
             json.dump(self.data.to_json_dict(), f, indent=2)
 
-        # Save CSV
-        path_csv = os.path.join(self.folder_project_plan, f"{timestamp}.csv")
-        csv_content = self.download(file_format="csv")
-        with open(path_csv, 'w', encoding='utf-8') as f:
-            f.write(csv_content)
-
     def commit_and_save(self):
         self.update_mission_statuses_and_progress()
-        # Update processed data
-        self.processed_data = self._process_data()
         # Save changes
         self.save_data_in_folder()
