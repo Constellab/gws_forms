@@ -7,6 +7,7 @@ from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority, Event
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ProjectPlanDTO
 from gws_forms.dashboard_pmo._dashboard_code.container.container import st_fixed_container
 from gws_core.streamlit import StreamlitMenuButton, StreamlitMenuButtonItem
+from gws_core.streamlit import StreamlitRouter
 
 
 def get_fields_mission(mission: MissionDTO = None):
@@ -253,6 +254,7 @@ def create_project(pmo_table: PMOTable):
 
 def display_project_plan_tab(pmo_table: PMOTable):
     """Display the DataFrame in Streamlit tabs."""
+    router = StreamlitRouter.load_from_session()
     # Define the variable pmo_state
     pmo_state = pmo_table.pmo_state
 
@@ -322,6 +324,9 @@ def display_project_plan_tab(pmo_table: PMOTable):
             # Filter data for selected project
             project_data = [item for item in data
                             if item[pmo_table.NAME_COLUMN_PROJECT_NAME] == selected_project]
+            # If there is no mission set yet, return
+            if pmo_table.NAME_COLUMN_MISSION_NAME not in project_data[0]:
+                return
             # Define status order mapping
             status_order = Status.get_order()
 
@@ -337,8 +342,6 @@ def display_project_plan_tab(pmo_table: PMOTable):
                 header_col1, header_col2, = st.columns([6, 1])
                 # Only display if mission name exists
                 mission_name = item.get(pmo_table.NAME_COLUMN_MISSION_NAME)
-                if not mission_name:
-                    return
                 with header_col1:
                     st.subheader(mission_name)
                 with header_col2:
@@ -413,10 +416,15 @@ def display_project_plan_tab(pmo_table: PMOTable):
                         check_mark = "✅" if done else "- "
                         st.markdown(f"{check_mark} {name}")
 
-                # TODO: ouvrir une dialogue ou une page cachée
-                st.button("View note", icon=":material/visibility:", use_container_width=True,
-                          key=f"view_note_{item[pmo_table.NAME_COLUMN_MISSION_NAME]}")
-
+                col1, col2 = st.columns([1, 4])
+                with col1:
+                    # TODO: ouvrir une dialogue ou une page cachée
+                    if st.button("View note", icon=":material/visibility:", use_container_width=True,
+                                 key=f"view_note_{mission_name}"):
+                        st.write("Note: This feature is not yet implemented.")
+                        pmo_table.pmo_state.set_current_mission(mission_name)
+                        pmo_table.pmo_state.set_current_project(selected_project)
+                        router.navigate('notes')
     if pmo_table.choice_project_plan != "Load":
         # Add a template screenshot as an example
         with st.expander('Download the project plan template', icon=":material/help_outline:"):

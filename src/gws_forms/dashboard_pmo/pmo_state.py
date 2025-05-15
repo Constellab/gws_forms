@@ -15,6 +15,8 @@ class PMOState():
     SHOW_SUCCESS_MISSION_DELETED_KEY = "show_success_mission_deleted"
     SHOW_SUCCESS_MISSION_ADDED_KEY = "show_success_mission_added"
     TEAM_MEMBERS_NUMBER_KEY = "team_members_number"
+    CURRENT_PROJECT_KEY = "current_project"
+    CURRENT_MISSION_KEY = "current_mission"
 
     def __init__(self, file_path_change_log: str):
         self.file_path_change_log = file_path_change_log
@@ -22,6 +24,18 @@ class PMOState():
         st.session_state[self.STATUS_CHANGE_LOG_KEY] = self.get_status_change_log()
         # Initialize a log list for status changes
         st.session_state[self.STATUS_CHANGE_JSON_KEY] = self.get_status_change_json()
+
+    def get_current_project(self) -> str:
+        return st.session_state.get(self.CURRENT_PROJECT_KEY, None)
+
+    def set_current_project(self, project: str) -> None:
+        st.session_state[self.CURRENT_PROJECT_KEY] = project
+
+    def get_current_mission(self) -> str:
+        return st.session_state.get(self.CURRENT_MISSION_KEY, None)
+
+    def set_current_mission(self, mission: str) -> None:
+        st.session_state[self.CURRENT_MISSION_KEY] = mission
 
     # Show success
     def get_show_success_todo(self) -> List:

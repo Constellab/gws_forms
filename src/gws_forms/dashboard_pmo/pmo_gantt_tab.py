@@ -1,6 +1,8 @@
 import io
 import streamlit as st
 import plotly.express as px
+from datetime import datetime
+import pandas as pd
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
 
 
@@ -12,8 +14,16 @@ def display_gantt_tab(pmo_table: PMOTable):
          pmo_table.NAME_COLUMN_PROJECT_NAME, pmo_table.NAME_COLUMN_MISSION_NAME],
         index=0)
 
+    # Convert dates to datetime format
+    processed_data = pmo_table.processed_data.copy()
+    for item in processed_data:
+        if item.get(pmo_table.NAME_COLUMN_START_DATE):
+            item[pmo_table.NAME_COLUMN_START_DATE] = pd.to_datetime(item[pmo_table.NAME_COLUMN_START_DATE])
+        if item.get(pmo_table.NAME_COLUMN_END_DATE):
+            item[pmo_table.NAME_COLUMN_END_DATE] = pd.to_datetime(item[pmo_table.NAME_COLUMN_END_DATE])
+
     fig = px.timeline(
-        pmo_table.processed_data,
+        processed_data,
         x_start=pmo_table.NAME_COLUMN_START_DATE,
         x_end=pmo_table.NAME_COLUMN_END_DATE,
         y=pmo_table.NAME_COLUMN_PROJECT_NAME,
