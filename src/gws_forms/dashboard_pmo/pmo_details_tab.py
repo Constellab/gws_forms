@@ -1,6 +1,5 @@
 import os
 import json
-import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
 from gws_core.streamlit import rich_text_editor
 from gws_core import RichText

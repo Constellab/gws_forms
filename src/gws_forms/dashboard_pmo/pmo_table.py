@@ -1,17 +1,15 @@
-import streamlit as st
 import json
 import os
+import pytz
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import Any, Literal, Optional, List, Dict
 from abc import abstractmethod
-from enum import Enum
-import pytz
+import streamlit as st
 from gws_forms.e_table.e_table import Etable
 from gws_forms.dashboard_pmo.pmo_state import PMOState
 from gws_core import StringHelper
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
-
-# Code inspired by this tutorial : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
 
 
 class Event:
@@ -199,7 +197,7 @@ class PMOTable(Etable):
         self.processed_data = self._process_data()
         self.pmo_state = PMOState(self.file_path_change_log)
 
-        # self.validate_columns()
+        self.update_mission_statuses_and_progress()
         # Example data template using DTOs
         self.example_data = example_project
 
@@ -262,50 +260,8 @@ class PMOTable(Etable):
             else:
                 return 0
 
-    """def track_and_log_status(self, new_data: List[Dict]) -> None:
-        """
-    # Compare old_data(self.processed_data) and new_data to detect status changes and log them.
-    """
-        old_df = self.processed_data.copy()
-        new_df = new_df.copy()
-        # Keep the current date in ISO format
-        current_date = datetime.now().isoformat()
-        self.pmo_state.get_status_change_log()
-        time_tolerance = timedelta(seconds=5)  # Allow 5 seconds of difference
-
-        # Identify rows where 'status' has changed
-        if "level_0" in new_df.columns:
-            new_df.set_index("level_0", inplace=True)
-        if "index" in new_df.columns:
-            new_df.set_index("index", inplace=True)
-
-        # Ensure old_df (self.df) contains all indices from new_df
-        missing_indices = new_df.index.difference(old_df.index)
-        # Create a DataFrame with missing indices and copy data from new_df except for STATUS
-        if not missing_indices.empty:
-            missing_rows = new_df.loc[missing_indices].copy()
-            missing_rows[self.NAME_COLUMN_STATUS] = "nan"  # Set STATUS to NaN
-            old_df = pd.concat([old_df, missing_rows])  # Append missing rows
-
-        # Remove rows from old_df (self.df) that are no longer in new_df
-        old_df = old_df.loc[old_df.index.intersection(new_df.index)]
-        # Load existing log file
-        existing_log = self._load_existing_log()
-        # Now find changed rows
-        changed_rows = new_df[new_df[self.NAME_COLUMN_STATUS] != old_df[self.NAME_COLUMN_STATUS]]
-
-        for idx, row in changed_rows.iterrows():
-            old_status = old_df.loc[idx, self.NAME_COLUMN_STATUS]
-            new_status = row[self.NAME_COLUMN_STATUS]
-
-            new_entry = self._create_log_entry(row, old_status, new_status, current_date)
-
-            if not self._is_duplicate_entry(new_entry, existing_log, time_tolerance):
-                self.pmo_state.append_status_change_log(new_entry)
-        # Convert the log to JSON
-        self.pmo_state.convert_log_to_json()"""
-
-    """def _load_existing_log(self):
+    def _load_existing_log(self):
+        """Helper function for reading the log file"""
         if self.file_path_change_log:
             try:
                 with open(self.file_path_change_log, 'r', encoding="utf-8") as f:
@@ -314,173 +270,103 @@ class PMOTable(Etable):
                 return []
         return []
 
-    def _create_log_entry(self, row, old_status, new_status, date_str):
-        return {
-            "id": row[self.NAME_MISSION_ID],
-            "project": row[self.NAME_COLUMN_PROJECT_NAME],
-            "mission": row[self.NAME_COLUMN_MISSION_NAME],
+    def log_status_change(self, mission_id: str, project_name: str, mission_name: str,
+                          old_status: str, new_status: str) -> None:
+        """
+        Log a status change for a mission
+
+        Args:
+            mission_id: ID of the mission
+            project_name: Name of the project
+            mission_name: Name of the mission
+            old_status: Previous status
+            new_status: New status
+        """
+        new_entry = {
+            "mission_id": mission_id,
+            "project": project_name,
+            "mission": mission_name,
             "status_before": old_status,
             "status_after": new_status,
-            "date": date_str
+            "date": datetime.now().isoformat()
         }
+        self.pmo_state.append_status_change_log(new_entry)
 
-    def _is_duplicate_entry(self, entry, log, tolerance):
-        entry_date = datetime.strptime(entry["date"], "%Y-%m-%dT%H:%M:%S.%f")
-        return any(
-            entry["id"] == entry["id"] and
-            entry["project"] == entry["project"] and
-            entry["mission"] == entry["mission"] and
-            entry["status_before"] == entry["status_before"] and
-            entry["status_after"] == entry["status_after"] and
-            abs(datetime.strptime(entry["date"], "%Y-%m-%dT%H:%M:%S.%f") - entry_date) <= tolerance
-            for entry in log
-        )"""
+    def update_mission_statuses_and_progress(self) -> None:
+        """Ensures required fields are present and have correct types.
+        Auto-updates progress, status and dates based on conditions."""
 
-    """def fill_na_df(self) -> None:
-        for column, col_type in self.required_columns.items():
-            if column not in self.df.columns:
-                self.df[column] = None
-            if col_type == self.DATE:
-                self.df[column] = self.df[column].fillna('').astype('datetime64[ns]')
-            elif col_type == self.TEXT:
-                self.df[column] = self.df[column].astype("string")
-            elif col_type == self.NUMERIC:
-                self.df[column] = self.df[column].astype(float)
-            elif col_type == self.BOOLEAN:
-                self.df[column] = self.df[column].astype(bool)
-
-        # Replace empty strings with No members in the Team members column in order to show it in the Gantt chart
-        self.df[self.NAME_COLUMN_TEAM_MEMBERS] = self.df[self.NAME_COLUMN_TEAM_MEMBERS].replace([
-            '', 'None', 'nan'], 'No members')
-        # Replace empty text columns by 'nan'
-        self.df[self.NAME_COLUMN_PROJECT_NAME] = self.df[self.NAME_COLUMN_PROJECT_NAME].replace([
-            '', 'None'], '/')
-        self.df[self.NAME_COLUMN_MISSION_NAME] = self.df[self.NAME_COLUMN_MISSION_NAME].replace([
-            '', 'None'], '/')
-        self.df[self.NAME_COLUMN_MISSION_REFEREE] = self.df[self.NAME_COLUMN_MISSION_REFEREE].replace([
-            '', 'None'], '/')
-        self.df[self.NAME_COLUMN_MILESTONES] = self.df[self.NAME_COLUMN_MILESTONES].replace([
-            '', 'None'], '/')
-        self.df[self.NAME_COLUMN_STATUS] = self.df[self.NAME_COLUMN_STATUS].replace([
-            '', 'None'], 'nan')
-        self.df[self.NAME_COLUMN_PRIORITY] = self.df[self.NAME_COLUMN_PRIORITY].replace([
-            '', 'None'], 'nan')
-        self.df[self.NAME_MISSION_ID] = self.df[self.NAME_MISSION_ID].replace([
-            '', 'None'], '/')
-        # Convert None to pd.NaT
-        self.df[self.NAME_COLUMN_START_DATE] = self.df[self.NAME_COLUMN_START_DATE].apply(
-            lambda x: pd.NaT if x is None else x)
-        self.df[self.NAME_COLUMN_END_DATE] = self.df[self.NAME_COLUMN_END_DATE].apply(
-            lambda x: pd.NaT if x is None else x)
-        # Ensure the date columns are in datetime format
-        self.df[self.NAME_COLUMN_START_DATE] = pd.to_datetime(
-            self.df[self.NAME_COLUMN_START_DATE], errors='coerce').dt.date
-        self.df[self.NAME_COLUMN_END_DATE] = pd.to_datetime(self.df[self.NAME_COLUMN_END_DATE], errors='coerce').dt.date
-
-        # Add a unique id to each line if not set yet
-        self.df[self.NAME_MISSION_ID] = self.df[self.NAME_MISSION_ID].apply(
-            lambda x: StringHelper.generate_uuid() if pd.isna(x) or x == "/" else x)"""
-
-    """def validate_columns(self) -> None:
-        """  # Ensures the required columns are present and have the correct types
-    # and auto-update based on progress.
-    """
-        self.fill_na_df()
-        # Keep the current date at iso format
         current_date = datetime.now().isoformat()
-        current_date_str = datetime.now(pytz.timezone('Europe/Paris')).strftime("%d %m %Y")
-        time_tolerance = timedelta(seconds=5)
+        formatted_date = datetime.now().date()
 
-        # If status is Done and there is no end date, then set current date to the column end date
-        for idx, row in self.df.iterrows():
-            if (not pd.isna(row[self.NAME_COLUMN_STATUS])
-                    and row[self.NAME_COLUMN_STATUS] == Status.DONE.value
-                    and pd.isna(row[self.NAME_COLUMN_END_DATE])
-                ):
-                # Auto set end date for DONE status
-                self.df.at[idx, self.NAME_COLUMN_END_DATE] = current_date_str
+        # Process each project and its missions
+        for project in self.data.data:
+            for mission in project.missions:
+                # Set end date if status is DONE and no end date exists
+                if mission.status == Status.DONE.value and not mission.end_date:
+                    mission.end_date = formatted_date
 
-        # Apply the function to calculate progress
-        self.df[self.NAME_COLUMN_PROGRESS] = self.df.apply(
-            self.calculate_progress, axis=1)
+                # Calculate progress based on milestones
+                if mission.milestones:
+                    total_steps = len(mission.milestones)
+                    completed_steps = sum(1 for m in mission.milestones if m.done)
+                    mission.progress = (completed_steps / total_steps) * 100 if total_steps > 0 else 0
 
-        # Track the changes of status
-        self.pmo_state.get_status_change_log()
+                # Auto-set status to DONE if progress is 100%
+                if (mission.progress == 100 and
+                        mission.status in [Status.IN_PROGRESS.value, Status.TODO.value, Status.NONE.value]):
+                    old_status = mission.status
+                    mission.status = Status.DONE.value
+                    if not mission.end_date:
+                        mission.end_date = formatted_date
 
-        existing_log = self._load_existing_log()
+                    # Log status change
+                    self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
 
-        # Change status to '✅ Done' if progress is 100 + set today’s date in 'End Date'
-        for idx, row in self.df.iterrows():
-            if (
-                row[self.NAME_COLUMN_PROGRESS] == 100 and
-                row[self.NAME_COLUMN_STATUS] in [Status.IN_PROGRESS.value, Status.TODO.value]
-            ):
-                old_status = row[self.NAME_COLUMN_STATUS]
-                new_status = Status.DONE.value
-                self.df.loc[idx, self.NAME_COLUMN_STATUS] = new_status
-                if pd.isna(row[self.NAME_COLUMN_END_DATE]):
-                    self.df.loc[idx, self.NAME_COLUMN_END_DATE] = current_date_str
+                # Auto-set status to in progress if progress is more than 0% and status is none or todo
+                if (mission.progress != 0 and
+                        mission.status in [Status.TODO.value, Status.NONE.value]):
+                    old_status = mission.status
+                    mission.status = Status.IN_PROGRESS.value
+                    if not mission.start_date:
+                        mission.start_date = formatted_date
 
-                new_entry = self._create_log_entry(row, old_status, new_status, current_date)
-                # Check if a similar entry already exists within the time tolerance
-                if not self._is_duplicate_entry(new_entry, existing_log, time_tolerance):
-                    self.pmo_state.append_status_change_log(new_entry)
+                    # Log status change
+                    self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
 
-        # Iterate through each mission
+        # Handle mission order dependencies
         if self.missions_order:
-            # Exclude the last mission
-            for idx, mission in enumerate(self.missions_order[:-1]):
-                # Adjust the column name if necessary
-                current_mission_mask = self.df[self.NAME_COLUMN_MISSION_NAME] == mission
-                next_mission = self.missions_order[idx + 1]
-                next_mission_mask = self.df[self.NAME_COLUMN_MISSION_NAME] == next_mission
+            # Process each mission except the last one
+            for idx, mission_name in enumerate(self.missions_order[:-1]):
+                next_mission_name = self.missions_order[idx + 1]
 
-                # Get unique project names for the current mission
-                current_project_names = self.df.loc[current_mission_mask & (
-                    self.df[self.NAME_COLUMN_STATUS] == Status.DONE.value), self.NAME_COLUMN_PROJECT_NAME].unique()
-                # Update the next mission only if the project name matches
-                for project_name in current_project_names:
-                    project_mask = self.df[self.NAME_COLUMN_PROJECT_NAME] == project_name
-                    # Update start date and status for the next mission
-                    for next_idx, next_row in self.df[next_mission_mask & project_mask].iterrows():
-                        if pd.isna(next_row[self.NAME_COLUMN_START_DATE]):
-                            self.df.loc[next_idx, self.NAME_COLUMN_START_DATE] = datetime.now(
-                                tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y")
-                        if next_row[self.NAME_COLUMN_STATUS] == Status.TODO.value:
-                            old_status = next_row[self.NAME_COLUMN_STATUS]
-                            new_status = Status.IN_PROGRESS.value
-                            self.df.loc[next_idx, self.NAME_COLUMN_STATUS] = new_status
+                # Find completed missions and their projects
+                for project in self.data.data:
+                    current_mission = next((m for m in project.missions if m.mission_name ==
+                                            mission_name and m.status == Status.DONE.value), None)
+                    if current_mission:
+                        # Find and update next mission in sequence
+                        next_mission = next(
+                            (m for m in project.missions if m.mission_name == next_mission_name),
+                            None
+                        )
+                        if next_mission:
+                            if not next_mission.start_date:
+                                next_mission.start_date = formatted_date
+                            if next_mission.status == Status.TODO.value:
+                                old_status = next_mission.status
+                                next_mission.status = Status.IN_PROGRESS.value
 
-                            new_entry = self._create_log_entry(next_row, old_status, new_status, current_date)
-                            if not self._is_duplicate_entry(new_entry, existing_log, time_tolerance):
-                                self.pmo_state.append_status_change_log(new_entry)
+                                # Log status change
+                                self.log_status_change(next_mission.id, project.name,
+                                                       next_mission.mission_name, old_status, next_mission.status)
 
-        # Convert the log to JSON
+        # Convert any accumulated log entries to JSON
         if self.pmo_state.get_status_change_log():
             self.pmo_state.convert_log_to_json()
 
-        # Filter rows in order to show "In progress", "Todo" before "Done" and "Closed" -> for a better use
-        # group by project name
-        # Define the categorical order for sorting
-        status_order = Status.get_order()
-
-        # Sort the DataFrame
-        self.df = self.df.sort_values(
-            by=[self.NAME_COLUMN_PROJECT_NAME, self.NAME_COLUMN_STATUS],
-            key=lambda col: col.map(status_order) if col.name == self.NAME_COLUMN_STATUS else col
-        )
-
-        # Reset index
-        self.df = self.df.reset_index(drop=True)"""
-
-    def commit(self, edited_data: List[Dict]) -> None:
-        # Add a unique id to each line if not set yet
-        for item in edited_data:
-            if not item.get(self.NAME_MISSION_ID) or item[self.NAME_MISSION_ID] == "/":
-                item[self.NAME_MISSION_ID] = StringHelper.generate_uuid()
-
-        """self.track_and_log_status(new_df=edited_data)
-        self.validate_columns()"""
+        # Update processed data with the validated changes
+        self.processed_data = self._process_data()
 
     def save_data_in_folder(self) -> None:
         """Save data as JSON and CSV using DTOs"""
@@ -496,3 +382,42 @@ class PMOTable(Etable):
         csv_content = self.download(file_format="csv")
         with open(path_csv, 'w', encoding='utf-8') as f:
             f.write(csv_content)
+
+    def load_pmo_data(self, selected_file: Optional[str] = None):
+        """Load PMO data from file or create new if none exists
+            Get the last pmo_project_plan by default
+
+        Args:
+            selected_file: Optional specific file to load, if None loads most recent
+
+        Returns:
+            PMOTable: Updated PMO table and success flag
+        """
+        # List all JSON files in the saved directory
+        files = sorted([f.split(".json")[0] for f in os.listdir(self.folder_project_plan)
+                        if f.endswith(".json")], reverse=True)
+
+        if not files:
+            # No files exist - create new
+            self.save_data_in_folder()
+            self.pmo_state.set_current_pmo_table(self)
+            return self
+
+        selected_file = selected_file + ".json" if selected_file else files[0] + ".json"
+        file_path = os.path.join(
+            self.folder_project_plan, selected_file)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            loaded_data = json.load(f)
+            self.data = ProjectPlanDTO.from_json(loaded_data)
+            self.processed_data = self._process_data()
+            self.save_data_in_folder()
+            self.pmo_state.set_current_pmo_table(self)
+
+            return self
+
+    def commit_and_save(self):
+        self.update_mission_statuses_and_progress()
+        # Update processed data
+        self.processed_data = self._process_data()
+        # Save changes
+        self.save_data_in_folder()

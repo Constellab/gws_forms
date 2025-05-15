@@ -45,6 +45,23 @@ class PMOState():
         st.session_state[self.CURRENT_PMO_TABLE_KEY] = pmo_table
 
     # Show success
+    def display_success_message(self) -> None:
+        if self.get_show_success_project_created():
+            st.toast("Project created successfully!", icon="✅")
+            self.set_show_success_project_created(False)
+
+        if self.get_show_success_delete_project():
+            st.toast("Project deleted successfully!", icon="✅")
+            self.set_show_success_delete_project(False)
+
+        if self.get_show_success_delete_mission():
+            st.toast("Mission deleted successfully!", icon="✅")
+            self.set_show_success_delete_mission(False)
+
+        if self.get_show_success_mission_added():
+            st.toast("Mission added successfully!", icon="✅")
+            self.set_show_success_mission_added(False)
+
     def get_show_success_todo(self) -> List:
         return st.session_state.get(self.SHOW_SUCCESS_TODO_KEY, False)
 

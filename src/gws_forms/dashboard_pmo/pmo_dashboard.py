@@ -1,10 +1,7 @@
 import os
 import json
-import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO
-from gws_core.streamlit import rich_text_editor
-from gws_core import RichText
 from gws_forms.dashboard_pmo.pmo_project_plan_tab import display_project_plan_tab
 from gws_forms.dashboard_pmo.pmo_gantt_tab import display_gantt_tab
 from gws_forms.dashboard_pmo.pmo_plot_overview_tab import display_plot_overview_tab
@@ -84,23 +81,8 @@ def add_settings_page(router: StreamlitRouter, pmo_table: PMOTable):
 
 
 def show_content(pmo_table: PMOTable):
-    # Get the last pmo_project_plan by default :
-    # List all JSON files in the saved directory
-    # TODO faire une fonction et la mettre aussi dans settings
-    files = sorted([f.split(".json")[0] for f in os.listdir(
-        pmo_table.folder_project_plan) if f.endswith(".json")], reverse=True)
-    if files:
-        selected_file = files[0] + ".json"
-        file_path = os.path.join(
-            pmo_table.folder_project_plan, selected_file)
-        with open(file_path, 'r', encoding='utf-8') as f:
-            loaded_data = json.load(f)
-            pmo_table.data = ProjectPlanDTO.from_json(loaded_data)
-            pmo_table.processed_data = pmo_table._process_data()
-            pmo_table.pmo_state.set_current_pmo_table(pmo_table)
-    else:
-        pmo_table.save_data_in_folder()
-        pmo_table.pmo_state.set_current_pmo_table(pmo_table)
+    # Load initial data
+    pmo_table = pmo_table.load_pmo_data()
 
     router = StreamlitRouter.load_from_session()
     # Add pages
