@@ -110,7 +110,6 @@ class PMOTable:
         NAME_COLUMN_START_DATE, NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY,
         NAME_COLUMN_PROGRESS]
 
-    json_path: str
     folder_project_plan: str
     folder_details: str
     missions_order: List
@@ -118,52 +117,23 @@ class PMOTable:
     observer: Optional[MessageObserver]
     data: ProjectPlanDTO
     pmo_state: PMOState
+    selected_file : str
 
-    def __init__(self, json_path=None, folder_project_plan=None, folder_details=None, missions_order=None,
-                 folder_change_log=None, observer=None):
+    def __init__(self, folder_project_plan=None, folder_details=None, missions_order=None,
+                 folder_change_log=None, observer=None, selected_file = None):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
         """
-        self.json_path = json_path
-        if self.json_path:
-            self.data = self._load_json()
-            self.processed_data = self._process_data()
-        else:
-            # Initialize example data if no json_path is provided
-            example_milestone = MilestoneDTO(
-                id=StringHelper.generate_uuid(),
-                name="step 1",
-                done=False
-            )
-            example_mission = MissionDTO(
-                mission_name="Mission 1",
-                mission_referee="Person1",
-                team_members=["Person1", "Person2"],
-                start_date=datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
-                end_date=None,
-                milestones=[example_milestone],
-                status=Status.TODO.value,
-                priority=Priority.HIGH.value,
-                progress=0,
-                id=StringHelper.generate_uuid()
-            )
-            example_project = ProjectDTO(
-                id=StringHelper.generate_uuid(),
-                name="Project 1",
-                missions=[example_mission]
-            )
-            self.data = {
-                "data": [example_project.to_json_dict()]
-            }
-
+        self.folder_project_plan = folder_project_plan
+        self.selected_file = selected_file
+        self.observer = observer
         if missions_order is None:
             self.missions_order = []
         else:
             self.missions_order = missions_order
-        self.observer = observer
-        self.folder_project_plan = folder_project_plan
         self.folder_details = folder_details
+        self.data = self.load_pmo_data()
         self.folder_change_log = folder_change_log
         if folder_change_log:
             self.file_path_change_log = os.path.join(
@@ -173,23 +143,73 @@ class PMOTable:
                     f.write("[]")
         else:
             self.file_path_change_log = None
-        # Convert raw data to ProjectPlanDTO
-        self.data = ProjectPlanDTO.from_json(self.data)
+
         self.processed_data = self._process_data()
         self.pmo_state = PMOState(self.file_path_change_log)
 
         self.update_mission_statuses_and_progress()
-        self.choice_project_plan = None
+        self.pmo_state.set_current_pmo_table(self)
+        self.commit_and_save()
 
-    def _load_json(self) -> Dict:
-        """Load JSON data from file."""
-        try:
-            with open(self.json_path, 'r', encoding="utf-8") as file:
-                return json.load(file)
-        except FileNotFoundError:
-            raise ValueError(f"The file at {self.json_path} was not found.")
-        except json.JSONDecodeError:
-            raise ValueError(f"The file at {self.json_path} is not a valid JSON.")
+
+    def load_pmo_data(self):
+        if self.folder_project_plan:
+            data = self.load_pmo_data_from_json()
+        else:
+            data = self.load_pmo_data_from_example()
+        return data
+
+    def load_pmo_data_from_example(self):
+        # Initialize example data if no folder_project_plan is provided
+        example_milestone = MilestoneDTO(
+            id=StringHelper.generate_uuid(),
+            name="step 1",
+            done=False
+        )
+        example_mission = MissionDTO(
+            mission_name="Mission 1",
+            mission_referee="Person1",
+            team_members=["Person1", "Person2"],
+            start_date=datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
+            end_date=None,
+            milestones=[example_milestone],
+            status=Status.TODO.value,
+            priority=Priority.HIGH.value,
+            progress=0,
+            id=StringHelper.generate_uuid()
+        )
+        example_project = ProjectDTO(
+            id=StringHelper.generate_uuid(),
+            name="Project 1",
+            missions=[example_mission]
+        )
+        return ProjectPlanDTO(data = [example_project])
+
+    def load_pmo_data_from_json(self) -> Dict:
+        """Load PMO data from file or create new if none exists
+            Get the last pmo_project_plan by default
+
+        Args:
+            selected_file: Optional specific file to load, if None loads most recent
+
+        Returns:
+            PMOTable: Updated PMO table and success flag"""
+
+        # List all JSON files in the saved directory
+        files = sorted([f.split(".json")[0] for f in os.listdir(self.folder_project_plan)
+                        if f.endswith(".json")], reverse=True)
+
+        if not files:
+            return self.load_pmo_data_from_example()
+
+        selected_file = self.selected_file + ".json" if self.selected_file else files[0] + ".json"
+        file_path = os.path.join(
+            self.folder_project_plan, selected_file)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            loaded_data = json.load(f)
+
+            # Convert raw data to ProjectPlanDTO
+            return ProjectPlanDTO.from_json(loaded_data)
 
     def _process_data(self) -> List[Dict[str, Any]]:
         """Process the PMO data into DTO format."""
@@ -382,38 +402,6 @@ class PMOTable:
         csv_content = self.download(file_format="csv")
         with open(path_csv, 'w', encoding='utf-8') as f:
             f.write(csv_content)
-
-    def load_pmo_data(self, selected_file: Optional[str] = None):
-        """Load PMO data from file or create new if none exists
-            Get the last pmo_project_plan by default
-
-        Args:
-            selected_file: Optional specific file to load, if None loads most recent
-
-        Returns:
-            PMOTable: Updated PMO table and success flag
-        """
-        # List all JSON files in the saved directory
-        files = sorted([f.split(".json")[0] for f in os.listdir(self.folder_project_plan)
-                        if f.endswith(".json")], reverse=True)
-
-        if not files:
-            # No files exist - create new
-            self.save_data_in_folder()
-            self.pmo_state.set_current_pmo_table(self)
-            return self
-
-        selected_file = selected_file + ".json" if selected_file else files[0] + ".json"
-        file_path = os.path.join(
-            self.folder_project_plan, selected_file)
-        with open(file_path, 'r', encoding='utf-8') as f:
-            loaded_data = json.load(f)
-            self.data = ProjectPlanDTO.from_json(loaded_data)
-            self.processed_data = self._process_data()
-            self.save_data_in_folder()
-            self.pmo_state.set_current_pmo_table(self)
-
-            return self
 
     def commit_and_save(self):
         self.update_mission_statuses_and_progress()

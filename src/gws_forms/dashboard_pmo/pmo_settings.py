@@ -15,10 +15,10 @@ def display_settings_tab(pmo_table: PMOTable):
     cols = st.columns(2)
     options = ["Load", "Upload"] if files else ["Upload"]
     with cols[0]:
-        pmo_table.choice_project_plan = st.selectbox("Select an option", options, key="choice_project_plan")
+        choice_project_plan = st.selectbox("Select an option", options, key="choice_project_plan")
 
     # Load data
-    if pmo_table.choice_project_plan == "Load":
+    if choice_project_plan == "Load":
         with cols[1]:
             # Show a selectbox to choose one file; by default, choose the last one
             selected_file = st.selectbox(
@@ -26,14 +26,16 @@ def display_settings_tab(pmo_table: PMOTable):
                 placeholder="Select a project plan", key="selected_file_settings")
             # Load the selected file and display its contents
             if selected_file:
-                pmo_table = pmo_table.load_pmo_data(selected_file)
+                pmo_table = PMOTable(folder_project_plan=pmo_table.folder_project_plan,
+                                     folder_details=pmo_table.folder_details,
+                                     folder_change_log=pmo_table.folder_change_log, selected_file=selected_file)
                 # Set current project to None
                 pmo_table.pmo_state.set_current_project(None)
                 pmo_table.pmo_state.set_current_mission(None)
 
     # Upload data
     # Add a file uploader to allow users to upload their project plan file
-    elif pmo_table.choice_project_plan == "Upload":
+    elif choice_project_plan == "Upload":
         with cols[1]:
             uploaded_file = st.file_uploader("Upload your project plan.", type=[
                 'json'], key="file_uploader_sidebar")
@@ -49,8 +51,9 @@ def display_settings_tab(pmo_table: PMOTable):
                 st.warning('You need to upload a JSON file.')
                 # Use example data - already in the pmo_table
                 # Save data in the folder
-                pmo_table = PMOTable(json_path=None, folder_project_plan=pmo_table.folder_project_plan,
-                                     folder_details=pmo_table.folder_details, folder_change_log=pmo_table.folder_change_log)
+                pmo_table = PMOTable(folder_project_plan=pmo_table.folder_project_plan,
+                                     folder_details=pmo_table.folder_details,
+                                     folder_change_log=pmo_table.folder_change_log)
                 pmo_table.save_data_in_folder()
                 pmo_table.pmo_state.set_current_pmo_table(pmo_table)
                 # Set current project to None

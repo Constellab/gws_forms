@@ -1,3 +1,4 @@
+import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
 from gws_forms.dashboard_pmo.pmo_dashboard import run
 
@@ -12,7 +13,7 @@ folder_project_plan = sources[0].path
 folder_details = sources[1].path
 folder_change_log = sources[2].path
 
-pmoTable = PMOTable(json_path=None, folder_project_plan=folder_project_plan,
-                    folder_details=folder_details, folder_change_log=folder_change_log)
+pmo_table = PMOTable(folder_project_plan=folder_project_plan,
+                     folder_details=folder_details, folder_change_log=folder_change_log)
 
-run(pmoTable)
+run(pmo_table)
