@@ -131,22 +131,6 @@ class PMOTable(Etable):
         """
         super().__init__(json_path)
 
-        self.required_columns = {
-            self.NAME_COLUMN_PROJECT_NAME: self.TEXT,
-            self.NAME_COLUMN_MISSION_NAME: self.TEXT,
-            self.NAME_COLUMN_MISSION_REFEREE: self.TEXT,
-            self.NAME_COLUMN_TEAM_MEMBERS: self.LIST,
-            self.NAME_COLUMN_START_DATE: self.DATE,
-            self.NAME_COLUMN_END_DATE: self.DATE,
-            self.NAME_COLUMN_MILESTONES: self.LIST_OBJECT,
-            self.NAME_COLUMN_STATUS: self.TEXT,
-            self.NAME_COLUMN_PRIORITY: self.TEXT,
-            self.NAME_COLUMN_PROGRESS: self.NUMERIC,
-            self.NAME_MISSION_ID: self.TEXT,
-            self.NAME_PROJECT_ID: self.TEXT,
-            self.NAME_MILESTONE_ID: self.TEXT
-        }
-
         example_milestone = MilestoneDTO(
             id=StringHelper.generate_uuid(),
             name="step 1",
