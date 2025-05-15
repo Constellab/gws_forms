@@ -17,7 +17,7 @@ class Etable:
             self.data = self._load_json()
             self.processed_data = self._process_data()
         else:
-            self.data = {"data": [], "column_types": {}}
+            self.data = {"data": []}
             self.processed_data = []
 
     def _load_json(self) -> Dict:

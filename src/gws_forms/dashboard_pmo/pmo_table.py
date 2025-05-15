@@ -1,7 +1,7 @@
 import json
 import os
-import pytz
 from datetime import datetime, timedelta
+import pytz
 from enum import Enum
 from typing import Any, Literal, Optional, List, Dict
 from abc import abstractmethod
@@ -172,8 +172,7 @@ class PMOTable(Etable):
         if not self.json_path:
             # Initialize with example data if no json_path is provided
             self.data = {
-                "data": [example_project.to_json_dict()],
-                "column_types": self.required_columns
+                "data": [example_project.to_json_dict()]
             }
 
         if missions_order is None:
