@@ -11,15 +11,12 @@ class PMOState():
 
     STATUS_CHANGE_LOG_KEY = "status_change_log"
     STATUS_CHANGE_JSON_KEY = "status_change_json"
-    SHOW_SUCCESS_TODO_KEY = "show_success_todo"
     SHOW_SUCCESS_PROJECT_CREATED_KEY = "show_success_project_created"
     SHOW_SUCCESS_PROJECT_DELETED_KEY = "show_success_project_deleted"
     SHOW_SUCCESS_MISSION_DELETED_KEY = "show_success_mission_deleted"
     SHOW_SUCCESS_MISSION_ADDED_KEY = "show_success_mission_added"
-    TEAM_MEMBERS_NUMBER_KEY = "team_members_number"
     CURRENT_PROJECT_KEY = "current_project"
     CURRENT_MISSION_KEY = "current_mission"
-    CURRENT_PMO_TABLE_KEY = "current_pmo_table"
 
     def __init__(self, file_path_change_log: str):
         self.file_path_change_log = file_path_change_log
@@ -40,12 +37,6 @@ class PMOState():
     def set_current_mission(self, mission: MissionDTO) -> None:
         st.session_state[self.CURRENT_MISSION_KEY] = mission
 
-    def get_current_pmo_table(self):
-        return st.session_state.get(self.CURRENT_PMO_TABLE_KEY, None)
-
-    def set_current_pmo_table(self, pmo_table):
-        st.session_state[self.CURRENT_PMO_TABLE_KEY] = pmo_table
-
     # Show success
     def display_success_message(self) -> None:
         if self.get_show_success_project_created():
@@ -63,12 +54,6 @@ class PMOState():
         if self.get_show_success_mission_added():
             st.toast("Mission added successfully!", icon="✅")
             self.set_show_success_mission_added(False)
-
-    def get_show_success_todo(self) -> List:
-        return st.session_state.get(self.SHOW_SUCCESS_TODO_KEY, False)
-
-    def set_show_success_todo(self, boolean_success: bool) -> None:
-        st.session_state[self.SHOW_SUCCESS_TODO_KEY] = boolean_success
 
     def get_show_success_project_created(self) -> List:
         return st.session_state.get(self.SHOW_SUCCESS_PROJECT_CREATED_KEY, False)
@@ -94,12 +79,6 @@ class PMOState():
     def get_show_success_mission_added(self) -> List:
         return st.session_state.get(self.SHOW_SUCCESS_MISSION_ADDED_KEY, False)
 
-    def get_team_members_number(self) -> int:
-        return st.session_state.get(self.TEAM_MEMBERS_NUMBER_KEY, 1)
-
-    def set_team_members_number(self, value: str) -> None:
-        st.session_state[self.TEAM_MEMBERS_NUMBER_KEY] = value
-
     # Status change
     def get_status_change_json(self) -> List:
         if self.STATUS_CHANGE_JSON_KEY not in st.session_state or st.session_state[self.STATUS_CHANGE_JSON_KEY] == []:
@@ -110,9 +89,6 @@ class PMOState():
                     if content:
                         st.session_state[self.STATUS_CHANGE_JSON_KEY] = json.loads(content)
         return st.session_state.get(self.STATUS_CHANGE_JSON_KEY)
-
-    def set_status_change_json(self, list_change_log: List) -> None:
-        st.session_state[self.STATUS_CHANGE_JSON_KEY] = list_change_log
 
     def append_status_change_json(self, value) -> None:
         st.session_state[self.STATUS_CHANGE_JSON_KEY].append(value)

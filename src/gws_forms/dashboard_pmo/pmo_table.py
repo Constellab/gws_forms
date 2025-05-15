@@ -102,9 +102,6 @@ class PMOTable:
     NAME_COLUMN_MISSION_REFEREE = 'Mission Referee'
     NAME_COLUMN_TEAM_MEMBERS = 'Team Members'
     NAME_COLUMN_STATUS = "Status"
-    NAME_MISSION_ID = "Mission ID"
-    NAME_PROJECT_ID = "Project ID"
-    NAME_MILESTONE_ID = "Milestone ID"
 
     folder_project_plan: str
     folder_details: str
@@ -142,7 +139,6 @@ class PMOTable:
             self.file_path_change_log = None
 
         self.pmo_state = PMOState(self.file_path_change_log)
-        self.pmo_state.set_current_pmo_table(self)
         self.commit_and_save()
 
     def load_pmo_data(self):

@@ -1,12 +1,12 @@
 import streamlit as st
-from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority, Event
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO, ProjectDTO
+from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
+from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO
 from gws_forms.dashboard_pmo.pmo_config import PMOConfig
 from gws_forms.dashboard_pmo.dialog_functions import delete_milestone,  add_milestone, edit_milestone
 from gws_core.streamlit import StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
 
 
-def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO, current_project: ProjectDTO):
+def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO):
     """Update the milestone status when the checkbox is clicked."""
     # Update the milestone status
     pmo_table.update_milestone_status_by_id(milestone.id, st.session_state[key])
@@ -52,26 +52,23 @@ def display_project_plan_tab(pmo_table: PMOTable):
             with header_col1:
                 st.header(f"{project.name}")
             with header_col2:
-
                 button_project: StreamlitMenuButton = pmo_config.build_project_menu_button(pmo_table, project)
                 button_project.render()
 
-            project_data = []
-            project_data = project.missions
             # If there is no mission set yet, return
-            if not project_data:
+            if not project.missions:
                 return
             # Define status order mapping
             status_order = Status.get_order()
 
-            # Sort project_data by status first, then mission name
-            project_data.sort(key=lambda x: (
+            # Sort project data by status first, then mission name
+            project.missions.sort(key=lambda x: (
                 status_order.get(x.status),  # Status order
                 x.mission_name.lower()  # Mission name alphabetically
             ))
 
             # Display project information
-            for mission in project_data:
+            for mission in project.missions:
                 mission_name = mission.mission_name
                 pmo_table.pmo_state.set_current_mission(mission)
                 mission_id = mission.id
@@ -177,7 +174,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
                                 key=key,
                                 value=done,
                                 on_change=update_milestone,
-                                args=(pmo_table, key, milestone, project,))
+                                args=(pmo_table, key, milestone,))
 
                         with col2:
                             button_menu_milestone = StreamlitMenuButton(key=button_key)

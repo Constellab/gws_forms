@@ -43,7 +43,6 @@ def display_settings_tab(pmo_table: PMOTable):
                 loaded_data = json.loads(uploaded_file.getvalue().decode('utf-8'))
                 pmo_table.data = ProjectPlanDTO.from_json(loaded_data)
                 pmo_table.commit_and_save()
-                pmo_table.pmo_state.set_current_pmo_table(pmo_table)
                 # Set current project to None
                 pmo_table.pmo_state.set_current_project(None)
                 pmo_table.pmo_state.set_current_mission(None)
@@ -55,7 +54,6 @@ def display_settings_tab(pmo_table: PMOTable):
                                      folder_details=pmo_table.folder_details,
                                      folder_change_log=pmo_table.folder_change_log)
                 pmo_table.save_data_in_folder()
-                pmo_table.pmo_state.set_current_pmo_table(pmo_table)
                 # Set current project to None
                 pmo_table.pmo_state.set_current_project(None)
                 pmo_table.pmo_state.set_current_mission(None)
@@ -75,5 +73,5 @@ def display_settings_tab(pmo_table: PMOTable):
             mime='application/json',
         )
 
-    st.write("**Language**")
+    # st.write("**Language**")
     # TODO faire le choix de la langue

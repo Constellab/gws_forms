@@ -1,6 +1,6 @@
 from datetime import date, datetime
 import streamlit as st
-from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority, Event
+from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ProjectPlanDTO, MilestoneDTO
 from gws_core import StringHelper
 
@@ -96,23 +96,6 @@ def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
 
         # Add fields for mission details
         mission_name, mission_referee, team_members, start_date, end_date, status, priority, progress = get_fields_mission()
-        # TODO faire plusieurs champs -> pb qu'on ne peut pas mettre un button dans un st.form
-        """# Get current number of team_members
-        team_members_values = pmo_table.pmo_state.get_team_members_number()
-        st.write("Team members")
-        # Create inputs
-        for i in range(1, team_members_values + 1):
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.text_input(label="Team members", placeholder="Enter the name of your metadata",
-                              label_visibility="collapsed", key=f"team_members_{i}")
-            with col2:
-                if i == team_members_values:
-                    # Last row: text input + '+' button in a horizontal layout
-                    if st.button("\+", type="primary", key="add_value_button"):
-                        team_members_values += 1
-                        pmo_table.pmo_state.set_team_members_number(team_members_values)
-                        st.rerun()"""
 
         submit_button = st.form_submit_button(label="Submit")
 
