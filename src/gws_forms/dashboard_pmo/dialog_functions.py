@@ -1,8 +1,8 @@
 from datetime import date, datetime
 import streamlit as st
-from gws_core import StringHelper
-from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
+from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority, Event
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ProjectPlanDTO, MilestoneDTO
+from gws_core import StringHelper
 
 
 def check_project_name_unique_and_not_empty(project_name: str, pmo_table: PMOTable) -> None:
@@ -205,6 +205,7 @@ def delete_mission(pmo_table: PMOTable, project_id: str, mission_id: str):
 
 @st.dialog("Edit mission")
 def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_mission: MissionDTO):
+
     with st.form(key="edit_mission_form", clear_on_submit=False, enter_to_submit=True):
 
         # Store original status before changes
@@ -243,6 +244,7 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
             current_mission.progress = progress
 
             pmo_table.commit_and_save()
+
             st.rerun()
 
 

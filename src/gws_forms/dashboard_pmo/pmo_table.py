@@ -8,17 +8,18 @@ import pytz
 from gws_forms.dashboard_pmo.pmo_state import PMOState
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
 from gws_core import StringHelper
+from gws_core.streamlit import StreamlitAuthenticateUser
 
 
 class Event:
-    def __init__(self, event_type: Literal['create_line', 'delete_line', 'update_line'], data: Any = None):
+    def __init__(self, event_type: Literal['update_mission_progress'], data: Any = None):
         self.event_type = event_type  # Store the event type
         self.data = data
 
 
 class MessageObserver:
     @abstractmethod
-    def update(self, event: Event) -> bool:
+    def update(self, event: Event, current_project: ProjectDTO) -> bool:
         """Method called when a message is dispatched"""
         # This method is implemented in subclasses to update tags on folders when the project plan is saved
         pass
@@ -205,21 +206,12 @@ class PMOTable:
             # Convert raw data to ProjectPlanDTO
             return ProjectPlanDTO.from_json(loaded_data)
 
-    # Function to calculate progress
-    def calculate_progress(self, item: Dict) -> float:
-        """Calculate progress based on milestones"""
-        milestones = item.get(self.NAME_COLUMN_MILESTONES)
-        if not milestones or milestones == "nan":
-            return 0.0
-        if isinstance(milestones, list):
-            # New format with milestone objects
-            total_steps = len(milestones)
-            completed_steps = sum(1 for m in milestones if m.get("done", False))
-            # Calculate the progress as a percentage with 2 decimal places
-            if total_steps > 0:
-                return round((completed_steps / total_steps) * 100, 2)
-            else:
-                return 0.0
+    def apply_observer_update_mission_progress(self, current_project: ProjectDTO) -> None:
+        # Apply the observer -> Update tag folder
+        if self.observer:
+            check = self.observer.update(Event(event_type='update_mission_progress'), current_project)
+            if not check:
+                raise Exception("Something got wrong, close the app and try again.")
 
     def log_status_change(self, mission_id: str, project_name: str, mission_name: str,
                           old_status: str, new_status: str) -> None:
@@ -314,6 +306,10 @@ class PMOTable:
         if self.pmo_state.get_status_change_log():
             self.pmo_state.convert_log_to_json()
 
+        # Apply the observer -> Update tag folder if a external observer is set
+        for project in self.data.data:
+            self.apply_observer_update_mission_progress(project)
+
     def update_milestone_status_by_id(self, milestone_id: str, done: bool) -> None:
         """
         Update the status of a milestone by its ID.
@@ -346,6 +342,7 @@ class PMOTable:
             json.dump(self.data.to_json_dict(), f, indent=2)
 
     def commit_and_save(self):
-        self.update_mission_statuses_and_progress()
-        # Save changes
-        self.save_data_in_folder()
+        with StreamlitAuthenticateUser():
+            self.update_mission_statuses_and_progress()
+            # Save changes
+            self.save_data_in_folder()

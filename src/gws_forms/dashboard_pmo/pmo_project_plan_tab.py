@@ -1,23 +1,16 @@
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority, Event
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO
+from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO, ProjectDTO
 from gws_forms.dashboard_pmo.pmo_config import PMOConfig
 from gws_forms.dashboard_pmo.dialog_functions import delete_milestone,  add_milestone, edit_milestone
 from gws_core.streamlit import StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
 
 
-def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO):
+def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO, current_project: ProjectDTO):
     """Update the milestone status when the checkbox is clicked."""
     # Update the milestone status
-    st.write(milestone.id)
     pmo_table.update_milestone_status_by_id(milestone.id, st.session_state[key])
     pmo_table.commit_and_save()
-    # TODO mettre l'observer ici
-    """# Apply the observer -> Update tag folder
-    if pmo_table.observer:
-        check = pmo_table.observer.update(Event(event_type='update_line'))
-        if not check:
-            raise Exception("Something got wrong, close the app and try again.")"""
 
 
 def display_project_plan_tab(pmo_table: PMOTable):
@@ -64,11 +57,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
                 button_project.render()
 
             project_data = []
-            # Filter data for selected project
-            for project in pmo_table.data.data:
-                if project.id == project_id:
-                    # Get the project data
-                    project_data = project.missions
+            project_data = project.missions
             # If there is no mission set yet, return
             if not project_data:
                 return
@@ -188,7 +177,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
                                 key=key,
                                 value=done,
                                 on_change=update_milestone,
-                                args=(pmo_table, key, milestone,))
+                                args=(pmo_table, key, milestone, project,))
 
                         with col2:
                             button_menu_milestone = StreamlitMenuButton(key=button_key)
@@ -205,10 +194,3 @@ def display_project_plan_tab(pmo_table: PMOTable):
                             button_menu_milestone.render()
 
                         i += 1
-
-    # TODO apply the observer somewhere
-    """# Apply the observer -> Update tag folder
-    if pmo_table.observer:
-        check = pmo_table.observer.update(Event(event_type='update_line'))
-        if not check:
-            raise Exception("Something got wrong, close the app and try again.")"""
