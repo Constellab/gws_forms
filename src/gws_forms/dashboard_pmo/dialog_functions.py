@@ -68,7 +68,7 @@ def get_fields_mission(mission: MissionDTO = None):
     priority = st.selectbox("Select priority", Priority.get_values(),
                             index=Priority.get_values().index(mission.priority) if mission else 0)
     progress = st.number_input("Insert progress (%)", min_value=0.00, max_value=100.00,
-                               value=float(mission.progress) if mission else 0.00, step=0.01)
+                               value=float(mission.progress) if mission else 0.00, step=0.01, format="%0.2f")
     return mission_name, mission_referee, team_members, start_date, end_date, status, priority, progress
 
 

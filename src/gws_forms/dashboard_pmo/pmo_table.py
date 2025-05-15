@@ -91,15 +91,6 @@ class Priority(Enum):
 
 
 class PMOTable:
-    # Add the constants from Etable
-    TEXT = "text"
-    NUMERIC = "numeric"
-    DATE = "date"
-    CATEGORICAL = "categorical"
-    BOOLEAN = "boolean"
-    LIST = "list"
-    LIST_OBJECT = "list<object>"
-
     # Define columns names
     NAME_COLUMN_START_DATE = 'Start Date'
     NAME_COLUMN_END_DATE = 'End Date'
@@ -118,10 +109,6 @@ class PMOTable:
         NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MISSION_REFEREE, NAME_COLUMN_TEAM_MEMBERS,
         NAME_COLUMN_START_DATE, NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY,
         NAME_COLUMN_PROGRESS]
-    # Constants for height calculation
-    ROW_HEIGHT = 35  # Height per row in pixels
-    HEADER_HEIGHT = 38  # Height for the header in pixels
-    ROWS_TO_SHOW = 11  # 11 rows is the number of rows in plain page for basic screen
 
     json_path: str
     folder_project_plan: str
@@ -129,6 +116,8 @@ class PMOTable:
     missions_order: List
     folder_change_log: str
     observer: Optional[MessageObserver]
+    data: ProjectPlanDTO
+    pmo_state: PMOState
 
     def __init__(self, json_path=None, folder_project_plan=None, folder_details=None, missions_order=None,
                  folder_change_log=None, observer=None):
@@ -190,11 +179,7 @@ class PMOTable:
         self.pmo_state = PMOState(self.file_path_change_log)
 
         self.update_mission_statuses_and_progress()
-        # Example data template using DTOs
-        self.example_data = example_project
-
         self.choice_project_plan = None
-        self.table_editing_state = False
 
     def _load_json(self) -> Dict:
         """Load JSON data from file."""
@@ -266,16 +251,16 @@ class PMOTable:
         """Calculate progress based on milestones"""
         milestones = item.get(self.NAME_COLUMN_MILESTONES)
         if not milestones or milestones == "nan":
-            return 0
+            return 0.0
         if isinstance(milestones, list):
             # New format with milestone objects
             total_steps = len(milestones)
             completed_steps = sum(1 for m in milestones if m.get("done", False))
-            # Calculate the progress as a percentage
+            # Calculate the progress as a percentage with 2 decimal places
             if total_steps > 0:
-                return (completed_steps / total_steps) * 100
+                return round((completed_steps / total_steps) * 100, 2)
             else:
-                return 0
+                return 0.0
 
     def _load_existing_log(self):
         """Helper function for reading the log file"""
@@ -312,8 +297,6 @@ class PMOTable:
     def update_mission_statuses_and_progress(self) -> None:
         """Ensures required fields are present and have correct types.
         Auto-updates progress, status and dates based on conditions."""
-
-        current_date = datetime.now().isoformat()
         formatted_date = datetime.now().date()
 
         # Process each project and its missions
@@ -327,7 +310,7 @@ class PMOTable:
                 if mission.milestones:
                     total_steps = len(mission.milestones)
                     completed_steps = sum(1 for m in mission.milestones if m.done)
-                    mission.progress = (completed_steps / total_steps) * 100 if total_steps > 0 else 0
+                    mission.progress = round((completed_steps / total_steps) * 100, 2) if total_steps > 0 else 0.0
 
                 # Auto-set status to DONE if progress is 100%
                 if (mission.progress == 100 and
