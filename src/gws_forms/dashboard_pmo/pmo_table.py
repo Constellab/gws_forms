@@ -13,19 +13,23 @@ from gws_core import StringHelper
 
 # Code inspired by this tutorial : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
 
+
 class Event:
     def __init__(self, event_type: Literal['create_line', 'delete_line', 'update_line'], data: Any = None):
-        self.event_type = event_type # Store the event type
+        self.event_type = event_type  # Store the event type
         self.data = data
+
 
 class MessageObserver:
     @abstractmethod
     def update(self, event: Event) -> bool:
         """Method called when a message is dispatched"""
-        #This method is implemented in subclasses to update tags on folders when the project plan is saved
+        # This method is implemented in subclasses to update tags on folders when the project plan is saved
         pass
 
-#Class to define the different status
+# Class to define the different status
+
+
 class Status(Enum):
     IN_PROGRESS = "📈 In progress"
     TODO = "📝 Todo"
@@ -46,7 +50,9 @@ class Status(Enum):
         }
         return order
 
-#Class to define the different priorities
+# Class to define the different priorities
+
+
 class Priority(Enum):
     HIGH = "🔴 High"
     MEDIUM = "🟡 Medium"
@@ -66,6 +72,7 @@ class Priority(Enum):
         }
         return colors
 
+
 class PMOTable(Etable):
 
     # Define columns names
@@ -74,8 +81,6 @@ class PMOTable(Etable):
     NAME_COLUMN_MILESTONES = 'Milestones'
     NAME_COLUMN_PRIORITY = 'Priority'
     NAME_COLUMN_PROGRESS = 'Progress (%)'
-    NAME_COLUMN_COMMENTS = 'Comments'
-    NAME_COLUMN_VISIBILITY = 'Visibility'
     NAME_COLUMN_PROJECT_NAME = 'Project Name'
     NAME_COLUMN_MISSION_NAME = 'Mission Name'
     NAME_COLUMN_MISSION_REFEREE = 'Mission Referee'
@@ -83,23 +88,25 @@ class PMOTable(Etable):
     NAME_COLUMN_STATUS = "Status"
     NAME_COLUMN_UNIQUE_ID = "ID"
     NAME_COLUMN_DELETE = "Delete"
-    DEFAULT_COLUMNS_LIST = [NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MISSION_REFEREE, NAME_COLUMN_TEAM_MEMBERS, NAME_COLUMN_START_DATE,
-                            NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY, NAME_COLUMN_PROGRESS, NAME_COLUMN_COMMENTS,
-                            NAME_COLUMN_VISIBILITY, NAME_COLUMN_DELETE]
+    DEFAULT_COLUMNS_LIST = [
+        NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MISSION_REFEREE, NAME_COLUMN_TEAM_MEMBERS,
+        NAME_COLUMN_START_DATE, NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY,
+        NAME_COLUMN_PROGRESS, NAME_COLUMN_DELETE]
     # Constants for height calculation
     ROW_HEIGHT = 35  # Height per row in pixels
     HEADER_HEIGHT = 38  # Height for the header in pixels
-    ROWS_TO_SHOW = 11 # 11 rows is the number of rows in plain page for basic screen
+    ROWS_TO_SHOW = 11  # 11 rows is the number of rows in plain page for basic screen
 
-    json_path : str
-    folder_project_plan : str
-    folder_details : str
-    missions_order : List
-    folder_change_log : str
-    dynamic_df : str
-    observer : Optional[MessageObserver]
+    json_path: str
+    folder_project_plan: str
+    folder_details: str
+    missions_order: List
+    folder_change_log: str
+    dynamic_df: str
+    observer: Optional[MessageObserver]
 
-    def __init__(self, json_path = None, folder_project_plan = None, folder_details = None, missions_order = None, folder_change_log = None, dynamic_df = "dynamic", observer = None):
+    def __init__(self, json_path=None, folder_project_plan=None, folder_details=None, missions_order=None,
+                 folder_change_log=None, dynamic_df="dynamic", observer=None):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
@@ -132,30 +139,31 @@ class PMOTable(Etable):
             self.NAME_COLUMN_STATUS: self.TEXT,
             self.NAME_COLUMN_PRIORITY: self.TEXT,
             self.NAME_COLUMN_PROGRESS: self.NUMERIC,
-            self.NAME_COLUMN_COMMENTS: self.TEXT,
-            self.NAME_COLUMN_VISIBILITY: self.TEXT,
             self.NAME_COLUMN_UNIQUE_ID: self.TEXT,
             self.NAME_COLUMN_DELETE: self.BOOLEAN
         }
         self.df = pd.DataFrame()
         self.pmo_state = PMOState(self.file_path_change_log)
         self.validate_columns()
-        self.df_example = pd.DataFrame({self.NAME_COLUMN_PROJECT_NAME: ["Project 1"],
-                                        self.NAME_COLUMN_MISSION_NAME: ["Mission 1"],self.NAME_COLUMN_MISSION_REFEREE: ["Person1"],
-                                        self.NAME_COLUMN_TEAM_MEMBERS: ["Person1, Person2"],
-                                        self.NAME_COLUMN_START_DATE: datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
-                                        self.NAME_COLUMN_END_DATE: "",self.NAME_COLUMN_MILESTONES: ["- step 1"],
-                                        self.NAME_COLUMN_STATUS: [Status.TODO.value],self.NAME_COLUMN_PRIORITY: [Priority.HIGH.value],self.NAME_COLUMN_PROGRESS: [0],
-                                        self.NAME_COLUMN_COMMENTS: ["/"],self.NAME_COLUMN_VISIBILITY: ["/"],
-                                        self.NAME_COLUMN_UNIQUE_ID: [StringHelper.generate_uuid()], self.NAME_COLUMN_DELETE : [False]})
+        self.df_example = pd.DataFrame(
+            {self.NAME_COLUMN_PROJECT_NAME: ["Project 1"],
+             self.NAME_COLUMN_MISSION_NAME: ["Mission 1"],
+             self.NAME_COLUMN_MISSION_REFEREE: ["Person1"],
+             self.NAME_COLUMN_TEAM_MEMBERS: ["Person1, Person2"],
+             self.NAME_COLUMN_START_DATE: datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
+             self.NAME_COLUMN_END_DATE: "", self.NAME_COLUMN_MILESTONES: ["- step 1"],
+             self.NAME_COLUMN_STATUS: [Status.TODO.value],
+             self.NAME_COLUMN_PRIORITY: [Priority.HIGH.value],
+             self.NAME_COLUMN_PROGRESS: [0],
+             self.NAME_COLUMN_UNIQUE_ID: [StringHelper.generate_uuid()],
+             self.NAME_COLUMN_DELETE: [False]})
         self.choice_project_plan = None
-        #By default, we allow user to add rows to the dataframe Project Plan
+        # By default, we allow user to add rows to the dataframe Project Plan
         self.dynamic_df = dynamic_df
         self.placeholder_warning_filtering = None
         self.table_editing_state = False
 
-
-    def get_filter_df(self, only_closed_status : bool = False) -> pd.DataFrame:
+    def get_filter_df(self, only_closed_status: bool = False) -> pd.DataFrame:
         """
         Filters the main DataFrame based on user-selected filters.
 
@@ -165,10 +173,11 @@ class PMOTable(Etable):
         """
 
         # Ensure the date columns are in datetime format
-        self.df[self.NAME_COLUMN_START_DATE] = pd.to_datetime(self.df[self.NAME_COLUMN_START_DATE], errors='coerce').dt.date
+        self.df[self.NAME_COLUMN_START_DATE] = pd.to_datetime(
+            self.df[self.NAME_COLUMN_START_DATE], errors='coerce').dt.date
         self.df[self.NAME_COLUMN_END_DATE] = pd.to_datetime(self.df[self.NAME_COLUMN_END_DATE], errors='coerce').dt.date
         partial_df = self.df.copy()
-        #Retrieve the values of filters
+        # Retrieve the values of filters
         selected_regex_filter_project_name = self.pmo_state.get_selected_regex_filter_project_name()
         selected_regex_filter_mission_name = self.pmo_state.get_selected_regex_filter_mission_name()
         selected_mission_referee = self.pmo_state.get_selected_mission_referee()
@@ -180,13 +189,16 @@ class PMOTable(Etable):
         filter_condition = pd.Series(True, index=self.df.index)
 
         if selected_regex_filter_project_name:
-            filter_condition &= self.df[PMOTable.NAME_COLUMN_PROJECT_NAME].str.contains(selected_regex_filter_project_name, case=False)
+            filter_condition &= self.df[PMOTable.NAME_COLUMN_PROJECT_NAME].str.contains(
+                selected_regex_filter_project_name, case=False)
         if selected_regex_filter_mission_name:
-            filter_condition &= self.df[PMOTable.NAME_COLUMN_MISSION_NAME].str.contains(selected_regex_filter_mission_name, case=False)
+            filter_condition &= self.df[PMOTable.NAME_COLUMN_MISSION_NAME].str.contains(
+                selected_regex_filter_mission_name, case=False)
         if selected_mission_referee:
             filter_condition &= self.df[PMOTable.NAME_COLUMN_MISSION_REFEREE].isin(selected_mission_referee)
         if selected_regex_filter_team_members:
-            filter_condition &= self.df[PMOTable.NAME_COLUMN_TEAM_MEMBERS].str.contains(selected_regex_filter_team_members, case=False)
+            filter_condition &= self.df[PMOTable.NAME_COLUMN_TEAM_MEMBERS].str.contains(
+                selected_regex_filter_team_members, case=False)
         # Apply status filtering conditionally
         if only_closed_status:
             filter_condition &= self.df[PMOTable.NAME_COLUMN_STATUS] == Status.CLOSED.value
@@ -194,16 +206,16 @@ class PMOTable(Etable):
             filter_condition &= self.df[PMOTable.NAME_COLUMN_STATUS].isin(selected_status)
 
         if selected_priority:
-            filter_condition &=self.df[PMOTable.NAME_COLUMN_PRIORITY].isin(selected_priority)
+            filter_condition &= self.df[PMOTable.NAME_COLUMN_PRIORITY].isin(selected_priority)
 
         # Filter the DataFrame using the filter_condition
         partial_df = partial_df[filter_condition]
 
         return partial_df
 
-
     # Function to calculate progress
-    def calculate_progress(self, row : pd.Series) -> float:
+
+    def calculate_progress(self, row: pd.Series) -> float:
         if pd.isna(row[self.NAME_COLUMN_MILESTONES]) or row[self.NAME_COLUMN_MILESTONES] == "nan":
             return 0
         # Count the number of steps (total "-"" and "✅")
@@ -217,7 +229,7 @@ class PMOTable(Etable):
         else:
             return 0
 
-    def track_and_log_status(self, new_df : pd.DataFrame) -> None:
+    def track_and_log_status(self, new_df: pd.DataFrame) -> None:
         """
         Compare old_df (self.df) and new_df to detect status changes and log them.
         """
@@ -226,9 +238,9 @@ class PMOTable(Etable):
         # Keep the current date in ISO format
         current_date = datetime.now().isoformat()
         self.pmo_state.get_status_change_log()
-        time_tolerance = timedelta(seconds=5) # Allow 5 seconds of difference
+        time_tolerance = timedelta(seconds=5)  # Allow 5 seconds of difference
 
-        ### Identify rows where 'status' has changed
+        # Identify rows where 'status' has changed
         if "level_0" in new_df.columns:
             new_df.set_index("level_0", inplace=True)
         if "index" in new_df.columns:
@@ -306,26 +318,22 @@ class PMOTable(Etable):
 
         # Replace empty strings with No members in the Team members column in order to show it in the Gantt chart
         self.df[self.NAME_COLUMN_TEAM_MEMBERS] = self.df[self.NAME_COLUMN_TEAM_MEMBERS].replace([
-                                                                                      '', 'None', 'nan'], 'No members')
+            '', 'None', 'nan'], 'No members')
         # Replace empty text columns by 'nan'
         self.df[self.NAME_COLUMN_PROJECT_NAME] = self.df[self.NAME_COLUMN_PROJECT_NAME].replace([
-                                                                                      '', 'None'], '/')
+            '', 'None'], '/')
         self.df[self.NAME_COLUMN_MISSION_NAME] = self.df[self.NAME_COLUMN_MISSION_NAME].replace([
-                                                                                      '', 'None'], '/')
+            '', 'None'], '/')
         self.df[self.NAME_COLUMN_MISSION_REFEREE] = self.df[self.NAME_COLUMN_MISSION_REFEREE].replace([
-                                                                                            '', 'None'], '/')
+            '', 'None'], '/')
         self.df[self.NAME_COLUMN_MILESTONES] = self.df[self.NAME_COLUMN_MILESTONES].replace([
-                                                                                  '', 'None'], '/')
+            '', 'None'], '/')
         self.df[self.NAME_COLUMN_STATUS] = self.df[self.NAME_COLUMN_STATUS].replace([
-                                                                          '', 'None'], 'nan')
+            '', 'None'], 'nan')
         self.df[self.NAME_COLUMN_PRIORITY] = self.df[self.NAME_COLUMN_PRIORITY].replace([
-                                                                              '', 'None'], 'nan')
-        self.df[self.NAME_COLUMN_COMMENTS] = self.df[self.NAME_COLUMN_COMMENTS].replace([
-                                                                              '', 'None'], "/")
-        self.df[self.NAME_COLUMN_VISIBILITY] = self.df[self.NAME_COLUMN_VISIBILITY].replace([
-                                                                                  '', 'None'], "/")
+            '', 'None'], 'nan')
         self.df[self.NAME_COLUMN_UNIQUE_ID] = self.df[self.NAME_COLUMN_UNIQUE_ID].replace([
-                                                                                '', 'None'], '/')
+            '', 'None'], '/')
         # Set delete to False if empty
         self.df[self.NAME_COLUMN_DELETE] = self.df[self.NAME_COLUMN_DELETE].replace(
             '', False)
@@ -335,7 +343,8 @@ class PMOTable(Etable):
         self.df[self.NAME_COLUMN_END_DATE] = self.df[self.NAME_COLUMN_END_DATE].apply(
             lambda x: pd.NaT if x is None else x)
         # Ensure the date columns are in datetime format
-        self.df[self.NAME_COLUMN_START_DATE] = pd.to_datetime(self.df[self.NAME_COLUMN_START_DATE], errors='coerce').dt.date
+        self.df[self.NAME_COLUMN_START_DATE] = pd.to_datetime(
+            self.df[self.NAME_COLUMN_START_DATE], errors='coerce').dt.date
         self.df[self.NAME_COLUMN_END_DATE] = pd.to_datetime(self.df[self.NAME_COLUMN_END_DATE], errors='coerce').dt.date
 
         # Add a unique id to each line if not set yet
@@ -351,13 +360,12 @@ class PMOTable(Etable):
         current_date_str = datetime.now(pytz.timezone('Europe/Paris')).strftime("%d %m %Y")
         time_tolerance = timedelta(seconds=5)
 
-
         # If status is Done and there is no end date, then set current date to the column end date
         for idx, row in self.df.iterrows():
             if (not pd.isna(row[self.NAME_COLUMN_STATUS])
-                and row[self.NAME_COLUMN_STATUS] == Status.DONE.value
-                and pd.isna(row[self.NAME_COLUMN_END_DATE])
-            ):
+                    and row[self.NAME_COLUMN_STATUS] == Status.DONE.value
+                    and pd.isna(row[self.NAME_COLUMN_END_DATE])
+                ):
                 # Auto set end date for DONE status
                 self.df.at[idx, self.NAME_COLUMN_END_DATE] = current_date_str
 
@@ -429,7 +437,7 @@ class PMOTable(Etable):
         self.df = self.df.sort_values(
             by=[self.NAME_COLUMN_PROJECT_NAME, self.NAME_COLUMN_STATUS],
             key=lambda col: col.map(status_order) if col.name == self.NAME_COLUMN_STATUS else col
-            )
+        )
 
         # Reset index
         self.df = self.df.reset_index(drop=True)
@@ -437,21 +445,21 @@ class PMOTable(Etable):
     def calculate_height(self) -> int:
         # Define the height of the dataframe : self.ROWS_TO_SHOW rows to show or the number of max rows
         active_plan = self.get_filter_df()
-        if len(active_plan) < self.ROWS_TO_SHOW :
+        if len(active_plan) < self.ROWS_TO_SHOW:
             return self.ROW_HEIGHT*(len(active_plan)+1) + self.HEADER_HEIGHT
         else:
             return self.HEADER_HEIGHT + self.ROW_HEIGHT * self.ROWS_TO_SHOW
 
-    def commit(self, streamlit_data_editor : StreamlitDataEditor) -> None:
+    def commit(self, streamlit_data_editor: StreamlitDataEditor) -> None:
         # Add a unique id to each line if not set yet
         streamlit_data_editor.dataframe_displayed[self.NAME_COLUMN_UNIQUE_ID] = streamlit_data_editor.dataframe_displayed[self.NAME_COLUMN_UNIQUE_ID].apply(
             lambda x: StringHelper.generate_uuid() if pd.isna(x) or x == "/" else x)
 
         self.track_and_log_status(new_df=streamlit_data_editor.dataframe_displayed)
         # Apply edits, additions, and deletions
-        self.df = streamlit_data_editor.process_changes(dataframe_to_modify = self.df,
-                                                        column_unique_id= self.NAME_COLUMN_UNIQUE_ID,
-                                                        handle_deleted_rows = True,
+        self.df = streamlit_data_editor.process_changes(dataframe_to_modify=self.df,
+                                                        column_unique_id=self.NAME_COLUMN_UNIQUE_ID,
+                                                        handle_deleted_rows=True,
                                                         column_deleted=self.NAME_COLUMN_DELETE)
         self.validate_columns()
 
