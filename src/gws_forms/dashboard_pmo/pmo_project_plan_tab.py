@@ -48,7 +48,9 @@ def display_project_plan_tab(pmo_table: PMOTable):
         if project:
             pmo_table.pmo_state.set_current_project(project)
             # Create a container for the header with project title and action buttons
-            header_col1, header_col2 = st.columns([6, 1])
+            header_col1, header_col2 = StreamlitContainers.columns_with_fit_content(
+                    key=f"header_project_{project_id}",
+                    cols=[6, 1], vertical_align_items='center')
             with header_col1:
                 st.header(f"{project.name}")
             with header_col2:
@@ -74,7 +76,9 @@ def display_project_plan_tab(pmo_table: PMOTable):
                 mission_id = mission.id
                 st.markdown("---")
 
-                header_col1, header_col2, header_col3 = st.columns([3, 1, 1])
+                header_col1, header_col2, header_col3 = StreamlitContainers.columns_with_fit_content(
+                    key=f"header_{mission_id}",
+                    cols=[3, 1, 1], vertical_align_items='center')
                 with header_col1:
                     st.subheader(mission_name)
                 with header_col2:
@@ -83,7 +87,6 @@ def display_project_plan_tab(pmo_table: PMOTable):
                                  key=f"view_note_{mission_id}"):
                         router.navigate('notes')
                 with header_col3:
-
                     pmo_config = PMOConfig.get_instance()
                     button_mission: StreamlitMenuButton = pmo_config.build_mission_menu_button(
                         pmo_table, project, mission)
@@ -131,7 +134,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
                 milestones = mission.milestones
                 title_col, button_col = StreamlitContainers.columns_with_fit_content(
                     key=f"milestone_container_{mission_id}",
-                    cols=[1, 'fit-content'])
+                    cols=[1, 'fit-content'], vertical_align_items='center')
                 with button_col:
                     st.button("Add milestone", icon=":material/add:",
                               use_container_width=True,
@@ -148,6 +151,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
                         button_css_class = StreamlitHelper.get_element_css_class(button_key)
                         col1, col2 = StreamlitContainers.columns_with_fit_content(
                             f'milestone_{i}_{mission_id}', cols=[1, 'fit-content'],
+                            vertical_align_items='center',
                             additional_style=f"""
                                                                                 [CLASS_NAME] .{button_css_class} {{
                                                                                     opacity: 0;
