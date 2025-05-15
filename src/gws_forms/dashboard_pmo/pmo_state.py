@@ -17,6 +17,7 @@ class PMOState():
     TEAM_MEMBERS_NUMBER_KEY = "team_members_number"
     CURRENT_PROJECT_KEY = "current_project"
     CURRENT_MISSION_KEY = "current_mission"
+    CURRENT_PMO_TABLE_KEY = "current_pmo_table"
 
     def __init__(self, file_path_change_log: str):
         self.file_path_change_log = file_path_change_log
@@ -36,6 +37,12 @@ class PMOState():
 
     def set_current_mission(self, mission: str) -> None:
         st.session_state[self.CURRENT_MISSION_KEY] = mission
+
+    def get_current_pmo_table(self):
+        return st.session_state.get(self.CURRENT_PMO_TABLE_KEY, None)
+
+    def set_current_pmo_table(self, pmo_table):
+        st.session_state[self.CURRENT_PMO_TABLE_KEY] = pmo_table
 
     # Show success
     def get_show_success_todo(self) -> List:
