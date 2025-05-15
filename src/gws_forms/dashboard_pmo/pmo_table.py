@@ -173,7 +173,9 @@ class PMOTable:
         example_project = ProjectDTO(
             id=StringHelper.generate_uuid(),
             name="Project 1",
-            missions=[example_mission]
+            missions=[example_mission],
+            folder_root_id="",
+            folder_project_id=""
         )
         return ProjectPlanDTO(data=[example_project])
 

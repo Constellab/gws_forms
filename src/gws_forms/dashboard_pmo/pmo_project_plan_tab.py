@@ -1,13 +1,15 @@
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority, Event
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO
-from gws_forms.dashboard_pmo.dialog_functions import delete_milestone, delete_project, delete_mission, add_milestone, add_mission, edit_mission, edit_milestone, edit_project, create_project
+from gws_forms.dashboard_pmo.pmo_config import PMOConfig
+from gws_forms.dashboard_pmo.dialog_functions import delete_milestone,  add_milestone, edit_milestone
 from gws_core.streamlit import StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
 
 
 def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO):
     """Update the milestone status when the checkbox is clicked."""
     # Update the milestone status
+    st.write(milestone.id)
     pmo_table.update_milestone_status_by_id(milestone.id, st.session_state[key])
     pmo_table.commit_and_save()
     # TODO mettre l'observer ici
@@ -23,6 +25,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
     router = StreamlitRouter.load_from_session()
     # Define the variable pmo_state
     pmo_state = pmo_table.pmo_state
+    pmo_config = PMOConfig.get_instance()
 
     # Display success message in a toast format
     pmo_state.display_success_message()
@@ -32,9 +35,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
 
     # Left column - Project list
     with left_col:
-
-        if st.button("New project", use_container_width=True, icon=":material/add:", type="primary"):
-            create_project(pmo_table)
+        pmo_config.build_new_project_button(pmo_table)
 
         # Get unique project names, ordered alphabetically
         project_names = sorted(list(set(project.name for project in pmo_table.data.data)))
@@ -58,20 +59,9 @@ def display_project_plan_tab(pmo_table: PMOTable):
             with header_col1:
                 st.header(f"{project.name}")
             with header_col2:
-                button_menu_project = StreamlitMenuButton(key="button_menu_project")
-                add_mission_button = StreamlitMenuButtonItem(label='Add mission', material_icon='add',
-                                                             on_click=lambda: add_mission(pmo_table, project.name))
-                button_menu_project.add_button_item(add_mission_button)
-                edit_project_button = StreamlitMenuButtonItem(
-                    label='Edit project', material_icon='edit',
-                    on_click=lambda: edit_project(pmo_table, project_id))
-                button_menu_project.add_button_item(edit_project_button)
-                delete_project_button = StreamlitMenuButtonItem(
-                    label='Delete project', material_icon='delete', color='warn',
-                    on_click=lambda: delete_project(pmo_table, project_id))
-                button_menu_project.add_button_item(delete_project_button)
 
-                button_menu_project.render()
+                button_project: StreamlitMenuButton = pmo_config.build_project_menu_button(pmo_table, project)
+                button_project.render()
 
             project_data = []
             # Filter data for selected project
@@ -107,32 +97,11 @@ def display_project_plan_tab(pmo_table: PMOTable):
                                  key=f"view_note_{mission_id}"):
                         router.navigate('notes')
                 with header_col3:
-                    button_menu_mission = StreamlitMenuButton(
-                        key=f"button_menu_mission_{mission_id}")
 
-                    # Create closure functions to capture the current values
-                    def make_edit_callback(pmo_table, p_id, m_name):
-                        return lambda: edit_mission(pmo_table, p_id, m_name)
-
-                    def make_delete_callback(pmo_table, p_id, m_id):
-                        return lambda: delete_mission(pmo_table, p_id, m_id)
-
-                    edit_mission_button = StreamlitMenuButtonItem(
-                        label='Edit mission',
-                        material_icon='edit',
-                        on_click=make_edit_callback(pmo_table, project_id, mission_name),
-                        key=f"edit_mission_{mission_id}")
-
-                    delete_mission_button = StreamlitMenuButtonItem(
-                        label='Delete mission',
-                        material_icon='delete',
-                        color='warn',
-                        on_click=make_delete_callback(pmo_table, project_id, mission_id),
-                        key=f"delete_mission_{mission_id}")
-
-                    button_menu_mission.add_button_item(edit_mission_button)
-                    button_menu_mission.add_button_item(delete_mission_button)
-                    button_menu_mission.render()
+                    pmo_config = PMOConfig.get_instance()
+                    button_mission: StreamlitMenuButton = pmo_config.build_mission_menu_button(
+                        pmo_table, project, mission)
+                    button_mission.render()
 
                 col1, col2, col3 = st.columns(3)
 

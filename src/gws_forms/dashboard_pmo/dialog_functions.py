@@ -91,7 +91,7 @@ def delete_milestone(pmo_table: PMOTable, project_id: str, mission_id: str, mile
 
 
 @st.dialog("Add mission")
-def add_mission(pmo_table: PMOTable, selected_project: str):
+def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
     with st.form(key="mission_form", clear_on_submit=False, enter_to_submit=True):
 
         # Add fields for mission details
@@ -122,15 +122,12 @@ def add_mission(pmo_table: PMOTable, selected_project: str):
                 return
             # Find project by name and check for existing missions
             for project in pmo_table.data.data:
-                if project.name == selected_project:
+                if project.name == current_project.name:
                     existing_missions = [mission.mission_name for mission in project.missions]
                     if mission_name in existing_missions:
                         st.warning("Mission name must be unique. A mission with this name already exists in the selected project.")
                         return
                     break
-
-            # Find project by name
-            project = next((p for p in pmo_table.data.data if p.name == selected_project), None)
 
             # Create new mission using DTO
             mission_id = StringHelper.generate_uuid()
@@ -148,12 +145,12 @@ def add_mission(pmo_table: PMOTable, selected_project: str):
             )
 
             # Add mission to project
-            project.missions.append(new_mission)
+            current_project.missions.append(new_mission)
 
             # Track status change when adding new mission
             new_entry = {
                 "mission_id": mission_id,
-                "project": selected_project,
+                "project": current_project.name,
                 "mission": mission_name,
                 "status_before": None,  # No previous status for new mission
                 "status_after": status,
@@ -170,13 +167,12 @@ def add_mission(pmo_table: PMOTable, selected_project: str):
 
 
 @st.dialog("Delete project")
-def delete_project(pmo_table: PMOTable, project_id: str):
-    project_name = ProjectPlanDTO.get_project_by_id(pmo_table.data, project_id).name
+def delete_project(pmo_table: PMOTable, current_project: ProjectDTO):
     st.warning(
-        f"Are you sure you want to delete the project {project_name}? This action cannot be undone. All missions will be deleted.")
+        f"Are you sure you want to delete the project {current_project.name}? This action cannot be undone. All missions will be deleted.")
     if st.button("Delete", use_container_width=True, icon=":material/delete:"):
         # Remove project from DTOs
-        pmo_table.data.data = [p for p in pmo_table.data.data if p.id != project_id]
+        pmo_table.data.data = [p for p in pmo_table.data.data if p.id != current_project.id]
         # Save
         pmo_table.commit_and_save()
         # Set success message in session state
@@ -208,26 +204,15 @@ def delete_mission(pmo_table: PMOTable, project_id: str, mission_id: str):
 
 
 @st.dialog("Edit mission")
-def edit_mission(pmo_table: PMOTable, project_id: str, selected_mission: str):
+def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_mission: MissionDTO):
     with st.form(key="edit_mission_form", clear_on_submit=False, enter_to_submit=True):
-        # Get current mission data
-        mission_data = None
-        project_name = None
-        for project in pmo_table.data.data:
-            if project.id == project_id:
-                project_name = project.name
-                for mission in project.missions:
-                    if mission.mission_name == selected_mission:
-                        mission_data = mission
-                        break
-                break
 
         # Store original status before changes
-        original_status = mission_data.status
+        original_status = current_mission.status
 
         # Add fields for mission details with existing values
         mission_name, mission_referee, team_members, start_date, end_date, status, priority, progress = get_fields_mission(
-            mission=mission_data)
+            mission=current_mission)
 
         submit_button = st.form_submit_button(label="Submit")
 
@@ -236,8 +221,8 @@ def edit_mission(pmo_table: PMOTable, project_id: str, selected_mission: str):
             if status != original_status:
                 # Track status change
                 new_entry = {
-                    "mission_id": mission_data.id,
-                    "project": project_name,
+                    "mission_id": current_mission.id,
+                    "project": current_project.name,
                     "mission": mission_name,
                     "status_before": original_status,
                     "status_after": status,
@@ -248,24 +233,24 @@ def edit_mission(pmo_table: PMOTable, project_id: str, selected_mission: str):
                 pmo_table.pmo_state.convert_log_to_json()
 
             # Update the mission data
-            mission_data.mission_name = mission_name
-            mission_data.mission_referee = mission_referee
-            mission_data.team_members = [member.strip() for member in team_members.split(",") if member.strip()]
-            mission_data.start_date = start_date
-            mission_data.end_date = end_date
-            mission_data.status = status
-            mission_data.priority = priority
-            mission_data.progress = progress
+            current_mission.mission_name = mission_name
+            current_mission.mission_referee = mission_referee
+            current_mission.team_members = [member.strip() for member in team_members.split(",") if member.strip()]
+            current_mission.start_date = start_date
+            current_mission.end_date = end_date
+            current_mission.status = status
+            current_mission.priority = priority
+            current_mission.progress = progress
 
             pmo_table.commit_and_save()
             st.rerun()
 
 
 @st.dialog("Edit project")
-def edit_project(pmo_table: PMOTable, project_id: str):
+def edit_project(pmo_table: PMOTable, current_project: ProjectDTO):
 
     with st.form(key="edit_project_form", clear_on_submit=False, enter_to_submit=True):
-        existing_project_name = ProjectPlanDTO.get_project_by_id(pmo_table.data, project_id).name
+        existing_project_name = current_project.name
         # Add fields for project details
         project_name = st.text_input("Insert your project name", value=existing_project_name)
 
@@ -280,14 +265,14 @@ def edit_project(pmo_table: PMOTable, project_id: str):
                 return
 
             # Update project name
-            pmo_table.update_project_name_by_id(project_id, project_name)
+            pmo_table.update_project_name_by_id(current_project.id, project_name)
 
             pmo_table.commit_and_save()
             st.rerun()
 
 
 @st.dialog("Edit milestone")
-def edit_milestone(pmo_table: PMOTable, milestone_id: MilestoneDTO):
+def edit_milestone(pmo_table: PMOTable, milestone_id: str):
     milestone = ProjectPlanDTO.get_milestone_by_id(pmo_table.data, milestone_id)
     with st.form(key="edit_milestone_form", clear_on_submit=False, enter_to_submit=True):
         # Add fields for milestone details with existing values
@@ -353,7 +338,9 @@ def create_project(pmo_table: PMOTable):
             new_project = ProjectDTO(
                 id=StringHelper.generate_uuid(),
                 name=name_project,
-                missions=[]
+                missions=[],
+                folder_root_id="",
+                folder_project_id=""
             )
             # Update the data structure
             pmo_table.data.data.append(new_project)

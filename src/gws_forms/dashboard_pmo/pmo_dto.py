@@ -3,6 +3,8 @@ from datetime import datetime, date
 from pydantic import field_validator
 from gws_core.core.model.model_dto import BaseModelDTO
 
+import streamlit as st
+
 
 class MilestoneDTO(BaseModelDTO):
     """Represents a single milestone in a mission"""
@@ -69,6 +71,8 @@ class ProjectDTO(BaseModelDTO):
     id: str
     name: str
     missions: List[MissionDTO]
+    folder_root_id: str
+    folder_project_id: str
 
     @classmethod
     def get_project_by_id(cls, projects: List["ProjectDTO"], project_id: str) -> Optional["ProjectDTO"]:
@@ -146,4 +150,4 @@ class ProjectPlanDTO(BaseModelDTO):
                 milestone = MilestoneDTO.get_milestone_by_id(mission.milestones, milestone_id)
                 if milestone:
                     return milestone
-            return None
+        return None
