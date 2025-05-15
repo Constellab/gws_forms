@@ -31,6 +31,7 @@ class MessageObserver:
 
 
 class Status(Enum):
+    NONE = "No status"
     IN_PROGRESS = "📈 In progress"
     TODO = "📝 Todo"
     DONE = "✅ Done"
@@ -47,6 +48,7 @@ class Status(Enum):
             cls.TODO.value: 1,
             cls.DONE.value: 2,
             cls.CLOSED.value: 3,
+            cls.NONE.value: 4
         }
         return order
 
@@ -62,6 +64,7 @@ class Status(Enum):
 
 
 class Priority(Enum):
+    NONE = "No priority"
     HIGH = "🔴 High"
     MEDIUM = "🟡 Medium"
     LOW = "🟢 Low"
@@ -76,7 +79,8 @@ class Priority(Enum):
         colors = {
             cls.HIGH.value: "#ff4c4c",
             cls.MEDIUM.value: "#f2eb1d",
-            cls.LOW.value: "#59d95e"
+            cls.LOW.value: "#59d95e",
+            cls.NONE.value: "#808080"
         }
         return colors
 

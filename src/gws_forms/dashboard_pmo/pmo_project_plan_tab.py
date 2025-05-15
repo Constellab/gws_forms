@@ -360,13 +360,13 @@ def display_project_plan_tab(pmo_table: PMOTable):
 
                 # Only display if priority exists
                 priority = item.get(pmo_table.NAME_COLUMN_PRIORITY)
-                if priority:
+                if priority and priority != Priority.NONE.value:
                     with col1:
                         st.write(priority)
 
                 # Only display if status exists
                 status = item.get(pmo_table.NAME_COLUMN_STATUS)
-                if status:
+                if status and status != Status.NONE.value:
                     with col2:
                         st.write(status)
 
