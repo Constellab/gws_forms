@@ -89,26 +89,24 @@ def display_project_plan_tab(pmo_table: PMOTable):
                         pmo_table, project, mission)
                     button_mission.render()
 
-                col1, col2, col3 = st.columns(3)
+                # Only display if status - progress exists
+                status = mission.status
+                progress = mission.progress
+                status_str = ""
+                if status and status != Status.NONE.value:
+                    status_str = status
+                if progress is not None:
+                    if status_str:
+                        status_str += " **-** "
+                    # Display progress as a percentage
+                    status_str += f"{progress}%"
+                if status_str:
+                    st.markdown(f"**Status:** {status_str}")
 
                 # Only display if priority exists
                 priority = mission.priority
                 if priority and priority != Priority.NONE.value:
-                    with col1:
-                        st.write(priority)
-
-                # Only display if status exists
-                status = mission.status
-                if status and status != Status.NONE.value:
-                    with col2:
-                        st.write(status)
-
-                # Only display if progress exists
-                progress = mission.progress
-                if progress is not None:
-                    with col3:
-                        # Display progress as a percentage
-                        st.write(f"{str(progress)}%")
+                    st.markdown(f"**Priority:** {priority}")
 
                 # Only display referee if exists
                 referee = mission.mission_referee
