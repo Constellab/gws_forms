@@ -42,6 +42,41 @@ def display_project_plan_tab(pmo_table: PMOTable):
         )
         project_id = ProjectPlanDTO.get_project_by_name(pmo_table.data, selected_project).id
         project = ProjectPlanDTO.get_project_by_id(pmo_table.data, project_id)
+    # TODO : it's temporary -> remove it when the bug is fixed in gws_core
+    #/* use same top and bottom padding for title to be able to align element with the title */
+    st.markdown(
+        """
+        <style>
+            h1, h2 {
+                    padding: 0.5rem 0 !important;
+            }
+            h3, h5, h6 {
+                padding: 0.25rem 0 !important;
+            }
+            h4 {
+                padding: 0.40rem 0 !important;
+            }
+            p, ol, ul, dl{
+                margin: 0.25rem 0 !important;
+            }
+            [data-testid="stMarkdownContainer"] {
+                margin-bottom: 0 !important;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f"""
+            <style>
+                .{StreamlitHelper.get_element_css_class('button_menu_project')} iframe {{
+                    display: none;
+                }}
+            </style>
+            """,
+        unsafe_allow_html=True
+    )
+
 
     # Right column - Project details
     with right_col:
@@ -50,7 +85,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
             # Create a container for the header with project title and action buttons
             header_col1, header_col2 = StreamlitContainers.columns_with_fit_content(
                     key=f"header_project_{project_id}",
-                    cols=[6, 1], vertical_align_items='center')
+                    cols=[1, 'fit-content'], vertical_align_items='center')
             with header_col1:
                 st.header(f"{project.name}")
             with header_col2:
@@ -75,10 +110,21 @@ def display_project_plan_tab(pmo_table: PMOTable):
                 pmo_table.pmo_state.set_current_mission(mission)
                 mission_id = mission.id
                 st.markdown("---")
+                # TODO : it's temporary -> remove it when the bug is fixed in gws_core
+                st.markdown(
+                    f"""
+                        <style>
+                            .{StreamlitHelper.get_element_css_class(f'button_menu_mission_{mission.id}')} iframe {{
+                                display: none;
+                            }}
+                        </style>
+                        """,
+                    unsafe_allow_html=True
+                )
 
                 header_col1, header_col2, header_col3 = StreamlitContainers.columns_with_fit_content(
                     key=f"header_{mission_id}",
-                    cols=[3, 1, 1], vertical_align_items='center')
+                    cols=[1, 'fit-content', 'fit-content'], vertical_align_items='center')
                 with header_col1:
                     st.subheader(mission_name)
                 with header_col2:
@@ -149,6 +195,17 @@ def display_project_plan_tab(pmo_table: PMOTable):
                     for milestone in milestones:
                         button_key = f"edit_milestone_{i}_{mission_id}"
                         button_css_class = StreamlitHelper.get_element_css_class(button_key)
+                        # TODO : it's temporary -> remove it when the bug is fixed in gws_core
+                        st.markdown(
+                            f"""
+                                <style>
+                                    .{StreamlitHelper.get_element_css_class(button_key)} iframe {{
+                                        display: none;
+                                    }}
+                                </style>
+                                """,
+                            unsafe_allow_html=True
+                        )
                         col1, col2 = StreamlitContainers.columns_with_fit_content(
                             f'milestone_{i}_{mission_id}', cols=[1, 'fit-content'],
                             vertical_align_items='center',
