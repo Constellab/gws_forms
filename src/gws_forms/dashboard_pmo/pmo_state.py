@@ -4,64 +4,61 @@ from typing import List
 import streamlit as st
 import pandas as pd
 
+
 class PMOState():
 
     STATUS_CHANGE_LOG_KEY = "status_change_log"
     STATUS_CHANGE_JSON_KEY = "status_change_json"
-    SHOW_SUCCESS_PROJECT_PLAN_KEY = "show_success_project_plan"
     SHOW_SUCCESS_TODO_KEY = "show_success_todo"
-    SELECTED_REGEX_FILTER_PROJECT_NAME_KEY = "selected_regex_filter_project_name"
-    SELECTED_REGEX_FILTER_MISSION_NAME_KEY = "selected_regex_filter_mission_name"
-    SELECTED_MISSION_REFEREE_KEY = "selected_mission_referee"
-    SELECTED_REGEX_FILTER_TEAM_MEMBERS_KEY = "selected_regex_filter_team_members"
-    SELECTED_STATUS_KEY = "selected_status"
-    SELECTED_PRIORITY_KEY ="selected_priority"
+    SHOW_SUCCESS_PROJECT_CREATED_KEY = "show_success_project_created"
+    SHOW_SUCCESS_PROJECT_DELETED_KEY = "show_success_project_deleted"
+    SHOW_SUCCESS_MISSION_DELETED_KEY = "show_success_mission_deleted"
+    SHOW_SUCCESS_MISSION_ADDED_KEY = "show_success_mission_added"
+    TEAM_MEMBERS_NUMBER_KEY = "team_members_number"
 
-    def __init__(self, file_path_change_log : str):
+    def __init__(self, file_path_change_log: str):
         self.file_path_change_log = file_path_change_log
         # Initialize a log list for status changes
         st.session_state[self.STATUS_CHANGE_LOG_KEY] = self.get_status_change_log()
         # Initialize a log list for status changes
         st.session_state[self.STATUS_CHANGE_JSON_KEY] = self.get_status_change_json()
 
-    ### Filters
-    # Get the filters values
-    def get_selected_regex_filter_project_name(self) -> str:
-        #It's the value of text input selected_regex_filter_project_name
-        return st.session_state.get(self.SELECTED_REGEX_FILTER_PROJECT_NAME_KEY, "")
-
-    def get_selected_regex_filter_mission_name(self) -> str:
-        #It's the value of text input selected_regex_filter_mission_name
-        return st.session_state.get(self.SELECTED_REGEX_FILTER_MISSION_NAME_KEY, "")
-
-    def get_selected_mission_referee(self) -> List:
-        #It's the value of multiselect selected_mission_referee
-        return st.session_state.get(self.SELECTED_MISSION_REFEREE_KEY, "")
-
-    def get_selected_regex_filter_team_members(self) -> str:
-        #It's the value of text input selected_regex_filter_team_members
-        return st.session_state.get(self.SELECTED_REGEX_FILTER_TEAM_MEMBERS_KEY, "")
-
-    def get_selected_status(self) -> List:
-        #It's the value of multiselect selected_status
-        return st.session_state.get(self.SELECTED_STATUS_KEY, "")
-
-    def get_selected_priority(self) -> List:
-        #It's the value of multiselect selected_priority
-        return st.session_state.get(self.SELECTED_PRIORITY_KEY, "")
-
     # Show success
     def get_show_success_todo(self) -> List:
         return st.session_state.get(self.SHOW_SUCCESS_TODO_KEY, False)
 
-    def set_show_success_todo(self, boolean_success : bool) -> None :
+    def set_show_success_todo(self, boolean_success: bool) -> None:
         st.session_state[self.SHOW_SUCCESS_TODO_KEY] = boolean_success
 
-    def get_show_success_project_plan(self) -> List:
-        return st.session_state.get(self.SHOW_SUCCESS_PROJECT_PLAN_KEY, False)
+    def get_show_success_project_created(self) -> List:
+        return st.session_state.get(self.SHOW_SUCCESS_PROJECT_CREATED_KEY, False)
 
-    def set_show_success_project_plan(self, boolean_success : bool) -> None:
-        st.session_state[self.SHOW_SUCCESS_PROJECT_PLAN_KEY] = boolean_success
+    def set_show_success_project_created(self, boolean_success: bool) -> None:
+        st.session_state[self.SHOW_SUCCESS_PROJECT_CREATED_KEY] = boolean_success
+
+    def get_show_success_delete_project(self) -> List:
+        return st.session_state.get(self.SHOW_SUCCESS_PROJECT_DELETED_KEY, False)
+
+    def set_show_success_delete_project(self, boolean_success: bool) -> None:
+        st.session_state[self.SHOW_SUCCESS_PROJECT_DELETED_KEY] = boolean_success
+
+    def get_show_success_delete_mission(self) -> List:
+        return st.session_state.get(self.SHOW_SUCCESS_MISSION_DELETED_KEY, False)
+
+    def set_show_success_delete_mission(self, boolean_success: bool) -> None:
+        st.session_state[self.SHOW_SUCCESS_MISSION_DELETED_KEY] = boolean_success
+
+    def set_show_success_mission_added(self, boolean_success: bool) -> None:
+        st.session_state[self.SHOW_SUCCESS_MISSION_ADDED_KEY] = boolean_success
+
+    def get_show_success_mission_added(self) -> List:
+        return st.session_state.get(self.SHOW_SUCCESS_MISSION_ADDED_KEY, False)
+
+    def get_team_members_number(self) -> int:
+        return st.session_state.get(self.TEAM_MEMBERS_NUMBER_KEY, 1)
+
+    def set_team_members_number(self, value: str) -> None:
+        st.session_state[self.TEAM_MEMBERS_NUMBER_KEY] = value
 
     # Status change
     def get_status_change_json(self) -> List:
@@ -74,7 +71,7 @@ class PMOState():
                         st.session_state[self.STATUS_CHANGE_JSON_KEY] = json.loads(content)
         return st.session_state.get(self.STATUS_CHANGE_JSON_KEY)
 
-    def set_status_change_json(self, list_change_log : List) -> None:
+    def set_status_change_json(self, list_change_log: List) -> None:
         st.session_state[self.STATUS_CHANGE_JSON_KEY] = list_change_log
 
     def append_status_change_json(self, value) -> None:

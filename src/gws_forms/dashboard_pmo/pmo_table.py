@@ -1,3 +1,4 @@
+import streamlit as st
 import json
 import os
 from datetime import datetime, timedelta
@@ -5,11 +6,10 @@ from typing import Any, Literal, Optional, List, Dict
 from abc import abstractmethod
 from enum import Enum
 import pytz
-import pandas as pd
 from gws_forms.e_table.e_table import Etable
 from gws_forms.dashboard_pmo.pmo_state import PMOState
-from gws_forms.dashboard_pmo.streamlit_data_editor import StreamlitDataEditor
 from gws_core import StringHelper
+from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
 
 # Code inspired by this tutorial : https://medium.com/codex/create-a-simple-project-planning-app-using-streamlit-and-gantt-chart-6c6adf8f46dd
 
@@ -50,6 +50,14 @@ class Status(Enum):
         }
         return order
 
+    @classmethod
+    def get_values(cls) -> List[str]:
+        """
+        Get all status values as a list
+        Return the status values
+        """
+        return [status.value for status in cls]
+
 # Class to define the different priorities
 
 
@@ -72,6 +80,14 @@ class Priority(Enum):
         }
         return colors
 
+    @classmethod
+    def get_values(cls) -> List[str]:
+        """
+        Get all priorities values as a list
+        Return the priority values
+        """
+        return [priority.value for priority in cls]
+
 
 class PMOTable(Etable):
 
@@ -88,6 +104,7 @@ class PMOTable(Etable):
     NAME_COLUMN_STATUS = "Status"
     NAME_COLUMN_UNIQUE_ID = "ID"
     NAME_COLUMN_DELETE = "Delete"
+    NAME_PROJECT_ID = "id"
     DEFAULT_COLUMNS_LIST = [
         NAME_COLUMN_PROJECT_NAME, NAME_COLUMN_MISSION_NAME, NAME_COLUMN_MISSION_REFEREE, NAME_COLUMN_TEAM_MEMBERS,
         NAME_COLUMN_START_DATE, NAME_COLUMN_END_DATE, NAME_COLUMN_MILESTONES, NAME_COLUMN_STATUS, NAME_COLUMN_PRIORITY,
@@ -102,16 +119,59 @@ class PMOTable(Etable):
     folder_details: str
     missions_order: List
     folder_change_log: str
-    dynamic_df: str
     observer: Optional[MessageObserver]
 
     def __init__(self, json_path=None, folder_project_plan=None, folder_details=None, missions_order=None,
-                 folder_change_log=None, dynamic_df="dynamic", observer=None):
+                 folder_change_log=None, observer=None):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
         """
         super().__init__(json_path)
+
+        self.required_columns = {
+            self.NAME_COLUMN_PROJECT_NAME: self.TEXT,
+            self.NAME_COLUMN_MISSION_NAME: self.TEXT,
+            self.NAME_COLUMN_MISSION_REFEREE: self.TEXT,
+            self.NAME_COLUMN_TEAM_MEMBERS: self.LIST,
+            self.NAME_COLUMN_START_DATE: self.DATE,
+            self.NAME_COLUMN_END_DATE: self.DATE,
+            self.NAME_COLUMN_MILESTONES: self.LIST_OBJECT,
+            self.NAME_COLUMN_STATUS: self.TEXT,
+            self.NAME_COLUMN_PRIORITY: self.TEXT,
+            self.NAME_COLUMN_PROGRESS: self.NUMERIC,
+            self.NAME_COLUMN_UNIQUE_ID: self.TEXT,
+            self.NAME_COLUMN_DELETE: self.BOOLEAN
+        }
+
+        example_milestone = MilestoneDTO(
+            name="step 1",
+            done=False
+        )
+        example_mission = MissionDTO(
+            mission_name="Mission 1",
+            mission_referee="Person1",
+            team_members=["Person1", "Person2"],
+            start_date=datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
+            end_date=None,
+            milestones=[example_milestone],
+            status=Status.TODO.value,
+            priority=Priority.HIGH.value,
+            progress=0,
+            id=StringHelper.generate_uuid()
+        )
+        example_project = ProjectDTO(
+            id=StringHelper.generate_uuid(),
+            name="Project 1",
+            missions=[example_mission]
+        )
+        if not self.json_path:
+            # Initialize with example data if no json_path is provided
+            self.data = {
+                "data": [example_project.to_json_dict()],
+                "column_types": self.required_columns
+            }
+
         if missions_order is None:
             self.missions_order = []
         else:
@@ -128,112 +188,78 @@ class PMOTable(Etable):
                     f.write("[]")
         else:
             self.file_path_change_log = None
-        self.required_columns = {
-            self.NAME_COLUMN_PROJECT_NAME: self.TEXT,
-            self.NAME_COLUMN_MISSION_NAME: self.TEXT,
-            self.NAME_COLUMN_MISSION_REFEREE: self.TEXT,
-            self.NAME_COLUMN_TEAM_MEMBERS: self.TEXT,
-            self.NAME_COLUMN_START_DATE: self.DATE,
-            self.NAME_COLUMN_END_DATE: self.DATE,
-            self.NAME_COLUMN_MILESTONES: self.TEXT,
-            self.NAME_COLUMN_STATUS: self.TEXT,
-            self.NAME_COLUMN_PRIORITY: self.TEXT,
-            self.NAME_COLUMN_PROGRESS: self.NUMERIC,
-            self.NAME_COLUMN_UNIQUE_ID: self.TEXT,
-            self.NAME_COLUMN_DELETE: self.BOOLEAN
-        }
-        self.df = pd.DataFrame()
+        # Convert raw data to ProjectPlanDTO
+        self.data = ProjectPlanDTO.from_json(self.data)
+        self.processed_data = self._process_data()
         self.pmo_state = PMOState(self.file_path_change_log)
-        self.validate_columns()
-        self.df_example = pd.DataFrame(
-            {self.NAME_COLUMN_PROJECT_NAME: ["Project 1"],
-             self.NAME_COLUMN_MISSION_NAME: ["Mission 1"],
-             self.NAME_COLUMN_MISSION_REFEREE: ["Person1"],
-             self.NAME_COLUMN_TEAM_MEMBERS: ["Person1, Person2"],
-             self.NAME_COLUMN_START_DATE: datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
-             self.NAME_COLUMN_END_DATE: "", self.NAME_COLUMN_MILESTONES: ["- step 1"],
-             self.NAME_COLUMN_STATUS: [Status.TODO.value],
-             self.NAME_COLUMN_PRIORITY: [Priority.HIGH.value],
-             self.NAME_COLUMN_PROGRESS: [0],
-             self.NAME_COLUMN_UNIQUE_ID: [StringHelper.generate_uuid()],
-             self.NAME_COLUMN_DELETE: [False]})
+
+        # self.validate_columns()
+        # Example data template using DTOs
+        self.example_data = example_project
+
         self.choice_project_plan = None
-        # By default, we allow user to add rows to the dataframe Project Plan
-        self.dynamic_df = dynamic_df
-        self.placeholder_warning_filtering = None
         self.table_editing_state = False
 
-    def get_filter_df(self, only_closed_status: bool = False) -> pd.DataFrame:
-        """
-        Filters the main DataFrame based on user-selected filters.
+    def _process_data(self) -> List[Dict[str, Any]]:
+        """Process the PMO data into DTO format."""
+        try:
+            # Convert raw data to ProjectPlanDTO
+            processed = []
 
-        If 'only_closed_status' is 'True', the function applies all selected filters except for status,
-        where only rows with the status "Closed" are retained. This is used in the closed project tab
-        to ensure only closed projects are displayed.
-        """
+            # Process each project and its missions
+            for project in self.data.data:
+                if not project.missions:
+                    # Add empty project
+                    processed.append({
+                        self.NAME_COLUMN_PROJECT_NAME: project.name,
+                        self.NAME_PROJECT_ID: project.id
+                    })
+                    continue
 
-        # Ensure the date columns are in datetime format
-        self.df[self.NAME_COLUMN_START_DATE] = pd.to_datetime(
-            self.df[self.NAME_COLUMN_START_DATE], errors='coerce').dt.date
-        self.df[self.NAME_COLUMN_END_DATE] = pd.to_datetime(self.df[self.NAME_COLUMN_END_DATE], errors='coerce').dt.date
-        partial_df = self.df.copy()
-        # Retrieve the values of filters
-        selected_regex_filter_project_name = self.pmo_state.get_selected_regex_filter_project_name()
-        selected_regex_filter_mission_name = self.pmo_state.get_selected_regex_filter_mission_name()
-        selected_mission_referee = self.pmo_state.get_selected_mission_referee()
-        selected_regex_filter_team_members = self.pmo_state.get_selected_regex_filter_team_members()
-        selected_status = self.pmo_state.get_selected_status()
-        selected_priority = self.pmo_state.get_selected_priority()
+                # Process missions
+                for mission in project.missions:
+                    mission_data = {
+                        self.NAME_COLUMN_PROJECT_NAME: project.name,
+                        self.NAME_PROJECT_ID: project.id,
+                        self.NAME_COLUMN_MISSION_NAME: mission.mission_name,
+                        self.NAME_COLUMN_MISSION_REFEREE: mission.mission_referee,
+                        self.NAME_COLUMN_TEAM_MEMBERS: mission.team_members,
+                        self.NAME_COLUMN_START_DATE: mission.start_date,
+                        self.NAME_COLUMN_END_DATE: mission.end_date,
+                        self.NAME_COLUMN_MILESTONES: mission.milestones,
+                        self.NAME_COLUMN_STATUS: mission.status,
+                        self.NAME_COLUMN_PRIORITY: mission.priority,
+                        self.NAME_COLUMN_PROGRESS: mission.progress,
+                        "id": mission.id
+                    }
+                    processed.append(mission_data)
 
-        # Initialize the filter condition to True (for all rows)
-        filter_condition = pd.Series(True, index=self.df.index)
-
-        if selected_regex_filter_project_name:
-            filter_condition &= self.df[PMOTable.NAME_COLUMN_PROJECT_NAME].str.contains(
-                selected_regex_filter_project_name, case=False)
-        if selected_regex_filter_mission_name:
-            filter_condition &= self.df[PMOTable.NAME_COLUMN_MISSION_NAME].str.contains(
-                selected_regex_filter_mission_name, case=False)
-        if selected_mission_referee:
-            filter_condition &= self.df[PMOTable.NAME_COLUMN_MISSION_REFEREE].isin(selected_mission_referee)
-        if selected_regex_filter_team_members:
-            filter_condition &= self.df[PMOTable.NAME_COLUMN_TEAM_MEMBERS].str.contains(
-                selected_regex_filter_team_members, case=False)
-        # Apply status filtering conditionally
-        if only_closed_status:
-            filter_condition &= self.df[PMOTable.NAME_COLUMN_STATUS] == Status.CLOSED.value
-        elif selected_status:
-            filter_condition &= self.df[PMOTable.NAME_COLUMN_STATUS].isin(selected_status)
-
-        if selected_priority:
-            filter_condition &= self.df[PMOTable.NAME_COLUMN_PRIORITY].isin(selected_priority)
-
-        # Filter the DataFrame using the filter_condition
-        partial_df = partial_df[filter_condition]
-
-        return partial_df
+            return processed
+        except Exception as e:
+            st.error(f"Error processing data: {str(e)}")
+            return []
 
     # Function to calculate progress
-
-    def calculate_progress(self, row: pd.Series) -> float:
-        if pd.isna(row[self.NAME_COLUMN_MILESTONES]) or row[self.NAME_COLUMN_MILESTONES] == "nan":
+    def calculate_progress(self, item: Dict) -> float:
+        """Calculate progress based on milestones"""
+        milestones = item.get(self.NAME_COLUMN_MILESTONES)
+        if not milestones or milestones == "nan":
             return 0
-        # Count the number of steps (total "-"" and "✅")
-        total_steps = row[self.NAME_COLUMN_MILESTONES].count(
-            "-") + row[self.NAME_COLUMN_MILESTONES].count("✅")
-        # Count the number of completed steps (✅ only)
-        completed_steps = row[self.NAME_COLUMN_MILESTONES].count("✅")
-        # Calculate the progress as a percentage
-        if total_steps > 0:
-            return (completed_steps / total_steps) * 100
-        else:
-            return 0
+        if isinstance(milestones, list):
+            # New format with milestone objects
+            total_steps = len(milestones)
+            completed_steps = sum(1 for m in milestones if m.get("done", False))
+            # Calculate the progress as a percentage
+            if total_steps > 0:
+                return (completed_steps / total_steps) * 100
+            else:
+                return 0
 
-    def track_and_log_status(self, new_df: pd.DataFrame) -> None:
+    """def track_and_log_status(self, new_data: List[Dict]) -> None:
         """
-        Compare old_df (self.df) and new_df to detect status changes and log them.
-        """
-        old_df = self.df.copy()
+    # Compare old_data(self.processed_data) and new_data to detect status changes and log them.
+    """
+        old_df = self.processed_data.copy()
         new_df = new_df.copy()
         # Keep the current date in ISO format
         current_date = datetime.now().isoformat()
@@ -270,9 +296,9 @@ class PMOTable(Etable):
             if not self._is_duplicate_entry(new_entry, existing_log, time_tolerance):
                 self.pmo_state.append_status_change_log(new_entry)
         # Convert the log to JSON
-        self.pmo_state.convert_log_to_json()
+        self.pmo_state.convert_log_to_json()"""
 
-    def _load_existing_log(self):
+    """def _load_existing_log(self):
         if self.file_path_change_log:
             try:
                 with open(self.file_path_change_log, 'r', encoding="utf-8") as f:
@@ -301,9 +327,9 @@ class PMOTable(Etable):
             entry["status_after"] == entry["status_after"] and
             abs(datetime.strptime(entry["date"], "%Y-%m-%dT%H:%M:%S.%f") - entry_date) <= tolerance
             for entry in log
-        )
+        )"""
 
-    def fill_na_df(self) -> None:
+    """def fill_na_df(self) -> None:
         for column, col_type in self.required_columns.items():
             if column not in self.df.columns:
                 self.df[column] = None
@@ -349,11 +375,12 @@ class PMOTable(Etable):
 
         # Add a unique id to each line if not set yet
         self.df[self.NAME_COLUMN_UNIQUE_ID] = self.df[self.NAME_COLUMN_UNIQUE_ID].apply(
-            lambda x: StringHelper.generate_uuid() if pd.isna(x) or x == "/" else x)
+            lambda x: StringHelper.generate_uuid() if pd.isna(x) or x == "/" else x)"""
 
-    def validate_columns(self) -> None:
-        """Ensures the required columns are present and have the correct types
-        and auto-update based on progress."""
+    """def validate_columns(self) -> None:
+        """  # Ensures the required columns are present and have the correct types
+    # and auto-update based on progress.
+    """
         self.fill_na_df()
         # Keep the current date at iso format
         current_date = datetime.now().isoformat()
@@ -440,33 +467,33 @@ class PMOTable(Etable):
         )
 
         # Reset index
-        self.df = self.df.reset_index(drop=True)
+        self.df = self.df.reset_index(drop=True)"""
 
-    def calculate_height(self) -> int:
-        # Define the height of the dataframe : self.ROWS_TO_SHOW rows to show or the number of max rows
-        active_plan = self.get_filter_df()
-        if len(active_plan) < self.ROWS_TO_SHOW:
-            return self.ROW_HEIGHT*(len(active_plan)+1) + self.HEADER_HEIGHT
-        else:
-            return self.HEADER_HEIGHT + self.ROW_HEIGHT * self.ROWS_TO_SHOW
-
-    def commit(self, streamlit_data_editor: StreamlitDataEditor) -> None:
+    def commit(self, edited_data: List[Dict]) -> None:
         # Add a unique id to each line if not set yet
-        streamlit_data_editor.dataframe_displayed[self.NAME_COLUMN_UNIQUE_ID] = streamlit_data_editor.dataframe_displayed[self.NAME_COLUMN_UNIQUE_ID].apply(
-            lambda x: StringHelper.generate_uuid() if pd.isna(x) or x == "/" else x)
+        for item in edited_data:
+            if not item.get(self.NAME_COLUMN_UNIQUE_ID) or item[self.NAME_COLUMN_UNIQUE_ID] == "/":
+                item[self.NAME_COLUMN_UNIQUE_ID] = StringHelper.generate_uuid()
 
-        self.track_and_log_status(new_df=streamlit_data_editor.dataframe_displayed)
+        """self.track_and_log_status(new_df=edited_data)"""
         # Apply edits, additions, and deletions
-        self.df = streamlit_data_editor.process_changes(dataframe_to_modify=self.df,
+        """self.df = streamlit_data_editor.process_changes(dataframe_to_modify=self.df,
                                                         column_unique_id=self.NAME_COLUMN_UNIQUE_ID,
                                                         handle_deleted_rows=True,
                                                         column_deleted=self.NAME_COLUMN_DELETE)
-        self.validate_columns()
+        self.validate_columns()"""
 
-    def save_df_in_folder(self) -> None:
-        # Save dataframe in the folder
-        timestamp = datetime.now(tz=pytz.timezone(
-            'Europe/Paris')).strftime("plan_%Y-%m-%d-%Hh%M")
-        path_csv = os.path.join(
-            self.folder_project_plan, f"{timestamp}.csv")
-        self.df.to_csv(path_csv, index=False)
+    def save_data_in_folder(self) -> None:
+        """Save data as JSON and CSV using DTOs"""
+        timestamp = datetime.now().strftime("plan_%Y-%m-%d-%Hh%M")
+
+        # Save JSON using ProjectPlanDTO
+        path_json = os.path.join(self.folder_project_plan, f"{timestamp}.json")
+        with open(path_json, 'w', encoding='utf-8') as f:
+            json.dump(self.data.to_json_dict(), f, indent=2)
+
+        # Save CSV
+        path_csv = os.path.join(self.folder_project_plan, f"{timestamp}.csv")
+        csv_content = self.download(file_format="csv")
+        with open(path_csv, 'w', encoding='utf-8') as f:
+            f.write(csv_content)

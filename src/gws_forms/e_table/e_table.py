@@ -1,6 +1,6 @@
 import json
-import pandas as pd
-import streamlit as st
+from typing import List, Dict, Any
+
 
 class Etable:
     TEXT = "text"
@@ -8,17 +8,20 @@ class Etable:
     DATE = "date"
     CATEGORICAL = "categorical"
     BOOLEAN = "boolean"
+    LIST = "list"
+    LIST_OBJECT = "list<object>"
 
-    def __init__(self, json_path : str = None):
+    def __init__(self, json_path: str = None):
         self.json_path = json_path
         if self.json_path:
-            self.json_data = self._load_json()
-            self.df = self._prepare_dataframe()
-        else :
-            self.json_data = {}
-            self.df = pd.DataFrame()
+            self.data = self._load_json()
+            self.processed_data = self._process_data()
+        else:
+            self.data = {"data": [], "column_types": {}}
+            self.processed_data = []
 
-    def _load_json(self):
+    def _load_json(self) -> Dict:
+        """Load JSON data from file."""
         try:
             with open(self.json_path, 'r', encoding="utf-8") as file:
                 return json.load(file)
@@ -27,30 +30,21 @@ class Etable:
         except json.JSONDecodeError:
             raise ValueError(f"The file at {self.json_path} is not a valid JSON.")
 
+    def _process_data(self) -> List[Dict[str, Any]]:
+        """Process the data with correct types. To be implemented by subclasses."""
+        return []
 
-    def _prepare_dataframe(self):
-        """Converts JSON data into a DataFrame with correct types."""
-        df = pd.json_normalize(self.json_data["data"])
-        column_types = self.json_data.get("column_types", {})
-        for column, col_type in column_types.items():
-            if col_type == self.NUMERIC:
-                df[column] = df[column].astype(float)
-            elif col_type == self.DATE:
-                df[column] = df[column].fillna('').astype('datetime64[ns]')
-            elif col_type == self.BOOLEAN:
-                df[column] = df[column].astype(bool)
-            elif col_type == self.CATEGORICAL:
-                df[column] = df[column].astype("category")
-        return df
-
-
-    def download(self, file_format : str ="csv"):
+    def download(self, file_format: str = "csv") -> str:
         """Download the DataFrame as CSV or JSON."""
         if file_format == "csv":
-            return self.df.to_csv(index=False)
+            # Create CSV string manually
+            if not self.processed_data:
+                return ""
+            headers = list(self.processed_data[0].keys())
+            csv_lines = [",".join(headers)]
+            for item in self.processed_data:
+                row = [str(item.get(header, "")) for header in headers]
+                csv_lines.append(",".join(row))
+            return "\n".join(csv_lines)
         elif file_format == "json":
-            return self.df.to_json(orient="records", indent=2)
-
-    def display(self):
-        """Display the DataFrame."""
-        st.dataframe(self.df)
+            return json.dumps(self.processed_data, indent=2)
