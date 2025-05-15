@@ -4,7 +4,7 @@ from typing import List
 import streamlit as st
 import pandas as pd
 
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
+from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO
 
 
 class PMOState():

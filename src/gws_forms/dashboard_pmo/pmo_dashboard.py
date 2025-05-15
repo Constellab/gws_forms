@@ -1,5 +1,4 @@
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO
 from gws_forms.dashboard_pmo.pmo_project_plan_tab import display_project_plan_tab
 from gws_forms.dashboard_pmo.pmo_gantt_tab import display_gantt_tab
 from gws_forms.dashboard_pmo.pmo_plot_overview_tab import display_plot_overview_tab
@@ -79,8 +78,6 @@ def add_settings_page(router: StreamlitRouter, pmo_table: PMOTable):
 
 
 def show_content(pmo_table: PMOTable):
-    # Load initial data
-    # TODO pmo_table = pmo_table.load_pmo_data()
 
     router = StreamlitRouter.load_from_session()
     # Add pages
