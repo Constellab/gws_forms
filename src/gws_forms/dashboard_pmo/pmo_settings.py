@@ -75,3 +75,14 @@ def display_settings_tab(pmo_table: PMOTable):
 
     # st.write("**Language**")
     # TODO faire le choix de la langue
+
+
+    st.write("**Create folders in space**")
+    def on_checkbox_change():
+        pmo_table.set_create_folders_in_space(st.session_state["create_folders_in_space"])
+    st.checkbox(
+        "Create folders in space",
+        key="create_folders_in_space",
+        value=pmo_table.get_create_folders_in_space(),
+        on_change=on_checkbox_change
+    )

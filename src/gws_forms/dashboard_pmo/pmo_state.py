@@ -17,6 +17,7 @@ class PMOState():
     SHOW_SUCCESS_MISSION_ADDED_KEY = "show_success_mission_added"
     CURRENT_PROJECT_KEY = "current_project"
     CURRENT_MISSION_KEY = "current_mission"
+    CREATE_FOLDERS = "create_folders_in_space"
 
     def __init__(self, file_path_change_log: str):
         self.file_path_change_log = file_path_change_log
@@ -115,3 +116,9 @@ class PMOState():
             with open(self.file_path_change_log, 'w', encoding="utf-8") as f:
                 f.write(json.dumps(self.get_status_change_json(),
                         indent=4, ensure_ascii=False))
+
+    def get_create_folders_in_space_value(self) -> bool:
+        return st.session_state.get(self.CREATE_FOLDERS, True)
+
+    def set_create_folders_in_space_value(self, value: bool) -> None:
+        st.session_state[self.CREATE_FOLDERS] = value
