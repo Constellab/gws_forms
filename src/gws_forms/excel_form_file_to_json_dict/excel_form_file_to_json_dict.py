@@ -27,20 +27,20 @@ class ExcelFormFileToJsonDict(Task):
         for _, row in df.iterrows():
             question_dict = {
                 "section": row['Section'] if pd.notna(row['Section']) else "",
-                "question_head": row['QuestionHead'] if pd.notna(row['QuestionHead']) else "",
+                "title": row['Title'] if pd.notna(row['Title']) else "",
                 "question": row['Question'] if pd.notna(row['Question']) else "",
-                "helper_text": row['HelperText'] if pd.notna(row['HelperText']) else "",
-                "response_type": row['ResponseType'] if pd.notna(row['ResponseType']) else "",
-                "required": bool(row['IsRequired']) if pd.notna(row['IsRequired']) else False
+                "description": row['Description'] if pd.notna(row['Description']) else "",
+                "response_type": row['Response Type'] if pd.notna(row['Response Type']) else "",
+                "required": bool(row['Is Required']) if pd.notna(row['Is Required']) else False
             }
 
             # Handle optional fields like AllowedValued, MultiSelect, MinValue, MaxValue
-            if pd.notna(row['AllowedValues']):
-                question_dict['allowed_values'] = [val.strip() for val in row['AllowedValues'].split(',')]
-            if pd.notna(row['MinValue']):
-                question_dict['min_value'] = row['MinValue']
-            if pd.notna(row['MaxValue']):
-                question_dict['max_value'] = row['MaxValue']
+            if pd.notna(row['Allowed Values']):
+                question_dict['allowed_values'] = [val.strip() for val in row['Allowed Values'].split(',')]
+            if pd.notna(row['Min Value']):
+                question_dict['min_value'] = row['Min Value']
+            if pd.notna(row['Max Value']):
+                question_dict['max_value'] = row['Max Value']
             if pd.notna(row['MultiSelect']):
                 question_dict['multiselect'] = bool(row['MultiSelect'])
 

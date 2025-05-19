@@ -106,13 +106,15 @@ def generate_session_token(email: str) -> int:
 
 
 def send_mail(email: str, token: int):
+    # Send an email with the session token
+    print('Sending email to', email)
     mail_data = SpaceSendMailToMailsDTO(
         receiver_mails=[email],
         mail_template="generic",
         data={
             'content': f"Your form session token is : {token}."
         },
-        subject=f"Form {params['title']} - Session token"
+        subject=f"Session token - Form {params['title']} - Constellab"
     )
     SpaceService.get_instance().send_mail_to_mails(mail_data)
 
@@ -156,8 +158,8 @@ def question_component(section, question_number, question_data):
         border_left_red(f"{section}-{question_number}")
         question_key = question_data['question']
         st.markdown(
-            f"##### {question_number}. {question_data.get('question_head')}: {question_key}")
-        st.write(question_data['helper_text'])
+            f"##### {question_number}. {question_data.get('title')}: {question_key}")
+        st.write(question_data['description'])
 
         # Populate answers from saved session if available
         questions_json = st.session_state['saved_answers'].get('questions', [])
@@ -293,19 +295,28 @@ def show_content():
 
         if not session_token_exists(st.session_state['email']):
             session_token = generate_session_token(st.session_state['email'])
+            try:
+                session_token = generate_session_token(st.session_state['email'])
+                send_mail(st.session_state['email'], session_token)
+                st.session_state['first_email_run'] = True
+                st.write(
+                    "A session token has been sent to your email. Please check your inbox and use it next time you come to this form.")
+            except Exception as e:
+                st.session_state['first_email_run'] = False
+                st.error('An error occurred while sending the email. Please restart the app.')
+                st.stop()
             store_session_token(st.session_state['email'], session_token)
-            send_mail(st.session_state['email'], session_token)
-            st.session_state['first_email_run'] = True
-
-            st.write("A session token has been sent to your email. Please check your inbox and use it next time you come to this form.")
 
         if not st.session_state['first_email_run']:
             confirm_token_button = None
             change_token_button = None
-            col1, col2 = st.columns([5, 1], vertical_alignment="bottom")
+            col1, col2, col3 = st.columns([4, 1, 1], vertical_alignment="bottom")
 
             if 'token_validated' not in st.session_state:
                 st.session_state['token_validated'] = False
+
+            if 'token_resended' not in st.session_state:
+                st.session_state['token_resended'] = False
 
             with col1:
                 st.session_state['token'] = st.text_input(
@@ -315,6 +326,13 @@ def show_content():
                     confirm_token_button = st.button("Confirm token", key="confirm_token")
                 else:
                     change_token_button = st.button("Change token", key="change_token")
+            with col3:
+                resend_token_button = st.button("Resend token", key="resend_token", disabled=(
+                    st.session_state['token_resended'] or st.session_state['token_validated']))
+
+            if resend_token_button:
+                send_mail(st.session_state['email'], get_session_token(st.session_state['email']))
+                st.session_state['token_resended'] = True
 
             if confirm_token_button is not None and confirm_token_button:
                 # check if token is numeric and valid
