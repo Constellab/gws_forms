@@ -48,7 +48,6 @@ def display_gantt_tab(pmo_table: PMOTable):
         hover_name=pmo_table.NAME_COLUMN_MISSION_NAME,
         color_discrete_sequence=px.colors.qualitative.Pastel,
         range_x=[df[pmo_table.NAME_COLUMN_START_DATE].min(), df[pmo_table.NAME_COLUMN_END_DATE].max()],
-        title="Project Plan Gantt Chart"
     )
 
     fig.update_yaxes(autorange="reversed")
