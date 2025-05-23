@@ -6,7 +6,7 @@ from typing import Any, Literal, Optional, List, Dict
 from abc import abstractmethod
 import pytz
 from gws_forms.dashboard_pmo.pmo_state import PMOState
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
+from gws_forms.dashboard_pmo.pmo_dto import SettingsDTO, ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
 from gws_core import StringHelper
 from gws_core.streamlit import StreamlitAuthenticateUser
 
@@ -98,6 +98,7 @@ class PMOTable:
     NAME_COLUMN_PRIORITY = 'Priority'
     NAME_COLUMN_PROGRESS = 'Progress (%)'
     NAME_COLUMN_PROJECT_NAME = 'Project Name'
+    NAME_COLUMN_CLIENT_NAME = 'Client Name'
     NAME_COLUMN_MISSION_NAME = 'Mission Name'
     NAME_COLUMN_MISSION_REFEREE = 'Mission Referee'
     NAME_COLUMN_TEAM_MEMBERS = 'Team Members'
@@ -112,15 +113,16 @@ class PMOTable:
     pmo_state: PMOState
     selected_file: str
     file_path_change_log: str
-    create_folders_in_space : bool
+    folder_settings: str
 
     def __init__(self, folder_project_plan=None, folder_details=None, missions_order=None,
-                 folder_change_log=None, observer=None, selected_file=None):
+                 folder_change_log=None, folder_settings = None, observer=None, selected_file=None):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
         """
         self.folder_project_plan = folder_project_plan
+        self.folder_settings = folder_settings
         self.selected_file = selected_file
         self.observer = observer
         if missions_order is None:
@@ -128,7 +130,6 @@ class PMOTable:
         else:
             self.missions_order = missions_order
         self.folder_details = folder_details
-        self.data, self.create_folders_in_space = self.load_pmo_data()
         self.folder_change_log = folder_change_log
         if folder_change_log:
             self.file_path_change_log = os.path.join(
@@ -140,32 +141,51 @@ class PMOTable:
             self.file_path_change_log = None
 
         self.pmo_state = PMOState(self.file_path_change_log)
+        self.data = self.load_pmo_data()
+        self.data_settings = self.load_settings_data_from_json()
+        self.save_settings()
         self.commit_and_save()
         # Persist initial value to session state
-        self.pmo_state.set_create_folders_in_space_value(self.create_folders_in_space)
+        self.pmo_state.set_create_folders_in_space_value(self.data_settings.create_folders_in_space)
+        self.pmo_state.set_company_members(self.data_settings.company_members)
 
-    def set_create_folders_in_space(self, value: bool) -> None:
-        """
-        Set the create_folders_in_space attribute and persist it.
-        """
-        self.create_folders_in_space = value
-        self.pmo_state.set_create_folders_in_space_value(value)
-        self.save_data_in_folder()
 
-    def get_create_folders_in_space(self) -> bool:
+    def save_settings(self) -> None:
         """
-        Get the create_folders_in_space attribute.
-        Returns:
-            Boolean value of create_folders_in_space.
+        Set the settings for the PMOTable.
+        Set the parameter create folder in space
+        Set the company members
         """
-        return bool(self.create_folders_in_space)
+        path_json = os.path.join(self.folder_settings, f"settings.json")
+        data_dict = self.data_settings.to_json_dict()
+        with open(path_json, 'w', encoding='utf-8') as f:
+            json.dump(data_dict, f, indent=2)
+
+    def load_pmo_settings_from_example(self):
+        # Initialize example settings data
+        data = SettingsDTO(create_folders_in_space = True)
+        return data
+
+    def load_settings_data_from_json(self):
+        """Load PMO settings data from file or create new if none exists
+        """
+        file = [f for f in os.listdir(self.folder_settings) if f.endswith(".json")]
+
+        if file:
+            settings_file = os.path.join(self.folder_settings, file[0])
+            with open(settings_file, 'r', encoding='utf-8') as f:
+                loaded_data = json.load(f)
+                # Convert raw data to ProjectPlanDTO
+                return SettingsDTO.from_json(loaded_data)
+        else:
+            return self.load_pmo_settings_from_example()
 
     def load_pmo_data(self):
         if self.folder_project_plan:
-            data, create_folders_in_space = self.load_pmo_data_from_json()
+            data = self.load_pmo_data_from_json()
         else:
-            data, create_folders_in_space = self.load_pmo_data_from_example()
-        return data, create_folders_in_space
+            data = self.load_pmo_data_from_example()
+        return data
 
     def load_pmo_data_from_example(self):
         # Initialize example data if no folder_project_plan is provided
@@ -176,8 +196,8 @@ class PMOTable:
         )
         example_mission = MissionDTO(
             mission_name="Mission 1",
-            mission_referee="Person1",
-            team_members=["Person1", "Person2"],
+            mission_referee=self.pmo_state.get_list_lab_users()[0],
+            team_members=[self.pmo_state.get_list_lab_users()[0]],
             start_date=datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
             end_date=None,
             milestones=[example_milestone],
@@ -188,13 +208,14 @@ class PMOTable:
         )
         example_project = ProjectDTO(
             id=StringHelper.generate_uuid(),
+            client_name ="Client 1",
             name="Project 1",
             missions=[example_mission],
             folder_root_id="",
             folder_project_id=""
         )
         # Default to True for new example data
-        return ProjectPlanDTO(data=[example_project]), True
+        return ProjectPlanDTO(data=[example_project])
 
     def load_pmo_data_from_json(self):
         """Load PMO data from file or create new if none exists
@@ -218,10 +239,8 @@ class PMOTable:
             self.folder_project_plan, selected_file)
         with open(file_path, 'r', encoding='utf-8') as f:
             loaded_data = json.load(f)
-            # Extract persisted value or default to True
-            create_folders_in_space = loaded_data.get("create_folders_in_space", True)
             # Convert raw data to ProjectPlanDTO
-            return ProjectPlanDTO.from_json(loaded_data), create_folders_in_space
+            return ProjectPlanDTO.from_json(loaded_data)
 
     def apply_observer_update_mission_progress(self, current_project: ProjectDTO) -> None:
         # Apply the observer -> Update tag folder
@@ -349,13 +368,22 @@ class PMOTable:
         project = ProjectPlanDTO.get_project_by_id(self.data, project_id)
         project.name = project_name
 
+    def update_client_name_by_id(self, project_id: str, client_name: str) -> None:
+        """
+        Update the name of a client by its ID.
+
+        Args:
+            project_id: The ID of the project to update.
+            client_name: The new name for the project.
+        """
+        project = ProjectPlanDTO.get_project_by_id(self.data, project_id)
+        project.client = client_name
+
     def save_data_in_folder(self) -> None:
         """Save data as JSON using DTOs"""
         timestamp = datetime.now().strftime("plan_%Y-%m-%d-%Hh%M")
         path_json = os.path.join(self.folder_project_plan, f"{timestamp}.json")
-        # Save create_folders_in_space in the JSON
         data_dict = self.data.to_json_dict()
-        data_dict["create_folders_in_space"] = self.create_folders_in_space
         with open(path_json, 'w', encoding='utf-8') as f:
             json.dump(data_dict, f, indent=2)
 
@@ -364,3 +392,31 @@ class PMOTable:
             self.update_mission_statuses_and_progress()
             # Save changes
             self.save_data_in_folder()
+
+    def set_create_folders_in_space(self, value: bool) -> None:
+        """
+        Set the create_folders_in_space attribute in settings DTO and persist it.
+        """
+        self.data_settings.create_folders_in_space = value
+        self.pmo_state.set_create_folders_in_space_value(value)
+        self.save_settings()
+
+    def get_create_folders_in_space(self) -> bool:
+        """
+        Get the create_folders_in_space attribute from settings DTO.
+        """
+        return bool(getattr(self.data_settings, "create_folders_in_space", True))
+
+    def set_company_members(self, members: list) -> None:
+        """
+        Set the company_members attribute in settings DTO and persist it.
+        """
+        self.data_settings.company_members = members
+        self.pmo_state.set_company_members(members)
+        self.save_settings()
+
+    def get_company_members(self) -> list:
+        """
+        Get the company_members attribute from settings DTO.
+        """
+        return getattr(self.data_settings, "company_members", self.pmo_state.get_list_lab_users())

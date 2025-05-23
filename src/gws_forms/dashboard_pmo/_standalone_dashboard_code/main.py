@@ -17,15 +17,17 @@ if "data_folder" not in st.session_state:
     data_folder.create_dir_if_not_exist("Project Plan")
     data_folder.create_dir_if_not_exist("Change Log")
     data_folder.create_dir_if_not_exist("Notes")
+    data_folder.create_dir_if_not_exist("Settings")
 
 data_folder_path = st.session_state["data_folder"].path
 folder_project_plan = os.path.join(data_folder_path, "Project Plan")
 folder_details = os.path.join(data_folder_path, "Notes")
 folder_change_log = os.path.join(data_folder_path, "Change Log")
-# TODO ajouter le fichier de stats pour Community
+folder_settings = os.path.join(data_folder_path, "Settings")
 
 pmo_table = PMOTable(folder_project_plan=folder_project_plan,
-                     folder_details=folder_details, folder_change_log=folder_change_log)
+                     folder_details=folder_details, folder_change_log=folder_change_log,
+                     folder_settings=folder_settings)
 
 run(pmo_table)
 

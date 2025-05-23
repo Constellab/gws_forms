@@ -4,17 +4,22 @@ from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ProjectPlanDTO, MilestoneDTO
 from gws_core import StringHelper
 
+def check_set_client_and_project_name_unique_and_not_empty(client_name: str, project_name: str, pmo_table: PMOTable) -> None:
+    # Check if the client name is empty
+    if not client_name:
+        st.warning("Client name cannot be empty")
+        return True
 
-def check_project_name_unique_and_not_empty(project_name: str, pmo_table: PMOTable) -> None:
     # Check if the project name is empty
     if not project_name:
         st.warning("Project name cannot be empty")
         return True
 
-    # Check for existing project names
-    existing_projects = [project.name for project in pmo_table.data.data]
-    if project_name in existing_projects:
-        st.warning("Project name must be unique. A project with this name already exists.")
+    set_client_project = f"{client_name} ⸱ {project_name}"
+    # Check for existing set client and project names
+    existing_projects = [f"{project.client_name} ⸱ {project.name}" for project in pmo_table.data.data]
+    if set_client_project in existing_projects:
+        st.warning("A project with this name already exists for this client.")
         return True
 
     return False
@@ -34,7 +39,7 @@ def get_fields_milestone(milestone: MilestoneDTO = None):
     return milestone_name, milestone_done
 
 
-def get_fields_mission(mission: MissionDTO = None):
+def get_fields_mission(pmo_table: PMOTable, mission: MissionDTO = None):
     """Get mission fields with optional existing values
 
     Args:
@@ -44,10 +49,12 @@ def get_fields_mission(mission: MissionDTO = None):
     # Add fields for mission details
     mission_name = st.text_input("Insert your mission name",
                                  value=mission.mission_name if mission else "")
-    mission_referee = st.text_input("Insert your mission referee",
-                                    value=mission.mission_referee if mission else "")
-    team_members = st.text_input("Insert your team members (comma separated)",
-                                 value=", ".join(mission.team_members) if mission and mission.team_members else "")
+    mission_referee = st.selectbox("Select your mission referee",
+                                   options = pmo_table.pmo_state.get_company_members(),
+                                   index=pmo_table.pmo_state.get_list_lab_users().index(mission.mission_referee) if mission and mission.mission_referee!= "" else None)
+    team_members = st.multiselect("Select your team members",
+                                  options=pmo_table.pmo_state.get_company_members(),
+                                  default=mission.team_members if mission and mission.team_members else [])
 
     # Handle start date
     start_date = st.date_input(
@@ -95,7 +102,7 @@ def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
     with st.form(key="mission_form", clear_on_submit=False, enter_to_submit=True):
 
         # Add fields for mission details
-        mission_name, mission_referee, team_members, start_date, end_date, status, priority, progress = get_fields_mission()
+        mission_name, mission_referee, team_members, start_date, end_date, status, priority, progress = get_fields_mission(pmo_table)
 
         submit_button = st.form_submit_button(label="Submit")
 
@@ -117,8 +124,8 @@ def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
             new_mission = MissionDTO(
                 id=mission_id,
                 mission_name=mission_name,
-                mission_referee=mission_referee,
-                team_members=[member.strip() for member in team_members.split(",")],
+                mission_referee=mission_referee if mission_referee else "",
+                team_members=team_members,
                 start_date=start_date,
                 end_date=end_date,
                 status=status,
@@ -146,6 +153,7 @@ def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
             pmo_table.commit_and_save()
             # Set success message in session state
             pmo_table.pmo_state.set_show_success_mission_added(True)
+            pmo_table.pmo_state.set_current_mission(new_mission)
             st.rerun()
 
 
@@ -196,7 +204,7 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
 
         # Add fields for mission details with existing values
         mission_name, mission_referee, team_members, start_date, end_date, status, priority, progress = get_fields_mission(
-            mission=current_mission)
+            pmo_table= pmo_table, mission=current_mission)
 
         submit_button = st.form_submit_button(label="Submit")
 
@@ -218,8 +226,8 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
 
             # Update the mission data
             current_mission.mission_name = mission_name
-            current_mission.mission_referee = mission_referee
-            current_mission.team_members = [member.strip() for member in team_members.split(",") if member.strip()]
+            current_mission.mission_referee = mission_referee if mission_referee else ""
+            current_mission.team_members = team_members
             current_mission.start_date = start_date
             current_mission.end_date = end_date
             current_mission.status = status
@@ -236,7 +244,9 @@ def edit_project(pmo_table: PMOTable, current_project: ProjectDTO):
 
     with st.form(key="edit_project_form", clear_on_submit=False, enter_to_submit=True):
         existing_project_name = current_project.name
+        existing_client_name = current_project.client_name
         # Add fields for project details
+        client_name = st.text_input("Insert your client name", value=existing_client_name)
         project_name = st.text_input("Insert your project name", value=existing_project_name)
 
         submit_button = st.form_submit_button(label="Submit")
@@ -244,11 +254,14 @@ def edit_project(pmo_table: PMOTable, current_project: ProjectDTO):
         if submit_button:
             # Check if the project name is the same as previously
             # If so, do nothing and return
-            if project_name == existing_project_name:
-                return
-            if check_project_name_unique_and_not_empty(project_name, pmo_table):
+            if project_name == existing_project_name and client_name == existing_client_name:
                 return
 
+            if check_set_client_and_project_name_unique_and_not_empty(client_name, project_name, pmo_table):
+                return
+
+            # Update client name
+            pmo_table.update_client_name_by_id(current_project.id, client_name)
             # Update project name
             pmo_table.update_project_name_by_id(current_project.id, project_name)
 
@@ -309,6 +322,7 @@ def add_milestone(pmo_table: PMOTable, project_id: str, mission_id: str):
 @st.dialog("Create project")
 def create_project(pmo_table: PMOTable):
     with st.form(clear_on_submit=False, enter_to_submit=True, key="project_form"):
+        client_name = st.text_input("Insert your client name")
         name_project = st.text_input("Insert your project name")
 
         submit_button = st.form_submit_button(
@@ -316,17 +330,32 @@ def create_project(pmo_table: PMOTable):
         )
 
         if submit_button:
-            if check_project_name_unique_and_not_empty(name_project, pmo_table):
+            if check_set_client_and_project_name_unique_and_not_empty(client_name, name_project, pmo_table):
                 return
 
             # Create new project using DTO
             new_project = ProjectDTO(
                 id=StringHelper.generate_uuid(),
+                client_name=client_name,
                 name=name_project,
                 missions=[],
                 folder_root_id="",
                 folder_project_id=""
             )
+
+            if pmo_table.data_settings.create_folders_in_space: #TODO : create folders in space
+                # Check if the client already exists
+                existing_clients = [project.name.split(" ⸱ ")[0] for project in pmo_table.data.data]
+                """if client_name in existing_clients:
+                    # Retrieve the id of the folder root client already created
+                    for project in pmo_table.data.data:
+                        if project.name.split(" ⸱ ")[0] == client_name:
+                            new_project.folder_root_id = project.folder_root_id
+                else:
+                    # Create root folders in the space with the client name
+                    create_root_folder_in_space(new_project, pmo_vibiosphen_state)
+                create_subfolders_in_space(new_project)"""
+
             # Update the data structure
             pmo_table.data.data.append(new_project)
             # Save

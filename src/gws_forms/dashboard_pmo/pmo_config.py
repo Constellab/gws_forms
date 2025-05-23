@@ -25,6 +25,12 @@ class PMOConfig():
             on_click=lambda: create_project(pmo_table))
         return new_project_button
 
+    def build_new_mission_button(self, pmo_table: PMOTable, project: ProjectDTO) -> bool:
+        new_mission_button = st.button(
+            "New mission", use_container_width=True, icon=":material/add:",
+            on_click=lambda: add_mission(pmo_table, project))
+        return new_mission_button
+
     def build_project_menu_button(self, pmo_table: PMOTable, project: ProjectDTO) -> StreamlitMenuButton:
         button_menu_project = StreamlitMenuButton(key="button_menu_project")
         add_mission_button = StreamlitMenuButtonItem(label='Add mission', material_icon='add',

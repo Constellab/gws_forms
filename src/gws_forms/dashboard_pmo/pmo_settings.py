@@ -3,6 +3,7 @@ import json
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO
+from gws_core import User, UserGroup
 
 
 def display_settings_tab(pmo_table: PMOTable):
@@ -28,7 +29,7 @@ def display_settings_tab(pmo_table: PMOTable):
             if selected_file:
                 pmo_table = PMOTable(folder_project_plan=pmo_table.folder_project_plan,
                                      folder_details=pmo_table.folder_details,
-                                     folder_change_log=pmo_table.folder_change_log, selected_file=selected_file)
+                                     folder_change_log=pmo_table.folder_change_log, folder_settings= pmo_table.folder_settings, selected_file=selected_file)
                 # Set current project to None
                 pmo_table.pmo_state.set_current_project(None)
                 pmo_table.pmo_state.set_current_mission(None)
@@ -52,7 +53,7 @@ def display_settings_tab(pmo_table: PMOTable):
                 # Save data in the folder
                 pmo_table = PMOTable(folder_project_plan=pmo_table.folder_project_plan,
                                      folder_details=pmo_table.folder_details,
-                                     folder_change_log=pmo_table.folder_change_log)
+                                     folder_change_log=pmo_table.folder_change_log, folder_settings= pmo_table.folder_settings)
                 pmo_table.save_data_in_folder()
                 # Set current project to None
                 pmo_table.pmo_state.set_current_project(None)
@@ -83,6 +84,15 @@ def display_settings_tab(pmo_table: PMOTable):
     st.checkbox(
         "Create folders in space",
         key="create_folders_in_space",
-        value=pmo_table.get_create_folders_in_space(),
         on_change=on_checkbox_change
+    )
+
+    st.write("**Company members**")
+    def on_multiselect_change():
+        pmo_table.set_company_members(st.session_state["company_members"])
+    st.multiselect(
+        "Select company members",
+        options=pmo_table.pmo_state.get_list_lab_users(),
+        key="company_members",
+        on_change=on_multiselect_change
     )

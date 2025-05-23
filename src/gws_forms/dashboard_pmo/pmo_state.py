@@ -5,7 +5,7 @@ import streamlit as st
 import pandas as pd
 
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO
-
+from gws_core import User, UserGroup
 
 class PMOState():
 
@@ -18,6 +18,7 @@ class PMOState():
     CURRENT_PROJECT_KEY = "current_project"
     CURRENT_MISSION_KEY = "current_mission"
     CREATE_FOLDERS = "create_folders_in_space"
+    COMPANY_MEMBERS_KEY = "company_members"
 
     def __init__(self, file_path_change_log: str):
         self.file_path_change_log = file_path_change_log
@@ -25,14 +26,16 @@ class PMOState():
         st.session_state[self.STATUS_CHANGE_LOG_KEY] = self.get_status_change_log()
         # Initialize a log list for status changes
         st.session_state[self.STATUS_CHANGE_JSON_KEY] = self.get_status_change_json()
+        # Initialize company numbers
+        st.session_state[self.COMPANY_MEMBERS_KEY] = self.get_company_members()
 
-    def get_current_project(self) -> str:
+    def get_current_project(self) -> ProjectDTO:
         return st.session_state.get(self.CURRENT_PROJECT_KEY, None)
 
     def set_current_project(self, project: ProjectDTO) -> None:
         st.session_state[self.CURRENT_PROJECT_KEY] = project
 
-    def get_current_mission(self) -> str:
+    def get_current_mission(self) -> MissionDTO:
         return st.session_state.get(self.CURRENT_MISSION_KEY, None)
 
     def set_current_mission(self, mission: MissionDTO) -> None:
@@ -122,3 +125,13 @@ class PMOState():
 
     def set_create_folders_in_space_value(self, value: bool) -> None:
         st.session_state[self.CREATE_FOLDERS] = value
+
+    def get_company_members(self) -> List:
+        return st.session_state.get(self.COMPANY_MEMBERS_KEY, self.get_list_lab_users())
+
+    def set_company_members(self, value: List) -> None:
+        st.session_state[self.COMPANY_MEMBERS_KEY] = value
+
+    def get_list_lab_users(self) -> List:
+        list_lab_users = list(User.select().where(User.group != UserGroup.SYSUSER))
+        return [user.first_name for user in list_lab_users]
