@@ -1,6 +1,6 @@
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO
-from gws_forms.dashboard_pmo.dialog_functions import delete_project, delete_mission, add_mission, edit_mission, edit_project, create_project
+from gws_forms.dashboard_pmo.dialog_functions import delete_project, delete_mission, add_mission, edit_mission, edit_project, create_project, add_predefined_missions
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
 from gws_core.streamlit import StreamlitMenuButton, StreamlitMenuButtonItem
 
@@ -33,6 +33,9 @@ class PMOConfig():
 
     def build_project_menu_button(self, pmo_table: PMOTable, project: ProjectDTO) -> StreamlitMenuButton:
         button_menu_project = StreamlitMenuButton(key="button_menu_project")
+        add_predefined_mission_button = StreamlitMenuButtonItem(label='Add predefined missions', material_icon='add',
+                                                     on_click=lambda: add_predefined_missions(pmo_table, project))
+        button_menu_project.add_button_item(add_predefined_mission_button)
         add_mission_button = StreamlitMenuButtonItem(label='Add mission', material_icon='add',
                                                      on_click=lambda: add_mission(pmo_table, project))
         button_menu_project.add_button_item(add_mission_button)

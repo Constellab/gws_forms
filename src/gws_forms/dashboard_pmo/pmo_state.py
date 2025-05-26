@@ -19,6 +19,7 @@ class PMOState():
     CURRENT_MISSION_KEY = "current_mission"
     CREATE_FOLDERS = "create_folders_in_space"
     COMPANY_MEMBERS_KEY = "company_members"
+    PREDEFINED_MISSIONS_KEY = "predefined_missions"
 
     def __init__(self, file_path_change_log: str):
         self.file_path_change_log = file_path_change_log
@@ -135,3 +136,9 @@ class PMOState():
     def get_list_lab_users(self) -> List:
         list_lab_users = list(User.select().where(User.group != UserGroup.SYSUSER))
         return [user.first_name for user in list_lab_users]
+
+    def set_predefined_missions(self, value: List[MissionDTO]) -> None:
+        st.session_state[self.PREDEFINED_MISSIONS_KEY] = value
+
+    def get_predefined_missions(self) -> List[MissionDTO]:
+        return st.session_state.get(self.PREDEFINED_MISSIONS_KEY, [])

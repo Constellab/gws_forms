@@ -7,6 +7,7 @@ class SettingsDTO(BaseModelDTO):
     """Represents the settings for the project plan"""
     create_folders_in_space: bool = False
     company_members: List[str] = []
+    predefined_missions: List["MissionDTO"] = []
 
 
 class MilestoneDTO(BaseModelDTO):
