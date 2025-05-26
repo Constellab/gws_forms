@@ -32,69 +32,81 @@ def display_mission_tab(pmo_table: PMOTable):
         # Build nodes from actual data: Client > Project > Mission
         nodes = []
 
-        projects_list = ProjectPlanDTO.get_projects(pmo_table.data)
+        clients_list = ProjectPlanDTO.get_clients(pmo_table.data)
         # Sort project data by client name
-        projects_list.sort(key=lambda x: (
+        clients_list.sort(key=lambda x: (
             x.client_name.lower()
         ))
 
-        for project in projects_list:
+        for client in clients_list:
             # Find if this client already exists in nodes
-            client_node = next((n for n in nodes if n["value"] == project.id + "_client"), None)
+            client_node = next((n for n in nodes if n["value"] == client.id), None)
             if not client_node:
                 client_node = {
-                    "label": project.client_name,
-                    "value": project.id + "_client",  # Use project.id + suffix to ensure uniqueness
+                    "label": client.client_name,
+                    "value": client.id,
                     "children": []
                 }
                 nodes.append(client_node)
-            # Add project node under client
-            project_node = {
-                "label": project.name,
-                "value": project.id,
-                "children": []
-            }
 
-            # Define status order mapping
-            status_order = Status.get_order()
-
-            # Sort project data by status first, then mission name
-            project.missions.sort(key=lambda x: (
-                status_order.get(x.status),  # Status order
-                x.mission_name.lower()  # Mission name alphabetically
-            ))
-
-            # Add mission nodes under project
-            for mission in project.missions:
-                mission_node = {
-                    "label": mission.mission_name,
-                    "value": mission.id
+            for project in client.projects:
+                # Add project node under client
+                project_node = {
+                    "label": project.name,
+                    "value": project.id,
+                    "children": []
                 }
 
-                project_node["children"].append(mission_node)
-            client_node["children"].append(project_node)
+                # Define status order mapping
+                status_order = Status.get_order()
+
+                # Sort project data by status first, then mission name
+                project.missions.sort(key=lambda x: (
+                    status_order.get(x.status),  # Status order
+                    x.mission_name.lower()  # Mission name alphabetically
+                ))
+
+                # Add mission nodes under project
+                for mission in project.missions:
+                    mission_node = {
+                        "label": mission.mission_name,
+                        "value": mission.id
+                    }
+
+                    project_node["children"].append(mission_node)
+                client_node["children"].append(project_node)
 
         if pmo_state.get_current_mission():
             nodes_already_checked = pmo_state.get_current_mission().id
         elif pmo_state.get_current_project():
             nodes_already_checked = pmo_state.get_current_project().id
         else:
-            project = projects_list[0]
-            if project.missions:
-                nodes_already_checked = project.missions[0].id
+            client = clients_list[0]
+            if client.projects:
+                if project.missions:
+                    nodes_already_checked = project.missions[0].id
+                else:
+                    nodes_already_checked = client.projects[0].id
             else:
-                nodes_already_checked = project.id
+                nodes_already_checked = client.id
 
-        #nodes_already_checked = pmo_state.get_current_mission().id if pmo_state.get_current_mission() else pmo_state.get_current_project().id if pmo_state.get_current_project() else projects_list[0].id
-        expanded = [pmo_state.get_current_project().id, pmo_state.get_current_project().id + "_client"] if pmo_state.get_current_project() else [projects_list[0].id, projects_list[0].id + "_client"]
+        expanded = []
+        if pmo_state.get_current_client():
+            expanded = [pmo_state.get_current_client().id]
+            if pmo_state.get_current_project():
+                expanded = [pmo_state.get_current_project().id, pmo_state.get_current_client().id]
+
+        else:
+            expanded = [clients_list[0].id]
+
+
         return_select = tree_select(nodes, checked = [nodes_already_checked],
                                     expanded = expanded, check_model="leaf", expand_on_click = True)#, only_leaf_checkboxes = True)
-        #st.write(return_select)#TODO remove
         # It's lean that more than one mission is selected, but we don't want to
         if len(return_select["checked"]) > 1:
             for item in return_select["checked"]:
                 # If the item is in expanded, it means it's a project
-                if f"{item}_client" in return_select["expanded"]:
+                if item in return_select["expanded"]:
                     # The list return_select["checked"] is not filled one click after another
                     # but depending on the hierarchy so we need to find the entry different from the current project (=previous project)
                     if item != pmo_state.get_current_project().id:
@@ -122,7 +134,7 @@ def display_mission_tab(pmo_table: PMOTable):
                         st.rerun()
         elif len(return_select["checked"]) == 1 and return_select["checked"][0] is not None:
             item = return_select["checked"][0]
-            if f"{item}_client" in return_select["expanded"]:
+            if item in return_select["expanded"]:
                 project = ProjectPlanDTO.get_project_by_id(pmo_table.data, item)
                 pmo_state.set_current_project(project)
                 pmo_state.set_current_mission(None)

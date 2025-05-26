@@ -1,7 +1,7 @@
 from datetime import date, datetime
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
-from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ProjectPlanDTO, MilestoneDTO
+from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ProjectPlanDTO, MilestoneDTO, ClientDTO
 from gws_core import StringHelper
 
 def check_set_client_and_project_name_unique_and_not_empty(client_name: str, project_name: str, pmo_table: PMOTable) -> None:
@@ -15,13 +15,13 @@ def check_set_client_and_project_name_unique_and_not_empty(client_name: str, pro
         st.warning("Project name cannot be empty")
         return True
 
-    set_client_project = f"{client_name} ⸱ {project_name}"
-    # Check for existing set client and project names
-    existing_projects = [f"{project.client_name} ⸱ {project.name}" for project in pmo_table.data.data]
-    if set_client_project in existing_projects:
-        st.warning("A project with this name already exists for this client.")
-        return True
-
+    for client in pmo_table.data.data:
+        if client.client_name == client_name:
+            # Check if the project name is already used for this client
+            for project in client.projects:
+                if project.name == project_name:
+                    st.warning("A project with this name already exists for this client.")
+                    return True
     return False
 
 
@@ -84,14 +84,15 @@ def delete_milestone(pmo_table: PMOTable, project_id: str, mission_id: str, mile
         f"Are you sure you want to delete the milestone {milestone.name}? This action cannot be undone.")
     if st.button("Delete", use_container_width=True, icon=":material/delete:"):
         # Remove milestone from DTOs
-        for project in pmo_table.data.data:
-            if project.id == project_id:
-                # Find the mission that contains the milestone
-                for mission in project.missions:
-                    if mission.id == mission_id:
-                        # Remove the milestone from the mission
-                        mission.milestones.remove(milestone)
-                        break
+        for client in pmo_table.data.data:
+            for project in client.projects:
+                if project.id == project_id:
+                    # Find the mission that contains the milestone
+                    for mission in project.missions:
+                        if mission.id == mission_id:
+                            # Remove the milestone from the mission
+                            mission.milestones.remove(milestone)
+                            break
 
         pmo_table.commit_and_save()
         st.rerun()
@@ -169,13 +170,14 @@ def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
                 st.warning("Mission name cannot be empty")
                 return
             # Find project by name and check for existing missions
-            for project in pmo_table.data.data:
-                if project.name == current_project.name:
-                    existing_missions = [mission.mission_name for mission in project.missions]
-                    if mission_name in existing_missions:
-                        st.warning("Mission name must be unique. A mission with this name already exists in the selected project.")
-                        return
-                    break
+            for client in pmo_table.data.data:
+                for project in client.projects:
+                    if project.name == current_project.name:
+                        existing_missions = [mission.mission_name for mission in project.missions]
+                        if mission_name in existing_missions:
+                            st.warning("Mission name must be unique. A mission with this name already exists in the selected project.")
+                            return
+                        break
 
             # Create new mission using DTO
             mission_id = StringHelper.generate_uuid()
@@ -239,10 +241,11 @@ def delete_mission(pmo_table: PMOTable, project_id: str, mission_id: str):
         f"Are you sure you want to delete the mission {mission_name}? This action cannot be undone.")
     if st.button("Delete", use_container_width=True, icon=":material/delete:"):
         # Remove mission from DTOs
-        for project in pmo_table.data.data:
-            if project.id == project_id:
-                project.missions = [m for m in project.missions if m.id != mission_id]
-                break
+        for client in pmo_table.data.data:
+            for project in client.projects:
+                if project.id == project_id:
+                    project.missions = [m for m in project.missions if m.id != mission_id]
+                    break
 
         pmo_table.commit_and_save()
         # Set success message in session state
@@ -397,28 +400,46 @@ def create_project(pmo_table: PMOTable):
                 client_name=client_name,
                 name=name_project,
                 missions=[],
-                folder_root_id="",
                 folder_project_id=""
             )
 
+            # Check if client already exists
+            existing_client = next((client for client in pmo_table.data.data if client.client_name == client_name), None)
+            if existing_client:
+                new_client = existing_client
+            else:
+                new_client = ClientDTO(
+                    id=StringHelper.generate_uuid(),
+                    client_name=client_name,
+                    projects=[new_project],
+                    folder_root_id="",
+                )
+
+
             if pmo_table.data_settings.create_folders_in_space: #TODO : create folders in space
                 # Check if the client already exists
-                existing_clients = [project.name.split(" ⸱ ")[0] for project in pmo_table.data.data]
+                existing_clients = [client.client_name for client in pmo_table.data.data]
                 """if client_name in existing_clients:
                     # Retrieve the id of the folder root client already created
-                    for project in pmo_table.data.data:
-                        if project.name.split(" ⸱ ")[0] == client_name:
-                            new_project.folder_root_id = project.folder_root_id
+                    for client in pmo_table.data.data:
+                        for project in client.projects:
+                            if project.name.split(" ⸱ ")[0] == client_name:
+                                new_project.folder_root_id = project.folder_root_id
                 else:
                     # Create root folders in the space with the client name
                     create_root_folder_in_space(new_project, pmo_vibiosphen_state)
                 create_subfolders_in_space(new_project)"""
 
-            # Update the data structure
-            pmo_table.data.data.append(new_project)
+            if existing_client:
+                existing_client.projects.append(new_project)
+            else:
+                pmo_table.data.data.append(new_client)
+
+
             # Save
             pmo_table.commit_and_save()
             # Set success message in session state
             pmo_table.pmo_state.set_show_success_project_created(True)
             pmo_table.pmo_state.set_current_project(new_project)
+            pmo_table.pmo_state.set_current_client(new_client)
             st.rerun()

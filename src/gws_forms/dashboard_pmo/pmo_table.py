@@ -6,7 +6,7 @@ from typing import Any, Literal, Optional, List, Dict
 from abc import abstractmethod
 import pytz
 from gws_forms.dashboard_pmo.pmo_state import PMOState
-from gws_forms.dashboard_pmo.pmo_dto import SettingsDTO, ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
+from gws_forms.dashboard_pmo.pmo_dto import SettingsDTO, ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO, ClientDTO
 from gws_core import StringHelper
 from gws_core.streamlit import StreamlitAuthenticateUser
 
@@ -170,7 +170,7 @@ class PMOTable:
     def load_pmo_settings_from_example(self):
         # Initialize example settings data
         data = SettingsDTO(create_folders_in_space = True,
-                           company_members=[],
+                           company_members=self.pmo_state.get_list_lab_users(),
                            predefined_missions=[])
         return data
 
@@ -216,14 +216,18 @@ class PMOTable:
         )
         example_project = ProjectDTO(
             id=StringHelper.generate_uuid(),
-            client_name ="Client 1",
             name="Project 1",
             missions=[example_mission],
-            folder_root_id="",
             folder_project_id=""
         )
+        example_client = ClientDTO(
+            id=StringHelper.generate_uuid(),
+            client_name="Client 1",
+            projects=[example_project],
+            folder_root_id=""
+        )
         # Default to True for new example data
-        return ProjectPlanDTO(data=[example_project])
+        return ProjectPlanDTO(data=[example_client])
 
     def load_pmo_data_from_json(self):
         """Load PMO data from file or create new if none exists
@@ -283,41 +287,41 @@ class PMOTable:
         """Ensures required fields are present and have correct types.
         Auto-updates progress, status and dates based on conditions."""
         formatted_date = datetime.now().date()
-
         # Process each project and its missions
-        for project in self.data.data:
-            for mission in project.missions:
-                # Set end date if status is DONE and no end date exists
-                if mission.status == Status.DONE.value and not mission.end_date:
-                    mission.end_date = formatted_date
-
-                # Calculate progress based on milestones
-                if mission.milestones:
-                    total_steps = len(mission.milestones)
-                    completed_steps = sum(1 for m in mission.milestones if m.done)
-                    mission.progress = round((completed_steps / total_steps) * 100, 2) if total_steps > 0 else 0.0
-
-                # Auto-set status to DONE if progress is 100%
-                if (mission.progress == 100 and
-                        mission.status in [Status.IN_PROGRESS.value, Status.TODO.value, Status.NONE.value]):
-                    old_status = mission.status
-                    mission.status = Status.DONE.value
-                    if not mission.end_date:
+        for client in self.data.data:
+            for project in client.projects:
+                for mission in project.missions:
+                    # Set end date if status is DONE and no end date exists
+                    if mission.status == Status.DONE.value and not mission.end_date:
                         mission.end_date = formatted_date
 
-                    # Log status change
-                    self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
+                    # Calculate progress based on milestones
+                    if mission.milestones:
+                        total_steps = len(mission.milestones)
+                        completed_steps = sum(1 for m in mission.milestones if m.done)
+                        mission.progress = round((completed_steps / total_steps) * 100, 2) if total_steps > 0 else 0.0
 
-                # Auto-set status to in progress if progress is more than 0% and status is none or todo
-                if (mission.progress != 0 and
-                        mission.status in [Status.TODO.value, Status.NONE.value]):
-                    old_status = mission.status
-                    mission.status = Status.IN_PROGRESS.value
-                    if not mission.start_date:
-                        mission.start_date = formatted_date
+                    # Auto-set status to DONE if progress is 100%
+                    if (mission.progress == 100 and
+                            mission.status in [Status.IN_PROGRESS.value, Status.TODO.value, Status.NONE.value]):
+                        old_status = mission.status
+                        mission.status = Status.DONE.value
+                        if not mission.end_date:
+                            mission.end_date = formatted_date
 
-                    # Log status change
-                    self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
+                        # Log status change
+                        self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
+
+                    # Auto-set status to in progress if progress is more than 0% and status is none or todo
+                    if (mission.progress != 0 and
+                            mission.status in [Status.TODO.value, Status.NONE.value]):
+                        old_status = mission.status
+                        mission.status = Status.IN_PROGRESS.value
+                        if not mission.start_date:
+                            mission.start_date = formatted_date
+
+                        # Log status change
+                        self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
 
         # Handle mission order dependencies
         if self.missions_order:
