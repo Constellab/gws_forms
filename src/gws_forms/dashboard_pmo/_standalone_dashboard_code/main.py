@@ -29,5 +29,12 @@ pmo_table = PMOTable(folder_project_plan=folder_project_plan,
                      folder_details=folder_details, folder_change_log=folder_change_log,
                      folder_settings=folder_settings)
 
+if st.button("Use test data"):
+    # Load test data
+    test_data_path = os.path.join(os.path.dirname(__file__), "data_test.json")
+    with open(test_data_path, 'r', encoding='utf-8') as f:
+        test_data = json.load(f)
+    pmo_table.data = ProjectPlanDTO.from_json(test_data)
+    pmo_table.commit_and_save()
 run(pmo_table)
 
