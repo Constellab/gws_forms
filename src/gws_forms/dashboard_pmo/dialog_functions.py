@@ -251,7 +251,8 @@ def delete_project(pmo_table: PMOTable, current_project: ProjectDTO):
         f"Are you sure you want to delete the project {current_project.name}? This action cannot be undone. All missions will be deleted.")
     if st.button("Delete", use_container_width=True, icon=":material/delete:"):
         # Remove project from DTOs
-        pmo_table.data.data = [p for p in pmo_table.data.data if p.id != current_project.id]
+        for client in pmo_table.data.data:
+            client.projects = [p for p in client.projects if p.id != current_project.id]
         # Save
         pmo_table.commit_and_save()
         # Set success message in session state
