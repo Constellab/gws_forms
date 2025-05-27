@@ -162,7 +162,7 @@ def display_settings_tab(pmo_table: PMOTable):
                 st.text_area(
                     label="Predefined milestones (comma-separated)",
                     value=milestones_value,
-                    placeholder="Enter the name of your milestones",
+                    placeholder="Enter the name of your milestones (comma-separated)",
                     label_visibility="collapsed",
                     key=f"predefined_milestones_{i}",
                     on_change=missions_change,

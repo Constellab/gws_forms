@@ -2,7 +2,8 @@ from datetime import date, datetime
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ProjectPlanDTO, MilestoneDTO, ClientDTO
-from gws_core import StringHelper
+from gws_core import (StringHelper, SpaceService, ExternalSpaceCreateFolder, Tag)
+from gws_core.streamlit import StreamlitAuthenticateUser
 
 def check_set_client_and_project_name_unique_and_not_empty(client_name: str, project_name: str, pmo_table: PMOTable) -> None:
     # Check if the client name is empty
@@ -23,6 +24,33 @@ def check_set_client_and_project_name_unique_and_not_empty(client_name: str, pro
                     st.warning("A project with this name already exists for this client.")
                     return True
     return False
+
+
+def create_root_folder_in_space(current_client: ClientDTO):
+    with StreamlitAuthenticateUser():
+        # Create folder in the space
+        space_service = SpaceService.get_instance()
+        # We create a root folder in the space
+        folder_root_client = ExternalSpaceCreateFolder(name=current_client.client_name)
+        folder_root_client_space = space_service.create_root_folder(folder=folder_root_client)
+        current_client.folder_root_id = folder_root_client_space.id
+
+def create_subfolders_in_space(current_client: ClientDTO, current_project: ProjectDTO):
+    with StreamlitAuthenticateUser():
+        space_service = SpaceService.get_instance()
+
+        # Retrieve the id of the folder root client already created
+        folder_root_client_space_id = current_client.folder_root_id
+
+        # Create the subfolders
+        folder_project = ExternalSpaceCreateFolder(
+            name=current_project.name,
+            tags=[Tag(key="type", value="client", auto_parse=True),
+                  Tag(key="client", value=current_client.client_name,
+                      auto_parse=True)])
+        folder_project_space = space_service.create_child_folder(
+            parent_id=folder_root_client_space_id, folder=folder_project)
+        current_project.folder_project_id = folder_project_space.id
 
 
 def get_fields_milestone(milestone: MilestoneDTO = None):
@@ -301,11 +329,11 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
 
 
 @st.dialog("Edit project")
-def edit_project(pmo_table: PMOTable, current_project: ProjectDTO):
+def edit_project(pmo_table: PMOTable, current_client : ClientDTO, current_project: ProjectDTO):
 
     with st.form(key="edit_project_form", clear_on_submit=False, enter_to_submit=True):
         existing_project_name = current_project.name
-        existing_client_name = current_project.client_name
+        existing_client_name = current_client.client_name
         # Add fields for project details
         client_name = st.text_input("Insert your client name", value=existing_client_name)
         project_name = st.text_input("Insert your project name", value=existing_project_name)
@@ -322,7 +350,7 @@ def edit_project(pmo_table: PMOTable, current_project: ProjectDTO):
                 return
 
             # Update client name
-            pmo_table.update_client_name_by_id(current_project.id, client_name)
+            pmo_table.update_client_name_by_id(current_client.id, client_name)
             # Update project name
             pmo_table.update_project_name_by_id(current_project.id, project_name)
 
@@ -371,11 +399,9 @@ def add_milestone(pmo_table: PMOTable, project_id: str, mission_id: str):
             )
 
             # Find the project and mission to add the milestone
-            project = next((p for p in pmo_table.data.data if p.id == project_id), None)
-            if project:
-                mission = next((m for m in project.missions if m.id == mission_id), None)
-                if mission:
-                    mission.milestones.append(new_milestone)
+            mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, mission_id)
+            if mission:
+                mission.milestones.append(new_milestone)
             pmo_table.commit_and_save()
             st.rerun()
 
@@ -397,7 +423,6 @@ def create_project(pmo_table: PMOTable):
             # Create new project using DTO
             new_project = ProjectDTO(
                 id=StringHelper.generate_uuid(),
-                client_name=client_name,
                 name=name_project,
                 missions=[],
                 folder_project_id=""
@@ -416,25 +441,23 @@ def create_project(pmo_table: PMOTable):
                 )
 
 
-            if pmo_table.data_settings.create_folders_in_space: #TODO : create folders in space
+            if pmo_table.data_settings.create_folders_in_space:
                 # Check if the client already exists
                 existing_clients = [client.client_name for client in pmo_table.data.data]
-                """if client_name in existing_clients:
+                if client_name in existing_clients:
                     # Retrieve the id of the folder root client already created
                     for client in pmo_table.data.data:
-                        for project in client.projects:
-                            if project.name.split(" ⸱ ")[0] == client_name:
-                                new_project.folder_root_id = project.folder_root_id
+                        if client.client_name == client_name:
+                            new_client.folder_root_id = client.folder_root_id
                 else:
                     # Create root folders in the space with the client name
-                    create_root_folder_in_space(new_project, pmo_vibiosphen_state)
-                create_subfolders_in_space(new_project)"""
+                    create_root_folder_in_space(new_client)
+                create_subfolders_in_space(new_client, new_project)
 
             if existing_client:
                 existing_client.projects.append(new_project)
             else:
                 pmo_table.data.data.append(new_client)
-
 
             # Save
             pmo_table.commit_and_save()
