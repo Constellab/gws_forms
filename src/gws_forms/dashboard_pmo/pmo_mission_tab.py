@@ -3,14 +3,56 @@ from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO
 from gws_forms.dashboard_pmo.pmo_config import PMOConfig
 from gws_forms.dashboard_pmo.dialog_functions import delete_milestone, add_milestone, edit_milestone
-from gws_core.streamlit import StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
-from streamlit_tree_select import tree_select
+from gws_core.streamlit import StreamlitTreeMenu, StreamlitTreeMenuItem, StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
 
 def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO):
     """Update the milestone status when the checkbox is clicked."""
     # Update the milestone status
     pmo_table.update_milestone_status_by_id(milestone.id, st.session_state[key])
     pmo_table.commit_and_save()
+
+def build_tree_menu_from_data(pmo_table: PMOTable):
+    selected_item: StreamlitTreeMenuItem = None
+    button_menu = StreamlitTreeMenu()
+    clients_list = ProjectPlanDTO.get_clients(pmo_table.data)
+    # Sort project data by client name
+    clients_list.sort(key=lambda x: x.client_name.lower())
+
+    # Build nodes from actual data: Client > Project > Mission
+    # Build the tree structure
+    for client in clients_list:
+        client_item = StreamlitTreeMenuItem(
+            label=client.client_name,
+            key=client.id,
+            material_icon='person'
+        )
+        for project in client.projects:
+            project_item = StreamlitTreeMenuItem(
+                label=project.name,
+                key=project.id,
+                material_icon='folder'
+            )
+
+            # Define status order mapping
+            status_order = Status.get_order()
+
+            # Sort project data by status first, then mission name
+            project.missions.sort(key=lambda x: (
+                status_order.get(x.status),  # Status order
+                x.mission_name.lower()  # Mission name alphabetically
+            ))
+
+            for mission in project.missions:
+                mission_item = StreamlitTreeMenuItem(
+                    label=mission.mission_name,
+                    key=mission.id,
+                    material_icon='description'
+                )
+                project_item.add_children([mission_item])
+            client_item.add_children([project_item])
+        button_menu.add_item(client_item)
+    return button_menu, clients_list
+
 
 def display_mission_tab(pmo_table: PMOTable):
     # Define the variable pmo_state
@@ -29,120 +71,58 @@ def display_mission_tab(pmo_table: PMOTable):
         # Button to create a new project
         pmo_config.build_new_project_button(pmo_table)
 
-        # Build nodes from actual data: Client > Project > Mission
-        nodes = []
+        # Build and render the tree menu
+        button_menu_tree, clients_list = build_tree_menu_from_data(pmo_table)
 
-        clients_list = ProjectPlanDTO.get_clients(pmo_table.data)
-        # Sort project data by client name
-        clients_list.sort(key=lambda x: (
-            x.client_name.lower()
-        ))
-
-        for client in clients_list:
-            # Find if this client already exists in nodes
-            client_node = next((n for n in nodes if n["value"] == client.id), None)
-            if not client_node:
-                client_node = {
-                    "label": client.client_name,
-                    "value": client.id,
-                    "children": []
-                }
-                nodes.append(client_node)
-
-            for project in client.projects:
-                # Add project node under client
-                project_node = {
-                    "label": project.name,
-                    "value": project.id,
-                    "children": []
-                }
-
-                # Define status order mapping
-                status_order = Status.get_order()
-
-                # Sort project data by status first, then mission name
-                project.missions.sort(key=lambda x: (
-                    status_order.get(x.status),  # Status order
-                    x.mission_name.lower()  # Mission name alphabetically
-                ))
-
-                # Add mission nodes under project
-                for mission in project.missions:
-                    mission_node = {
-                        "label": mission.mission_name,
-                        "value": mission.id
-                    }
-
-                    project_node["children"].append(mission_node)
-                client_node["children"].append(project_node)
-
+        # Set a default selected item
         if pmo_state.get_current_mission():
-            nodes_already_checked = pmo_state.get_current_mission().id
+            # If it's the first time we lauch the page
+            button_menu_tree.set_default_selected_item(pmo_state.get_current_mission().id)
+            # Other cases
+            button_menu_tree.set_selected_item(pmo_state.get_current_mission().id)
         elif pmo_state.get_current_project():
-            nodes_already_checked = pmo_state.get_current_project().id
+            button_menu_tree.set_default_selected_item(pmo_state.get_current_project().id)
+            button_menu_tree.set_selected_item(pmo_state.get_current_project().id)
         else:
             client = clients_list[0]
             if client.projects:
+                project = client.projects[0]
                 if project.missions:
-                    nodes_already_checked = project.missions[0].id
+                    button_menu_tree.set_default_selected_item(project.missions[0].id)
+                    button_menu_tree.set_selected_item(project.missions[0].id)
                 else:
-                    nodes_already_checked = client.projects[0].id
+                    button_menu_tree.set_default_selected_item(project.id)
+                    button_menu_tree.set_selected_item(project.id)
             else:
-                nodes_already_checked = client.id
+                button_menu_tree.set_default_selected_item(client.id)
+                button_menu_tree.set_selected_item(client.id)
 
-        expanded = []
-        if pmo_state.get_current_client():
-            expanded = [pmo_state.get_current_client().id]
-            if pmo_state.get_current_project():
-                expanded = [pmo_state.get_current_project().id, pmo_state.get_current_client().id]
+        # Render the menu tree
+        pmo_state.set_button_menu_tree(button_menu_tree)
+        return_select = button_menu_tree.render()
 
-        else:
-            expanded = [clients_list[0].id]
+            #button_menu.set_selected_item(child_2.key) TODO
 
-
-        return_select = tree_select(nodes, checked = [nodes_already_checked],
-                                    expanded = expanded, check_model="leaf", expand_on_click = True)#, only_leaf_checkboxes = True)
-        # It's lean that more than one mission is selected, but we don't want to
-        if len(return_select["checked"]) > 1:
-            for item in return_select["checked"]:
-                # If the item is in expanded, it means it's a project
-                if item in return_select["expanded"]:
-                    # The list return_select["checked"] is not filled one click after another
-                    # but depending on the hierarchy so we need to find the entry different from the current project (=previous project)
-                    if item != pmo_state.get_current_project().id:
-                        project = ProjectPlanDTO.get_project_by_id(pmo_table.data, item)
-                        pmo_state.set_current_project(project)
-                        pmo_state.set_current_mission(project.missions[0] if project.missions else None)
-                        st.rerun()
-                # The item is a mission
-                else:
-                    # The list return_select["checked"] is not filled one click after another
-                    # but depending on the hierarchy so we need to find the entry different from the current mission (=previous mission)
-                    if not pmo_state.get_current_mission():
-                        # This case manage when the user had selected a project without mission before and now select a mission
-                        mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, item)
-                        pmo_state.set_current_mission(mission)
-                        project = ProjectPlanDTO.get_project_by_mission_id(pmo_table.data, mission.id)
-                        pmo_state.set_current_project(project)
-                        st.rerun()
-
-                    elif item != pmo_state.get_current_mission().id:
-                        mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, item)
-                        pmo_state.set_current_mission(mission)
-                        project = ProjectPlanDTO.get_project_by_mission_id(pmo_table.data, mission.id)
-                        pmo_state.set_current_project(project)
-                        st.rerun()
-        elif len(return_select["checked"]) == 1 and return_select["checked"][0] is not None:
-            item = return_select["checked"][0]
-            if item in return_select["expanded"]:
-                project = ProjectPlanDTO.get_project_by_id(pmo_table.data, item)
+        if return_select is not None:
+            item = return_select.key
+            client = ProjectPlanDTO.get_client_by_id(pmo_table.data, item)
+            project = ProjectPlanDTO.get_project_by_id(pmo_table.data, item)
+            mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, item)
+            if client:
+                pmo_state.set_current_client(client)
+                pmo_state.set_current_project(None)
+                pmo_state.set_current_mission(None)
+            elif project:
+                client = ProjectPlanDTO.get_client_by_project_id(pmo_table.data, project.id)
+                pmo_state.set_current_client(client)
                 pmo_state.set_current_project(project)
                 pmo_state.set_current_mission(None)
-            else:
-                mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, item)
-                pmo_state.set_current_mission(mission)
+            elif mission:
                 project = ProjectPlanDTO.get_project_by_mission_id(pmo_table.data, mission.id)
+                client = ProjectPlanDTO.get_client_by_project_id(pmo_table.data, project.id)
+                pmo_state.set_current_client(client)
                 pmo_state.set_current_project(project)
+                pmo_state.set_current_mission(mission)
 
 
     # Display the details tab for the current mission
@@ -166,7 +146,7 @@ def display_mission_tab(pmo_table: PMOTable):
                 button_project.render()
 
 
-            if not mission :
+            if not mission and not project.missions:
                 col_message, col_button = st.columns([2, 1])
                 with col_message:
                     st.info("This project has no mission yet. Click on the button to add a mission.")
@@ -174,7 +154,7 @@ def display_mission_tab(pmo_table: PMOTable):
                     pmo_config.build_new_mission_button(pmo_table, project)
 
             # Display mission information
-            else:
+            if mission:
                 mission_name = mission.mission_name
                 mission_id = mission.id
                 st.markdown("---")

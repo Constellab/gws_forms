@@ -27,13 +27,7 @@
                   {
                     "name": "streamlit-slickgrid",
                     "version": "0.2.0"
-                  },
-                  {
-                    "name": "streamlit_tree_select",
-                    "version": "0.0.5"
                   }
-
-
                 ]
             }
         ],
