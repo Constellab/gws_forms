@@ -2,8 +2,10 @@ from datetime import date, datetime
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ProjectPlanDTO, MilestoneDTO, ClientDTO
-from gws_core import (StringHelper, SpaceService, ExternalSpaceCreateFolder, Tag)
+from gws_core import (StringHelper, SpaceService, ExternalSpaceCreateFolder, Tag, User)
+from gws_core.space.space_dto import SpaceRootFolderUserRole
 from gws_core.streamlit import StreamlitAuthenticateUser
+from gws_core.user.current_user_service import CurrentUserService
 
 def check_set_client_and_project_name_unique_and_not_empty(client_name: str, project_name: str, pmo_table: PMOTable) -> None:
     # Check if the client name is empty
@@ -26,13 +28,22 @@ def check_set_client_and_project_name_unique_and_not_empty(client_name: str, pro
     return False
 
 
-def create_root_folder_in_space(current_client: ClientDTO):
+def create_root_folder_in_space(current_client: ClientDTO,
+                                id_team_to_share: str = None):
     with StreamlitAuthenticateUser():
         # Create folder in the space
         space_service = SpaceService.get_instance()
         # We create a root folder in the space
         folder_root_client = ExternalSpaceCreateFolder(name=current_client.client_name)
         folder_root_client_space = space_service.create_root_folder(folder=folder_root_client)
+        # Share
+        if not id_team_to_share:
+            # Get the id of the current user to share the folder with
+            id_team_to_share = CurrentUserService.get_current_user().id
+        st.write(folder_root_client_space.id)
+        st.write(id_team_to_share)
+        space_service.share_root_folder(root_folder_id=folder_root_client_space.id,
+                                        group_id=id_team_to_share, role = SpaceRootFolderUserRole.OWNER)
         current_client.folder_root_id = folder_root_client_space.id
 
 def create_subfolders_in_space(current_client: ClientDTO, current_project: ProjectDTO):
