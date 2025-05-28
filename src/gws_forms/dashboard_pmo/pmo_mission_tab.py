@@ -12,8 +12,7 @@ def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO):
     pmo_table.commit_and_save()
 
 def build_tree_menu_from_data(pmo_table: PMOTable):
-    selected_item: StreamlitTreeMenuItem = None
-    button_menu = StreamlitTreeMenu()
+    button_menu = StreamlitTreeMenu(key = pmo_table.pmo_state.TREE_PMO_KEY)
     clients_list = ProjectPlanDTO.get_clients(pmo_table.data)
     # Sort project data by client name
     clients_list.sort(key=lambda x: x.client_name.lower())
@@ -70,38 +69,28 @@ def display_mission_tab(pmo_table: PMOTable):
     with left_col:
         # Button to create a new project
         pmo_config.build_new_project_button(pmo_table)
-
+        return_select: StreamlitTreeMenuItem = None
         # Build and render the tree menu
         button_menu_tree, clients_list = build_tree_menu_from_data(pmo_table)
 
         # Set a default selected item
         if pmo_state.get_current_mission():
-            # If it's the first time we lauch the page
             button_menu_tree.set_default_selected_item(pmo_state.get_current_mission().id)
-            # Other cases
-            button_menu_tree.set_selected_item(pmo_state.get_current_mission().id)
         elif pmo_state.get_current_project():
             button_menu_tree.set_default_selected_item(pmo_state.get_current_project().id)
-            button_menu_tree.set_selected_item(pmo_state.get_current_project().id)
         else:
             client = clients_list[0]
             if client.projects:
                 project = client.projects[0]
                 if project.missions:
                     button_menu_tree.set_default_selected_item(project.missions[0].id)
-                    button_menu_tree.set_selected_item(project.missions[0].id)
                 else:
                     button_menu_tree.set_default_selected_item(project.id)
-                    button_menu_tree.set_selected_item(project.id)
             else:
                 button_menu_tree.set_default_selected_item(client.id)
-                button_menu_tree.set_selected_item(client.id)
 
         # Render the menu tree
-        pmo_state.set_button_menu_tree(button_menu_tree)
         return_select = button_menu_tree.render()
-
-            #button_menu.set_selected_item(child_2.key) TODO
 
         if return_select is not None:
             item = return_select.key

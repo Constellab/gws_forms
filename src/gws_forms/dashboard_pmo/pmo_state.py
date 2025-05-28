@@ -21,6 +21,7 @@ class PMOState():
     CREATE_FOLDERS = "create_folders_in_space"
     COMPANY_MEMBERS_KEY = "company_members"
     PREDEFINED_MISSIONS_KEY = "predefined_missions"
+    TREE_PMO_KEY = "tree_pmo"
 
     def __init__(self, file_path_change_log: str):
         self.file_path_change_log = file_path_change_log
