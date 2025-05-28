@@ -330,33 +330,35 @@ class PMOTable:
                 next_mission_name = self.missions_order[idx + 1]
 
                 # Find completed missions and their projects
-                for project in self.data.data:
-                    current_mission = next((m for m in project.missions if m.mission_name ==
-                                            mission_name and m.status == Status.DONE.value), None)
-                    if current_mission:
-                        # Find and update next mission in sequence
-                        next_mission = next(
-                            (m for m in project.missions if m.mission_name == next_mission_name),
-                            None
-                        )
-                        if next_mission:
-                            if not next_mission.start_date:
-                                next_mission.start_date = formatted_date
-                            if next_mission.status == Status.TODO.value:
-                                old_status = next_mission.status
-                                next_mission.status = Status.IN_PROGRESS.value
+                for client in self.data.data:
+                    for project in client.projects:
+                        current_mission = next((m for m in project.missions if m.mission_name ==
+                                                mission_name and m.status == Status.DONE.value), None)
+                        if current_mission:
+                            # Find and update next mission in sequence
+                            next_mission = next(
+                                (m for m in project.missions if m.mission_name == next_mission_name),
+                                None
+                            )
+                            if next_mission:
+                                if not next_mission.start_date:
+                                    next_mission.start_date = formatted_date
+                                if next_mission.status == Status.TODO.value:
+                                    old_status = next_mission.status
+                                    next_mission.status = Status.IN_PROGRESS.value
 
-                                # Log status change
-                                self.log_status_change(next_mission.id, project.name,
-                                                       next_mission.mission_name, old_status, next_mission.status)
+                                    # Log status change
+                                    self.log_status_change(next_mission.id, project.name,
+                                                        next_mission.mission_name, old_status, next_mission.status)
 
         # Convert any accumulated log entries to JSON
         if self.pmo_state.get_status_change_log():
             self.pmo_state.convert_log_to_json()
 
         # Apply the observer -> Update tag folder if a external observer is set
-        for project in self.data.data:
-            self.apply_observer_update_mission_progress(project)
+        for client in self.data.data:
+            for project in client.projects:
+                self.apply_observer_update_mission_progress(project)
 
     def update_milestone_status_by_id(self, milestone_id: str, done: bool) -> None:
         """
