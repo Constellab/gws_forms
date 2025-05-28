@@ -168,3 +168,9 @@ def display_settings_tab(pmo_table: PMOTable):
                     on_change=missions_change,
                     args = (pmo_table, number_predefined_missions,)
                 )
+
+        # Check for duplicate mission names
+        mission_names = [m.mission_name.strip() for m in pmo_table.pmo_state.get_predefined_missions() if m.mission_name.strip()]
+        duplicates = set([name for name in mission_names if mission_names.count(name) > 1])
+        if duplicates:
+            st.warning(f"Duplicate mission names found: {', '.join(duplicates)}. Each predefined mission name must be unique.")
