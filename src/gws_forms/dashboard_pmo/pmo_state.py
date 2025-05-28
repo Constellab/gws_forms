@@ -11,6 +11,8 @@ class PMOState():
 
     STATUS_CHANGE_LOG_KEY = "status_change_log"
     STATUS_CHANGE_JSON_KEY = "status_change_json"
+    SHOW_SUCCESS_CLIENT_CREATED_KEY = "show_success_client_created"
+    SHOW_SUCCESS_CLIENT_DELETED_KEY = "show_success_client_deleted"
     SHOW_SUCCESS_PROJECT_CREATED_KEY = "show_success_project_created"
     SHOW_SUCCESS_PROJECT_DELETED_KEY = "show_success_project_deleted"
     SHOW_SUCCESS_MISSION_DELETED_KEY = "show_success_mission_deleted"
@@ -52,6 +54,14 @@ class PMOState():
 
     # Show success
     def display_success_message(self) -> None:
+        if self.get_show_success_client_created():
+            st.toast("Client created successfully!", icon="✅")
+            self.set_show_success_client_created(False)
+
+        if self.get_show_success_client_deleted():
+            st.toast("Client deleted successfully!", icon="✅")
+            self.set_show_success_client_deleted(False)
+
         if self.get_show_success_project_created():
             st.toast("Project created successfully!", icon="✅")
             self.set_show_success_project_created(False)
@@ -67,6 +77,18 @@ class PMOState():
         if self.get_show_success_mission_added():
             st.toast("Mission added successfully!", icon="✅")
             self.set_show_success_mission_added(False)
+
+    def get_show_success_client_created(self) -> List:
+        return st.session_state.get(self.SHOW_SUCCESS_CLIENT_CREATED_KEY, False)
+
+    def set_show_success_client_created(self, boolean_success: bool) -> None:
+        st.session_state[self.SHOW_SUCCESS_CLIENT_CREATED_KEY] = boolean_success
+
+    def get_show_success_client_deleted(self) -> List:
+        return st.session_state.get(self.SHOW_SUCCESS_CLIENT_DELETED_KEY, False)
+
+    def set_show_success_client_deleted(self, boolean_success: bool) -> None:
+        st.session_state[self.SHOW_SUCCESS_CLIENT_DELETED_KEY] = boolean_success
 
     def get_show_success_project_created(self) -> List:
         return st.session_state.get(self.SHOW_SUCCESS_PROJECT_CREATED_KEY, False)
@@ -150,3 +172,8 @@ class PMOState():
 
     def get_predefined_missions(self) -> List[MissionDTO]:
         return st.session_state.get(self.PREDEFINED_MISSIONS_KEY, [])
+
+    def reset_tree_pmo(self) -> None:
+        """Reset the PMO tree state in session."""
+        if self.TREE_PMO_KEY in st.session_state:
+            del st.session_state[self.TREE_PMO_KEY]

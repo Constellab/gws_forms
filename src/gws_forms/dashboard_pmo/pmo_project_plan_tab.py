@@ -26,7 +26,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
     left_col, right_col = st.columns([1, 4])
     with left_col:
         # Button to create a new project
-        pmo_config.build_new_project_button(pmo_table)
+        pmo_config.build_new_client_button(pmo_table)
 
     projects_data = []
     for client in pmo_table.data.data:
