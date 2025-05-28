@@ -31,44 +31,62 @@ def display_project_plan_tab(pmo_table: PMOTable):
     projects_data = []
     for client in pmo_table.data.data:
         client_name = client.client_name
-        for project in client.projects:
-            project_name = project.name
-            if project.missions:
-                for mission in project.missions:
-                    mission_name = mission.mission_name
-                    # Convert dates to string for JSON serialization
-                    start_date = mission.start_date.isoformat() if hasattr(mission.start_date, "isoformat") else str(mission.start_date) if mission.start_date else ""
-                    end_date = mission.end_date.isoformat() if hasattr(mission.end_date, "isoformat") else str(mission.end_date) if mission.end_date else ""
+        if client.projects:
+            for project in client.projects:
+                project_name = project.name
+                if project.missions:
+                    for mission in project.missions:
+                        mission_name = mission.mission_name
+                        # Convert dates to string for JSON serialization
+                        start_date = mission.start_date.isoformat() if hasattr(mission.start_date, "isoformat") else str(mission.start_date) if mission.start_date else ""
+                        end_date = mission.end_date.isoformat() if hasattr(mission.end_date, "isoformat") else str(mission.end_date) if mission.end_date else ""
+                        projects_data.append({
+                            "id": mission.id,
+                            pmo_table.NAME_COLUMN_CLIENT_NAME: client_name,
+                            pmo_table.NAME_COLUMN_PROJECT_NAME: project_name,
+                            pmo_table.NAME_COLUMN_MISSION_NAME: mission_name,
+                            pmo_table.NAME_COLUMN_MISSION_REFEREE: mission.mission_referee,
+                            pmo_table.NAME_COLUMN_TEAM_MEMBERS: ", ".join(mission.team_members) if mission.team_members else "",
+                            pmo_table.NAME_COLUMN_START_DATE: start_date,
+                            pmo_table.NAME_COLUMN_END_DATE: end_date,
+                            pmo_table.NAME_COLUMN_STATUS: mission.status,
+                            pmo_table.NAME_COLUMN_PRIORITY: mission.priority,
+                            pmo_table.NAME_COLUMN_PROGRESS: mission.progress,
+                            pmo_table.NAME_COLUMN_MILESTONES: ", ".join([m.name for m in mission.milestones]) if mission.milestones else "",
+                        })
+                else:
+                    # Provide a placeholder for mission name
                     projects_data.append({
-                        "id": mission.id,
+                        "id": project.id,
                         pmo_table.NAME_COLUMN_CLIENT_NAME: client_name,
                         pmo_table.NAME_COLUMN_PROJECT_NAME: project_name,
-                        pmo_table.NAME_COLUMN_MISSION_NAME: mission_name,
-                        pmo_table.NAME_COLUMN_MISSION_REFEREE: mission.mission_referee,
-                        pmo_table.NAME_COLUMN_TEAM_MEMBERS: ", ".join(mission.team_members) if mission.team_members else "",
-                        pmo_table.NAME_COLUMN_START_DATE: start_date,
-                        pmo_table.NAME_COLUMN_END_DATE: end_date,
-                        pmo_table.NAME_COLUMN_STATUS: mission.status,
-                        pmo_table.NAME_COLUMN_PRIORITY: mission.priority,
-                        pmo_table.NAME_COLUMN_PROGRESS: mission.progress,
-                        pmo_table.NAME_COLUMN_MILESTONES: ", ".join([m.name for m in mission.milestones]) if mission.milestones else "",
+                        pmo_table.NAME_COLUMN_MISSION_NAME: "",
+                        pmo_table.NAME_COLUMN_MISSION_REFEREE: "",
+                        pmo_table.NAME_COLUMN_TEAM_MEMBERS: "",
+                        pmo_table.NAME_COLUMN_START_DATE: "",
+                        pmo_table.NAME_COLUMN_END_DATE: "",
+                        pmo_table.NAME_COLUMN_STATUS: "",
+                        pmo_table.NAME_COLUMN_PRIORITY: "",
+                        pmo_table.NAME_COLUMN_PROGRESS: "",
+                        pmo_table.NAME_COLUMN_MILESTONES: "",
                     })
-            else:
-                # Provide a placeholder for mission name
-                projects_data.append({
-                    "id": project.id,
-                    pmo_table.NAME_COLUMN_CLIENT_NAME: client_name,
-                    pmo_table.NAME_COLUMN_PROJECT_NAME: project_name,
-                    pmo_table.NAME_COLUMN_MISSION_NAME: "",
-                    pmo_table.NAME_COLUMN_MISSION_REFEREE: "",
-                    pmo_table.NAME_COLUMN_TEAM_MEMBERS: "",
-                    pmo_table.NAME_COLUMN_START_DATE: "",
-                    pmo_table.NAME_COLUMN_END_DATE: "",
-                    pmo_table.NAME_COLUMN_STATUS: "",
-                    pmo_table.NAME_COLUMN_PRIORITY: "",
-                    pmo_table.NAME_COLUMN_PROGRESS: "",
-                    pmo_table.NAME_COLUMN_MILESTONES: "",
-                })
+        else:
+            # Provide a placeholder for project and mission name
+            projects_data.append({
+                "id": client.id,
+                pmo_table.NAME_COLUMN_CLIENT_NAME: client_name,
+                pmo_table.NAME_COLUMN_PROJECT_NAME: "",
+                pmo_table.NAME_COLUMN_MISSION_NAME: "",
+                pmo_table.NAME_COLUMN_MISSION_REFEREE: "",
+                pmo_table.NAME_COLUMN_TEAM_MEMBERS: "",
+                pmo_table.NAME_COLUMN_START_DATE: "",
+                pmo_table.NAME_COLUMN_END_DATE: "",
+                pmo_table.NAME_COLUMN_STATUS: "",
+                pmo_table.NAME_COLUMN_PRIORITY: "",
+                pmo_table.NAME_COLUMN_PROGRESS: "",
+                pmo_table.NAME_COLUMN_MILESTONES: "",
+            })
+
 
     if projects_data:
 
@@ -200,15 +218,21 @@ def display_project_plan_tab(pmo_table: PMOTable):
         out = slickgrid(projects_data, columns=columns, options=options, key="mygrid", on_click="rerun")
         if out is not None:
             row, col = out
-            # if the id refer to a mission, we need to find the project and mission
+            # if the id refer to a mission, we need to find the project and mission and client
             mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, row)
+            # if the id refer to a project, we need to find the project and client
+            project = ProjectPlanDTO.get_project_by_id(pmo_table.data, row)
+            client = ProjectPlanDTO.get_client_by_id(pmo_table.data, row)
             if mission:
                 project = ProjectPlanDTO.get_project_by_mission_id(pmo_table.data,row)
-            else:
-                # if the id refer to a project, we need to find the project
+                client = ProjectPlanDTO.get_client_by_project_id(pmo_table.data, project.id)
+            elif project:
                 mission = None
-                project = ProjectPlanDTO.get_project_by_id(pmo_table.data, row)
-            client = ProjectPlanDTO.get_client_by_project_id(pmo_table.data, project.id)
+                client = ProjectPlanDTO.get_client_by_project_id(pmo_table.data, project.id)
+            elif client :
+                project = None
+                mission = None
+
             pmo_table.pmo_state.set_current_project(project)
             pmo_table.pmo_state.set_current_client(client)
             pmo_table.pmo_state.set_current_mission(mission)
