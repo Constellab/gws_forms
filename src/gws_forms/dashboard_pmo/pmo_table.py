@@ -145,6 +145,7 @@ class PMOTable:
         self.pmo_state.set_create_folders_in_space_value(self.data_settings.create_folders_in_space)
         self.pmo_state.set_company_members(self.data_settings.company_members)
         self.pmo_state.set_predefined_missions(self.data_settings.predefined_missions)
+        self.pmo_state.set_share_folders_with_team(self.data_settings.share_folders_with_team)
 
     def save_settings(self) -> None:
         """
@@ -161,7 +162,8 @@ class PMOTable:
         # Initialize example settings data
         data = SettingsDTO(create_folders_in_space = True,
                            company_members=self.pmo_state.get_list_lab_users(),
-                           predefined_missions=[])
+                           predefined_missions=[],
+                           share_folders_with_team = "")
         return data
 
     def load_settings_data_from_json(self):
@@ -440,6 +442,20 @@ class PMOTable:
         Get the company_members attribute from settings DTO.
         """
         return getattr(self.data_settings, "company_members", self.pmo_state.get_list_lab_users())
+
+    def get_share_folders_with_team(self) -> str:
+        """
+        Get the share_folders_with_team attribute from settings DTO.
+        """
+        return getattr(self.data_settings, "share_folders_with_team", self.pmo_state.get_share_folders_with_team())
+
+    def set_share_folders_with_team(self, value: str) -> None:
+        """
+        Set the share_folders_with_team attribute in settings DTO and persist it.
+        """
+        self.data_settings.share_folders_with_team = value
+        self.pmo_state.set_share_folders_with_team(value)
+        self.save_settings()
 
     def set_predefined_missions(self, missions: list) -> None:
         """

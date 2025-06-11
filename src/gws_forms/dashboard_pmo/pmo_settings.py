@@ -45,95 +45,104 @@ def missions_change(pmo_table : PMOTable, number_predefined_missions : int):
 def display_settings_tab(pmo_table: PMOTable):
     pmo_state = pmo_table.pmo_state
 
-    st.write("**Project Plan Files**")
-    # List all JSON files in the saved directory
-    files = sorted([f.split(".json")[0] for f in os.listdir(
-        pmo_table.folder_project_plan) if f.endswith(".json")], reverse=True)
+    with st.expander("**Project Plan Files**", expanded=False):
+        # List all JSON files in the saved directory
+        files = sorted([f.split(".json")[0] for f in os.listdir(
+            pmo_table.folder_project_plan) if f.endswith(".json")], reverse=True)
 
-    cols = st.columns(2)
-    options = ["Load", "Upload"] if files else ["Upload"]
-    with cols[0]:
-        choice_project_plan = st.selectbox("Select an option", options, key="choice_project_plan")
+        cols = st.columns(2)
+        options = ["Load", "Upload"] if files else ["Upload"]
+        with cols[0]:
+            choice_project_plan = st.selectbox("Select an option", options, key="choice_project_plan")
 
-    # Load data
-    if choice_project_plan == "Load":
-        with cols[1]:
-            # Show a selectbox to choose one file; by default, choose the last one
-            selected_file = st.selectbox(
-                label="Choose an existing project plan", options=files, index=0,
-                placeholder="Select a project plan", key="selected_file_settings")
-            # Load the selected file and display its contents
-            if selected_file:
-                pmo_table = PMOTable(folder_project_plan=pmo_table.folder_project_plan,
-                                     folder_details=pmo_table.folder_details,
-                                     folder_change_log=pmo_table.folder_change_log, folder_settings= pmo_table.folder_settings, selected_file=selected_file)
-                # Set current project to None
-                pmo_state.set_current_project(None)
-                pmo_state.set_current_mission(None)
+        # Load data
+        if choice_project_plan == "Load":
+            with cols[1]:
+                # Show a selectbox to choose one file; by default, choose the last one
+                selected_file = st.selectbox(
+                    label="Choose an existing project plan", options=files, index=0,
+                    placeholder="Select a project plan", key="selected_file_settings")
+                # Load the selected file and display its contents
+                if selected_file:
+                    pmo_table = PMOTable(folder_project_plan=pmo_table.folder_project_plan,
+                                        folder_details=pmo_table.folder_details,
+                                        folder_change_log=pmo_table.folder_change_log, folder_settings= pmo_table.folder_settings, selected_file=selected_file)
+                    # Set current project to None
+                    pmo_state.set_current_project(None)
+                    pmo_state.set_current_mission(None)
 
-    # Upload data
-    # Add a file uploader to allow users to upload their project plan file
-    elif choice_project_plan == "Upload":
-        with cols[1]:
-            uploaded_file = st.file_uploader("Upload your project plan.", type=[
-                'json'], key="file_uploader_sidebar")
-            if uploaded_file is not None:
-                loaded_data = json.loads(uploaded_file.getvalue().decode('utf-8'))
-                pmo_table.data = ProjectPlanDTO.from_json(loaded_data)
-                pmo_table.commit_and_save()
-                # Set current project to None
-                pmo_state.set_current_project(None)
-                pmo_state.set_current_mission(None)
-            else:
-                st.warning('You need to upload a JSON file.')
-                # Use example data - already in the pmo_table
-                # Save data in the folder
-                pmo_table = PMOTable(folder_project_plan=pmo_table.folder_project_plan,
-                                     folder_details=pmo_table.folder_details,
-                                     folder_change_log=pmo_table.folder_change_log, folder_settings= pmo_table.folder_settings)
-                pmo_table.save_data_in_folder()
-                # Set current project to None
-                pmo_state.set_current_project(None)
-                pmo_state.set_current_mission(None)
+        # Upload data
+        # Add a file uploader to allow users to upload their project plan file
+        elif choice_project_plan == "Upload":
+            with cols[1]:
+                uploaded_file = st.file_uploader("Upload your project plan.", type=[
+                    'json'], key="file_uploader_sidebar")
+                if uploaded_file is not None:
+                    loaded_data = json.loads(uploaded_file.getvalue().decode('utf-8'))
+                    pmo_table.data = ProjectPlanDTO.from_json(loaded_data)
+                    pmo_table.commit_and_save()
+                    # Set current project to None
+                    pmo_state.set_current_project(None)
+                    pmo_state.set_current_mission(None)
+                else:
+                    st.warning('You need to upload a JSON file.')
+                    # Use example data - already in the pmo_table
+                    # Save data in the folder
+                    pmo_table = PMOTable(folder_project_plan=pmo_table.folder_project_plan,
+                                        folder_details=pmo_table.folder_details,
+                                        folder_change_log=pmo_table.folder_change_log, folder_settings= pmo_table.folder_settings)
+                    pmo_table.save_data_in_folder()
+                    # Set current project to None
+                    pmo_state.set_current_project(None)
+                    pmo_state.set_current_mission(None)
 
-        # Load and allow users to download the JSON template
-        template_path = os.path.join(os.path.abspath(
-            os.path.dirname(__file__)), "template.json")
+            # Load and allow users to download the JSON template
+            template_path = os.path.join(os.path.abspath(
+                os.path.dirname(__file__)), "template.json")
 
-        with open(template_path, 'r', encoding='utf-8') as f:
-            template_json = f.read()
+            with open(template_path, 'r', encoding='utf-8') as f:
+                template_json = f.read()
 
-        st.download_button(
-            label="Download template",
-            icon=":material/help_outline:",
-            data=template_json,
-            file_name='project_template.json',
-            mime='application/json',
-        )
+            st.download_button(
+                label="Download template",
+                icon=":material/help_outline:",
+                data=template_json,
+                file_name='project_template.json',
+                mime='application/json',
+            )
 
     # st.write("**Language**")
     # TODO faire le choix de la langue
 
+    with st.expander("**Folders**", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            def on_checkbox_change():
+                pmo_table.set_create_folders_in_space(st.session_state["create_folders_in_space"])
+            st.checkbox(
+                "Create folders in space",
+                key="create_folders_in_space",
+                on_change=on_checkbox_change
+            )
+        with col2:
+            def on_text_input_share_change():
+                pmo_table.set_share_folders_with_team(st.session_state["share_folders_with_team"])
+            st.text_input(
+                "Share folders with a team",
+                key="share_folders_with_team",
+                on_change=on_text_input_share_change
+            )
 
-    st.write("**Create folders in space**")
-    def on_checkbox_change():
-        pmo_table.set_create_folders_in_space(st.session_state["create_folders_in_space"])
-    st.checkbox(
-        "Create folders in space",
-        key="create_folders_in_space",
-        on_change=on_checkbox_change
-    )
-
-    st.write("**Company members**")
-    def on_multiselect_change():
-        pmo_table.set_company_members(st.session_state["company_members"])
-    options = np.unique(pmo_state.get_list_lab_users() + pmo_table.get_company_members())
-    st.multiselect(
-        "Select company members",
-        options=options,
-        key="company_members",
-        on_change=on_multiselect_change
-    )
+    with st.expander("**Company members**", expanded=False):
+        def on_multiselect_change():
+            pmo_table.set_company_members(st.session_state["company_members"])
+        options = np.unique(pmo_state.get_list_lab_users() + pmo_table.get_company_members())
+        st.multiselect(
+            "Select company members",
+            options=options,
+            key="company_members",
+            on_change=on_multiselect_change
+        )
 
     with st.expander("**Predefined missions**", expanded=False):
 

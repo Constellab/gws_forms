@@ -24,6 +24,7 @@ class PMOState():
     COMPANY_MEMBERS_KEY = "company_members"
     PREDEFINED_MISSIONS_KEY = "predefined_missions"
     TREE_PMO_KEY = "tree_pmo"
+    SHARE_FOLDERS_WITH_TEAM_KEY = "share_folders_with_team"
 
     def __init__(self, file_path_change_log: str):
         self.file_path_change_log = file_path_change_log
@@ -167,9 +168,11 @@ class PMOState():
         list_lab_users = list(User.select().where(User.group != UserGroup.SYSUSER))
         return [user.first_name for user in list_lab_users]
 
-    def get_list_lab_users(self) -> List:
-        list_lab_users = list(User.select().where(User.group != UserGroup.SYSUSER))
-        return [user.first_name for user in list_lab_users]
+    def get_share_folders_with_team(self) -> str:
+        return st.session_state.get(self.SHARE_FOLDERS_WITH_TEAM_KEY, "")
+
+    def set_share_folders_with_team(self, value: str) -> None:
+        st.session_state[self.SHARE_FOLDERS_WITH_TEAM_KEY] = value
 
     def set_predefined_missions(self, value: List[MissionDTO]) -> None:
         st.session_state[self.PREDEFINED_MISSIONS_KEY] = value

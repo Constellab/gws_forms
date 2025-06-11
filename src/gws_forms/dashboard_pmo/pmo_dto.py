@@ -8,6 +8,7 @@ class SettingsDTO(BaseModelDTO):
     create_folders_in_space: bool = False
     company_members: List[str] = []
     predefined_missions: List["MissionDTO"] = []
+    share_folders_with_team: str = ""
 
 
 class MilestoneDTO(BaseModelDTO):
