@@ -35,6 +35,34 @@ def check_client_name_unique_and_not_empty(client_name: str, pmo_table: PMOTable
             return True
     return False
 
+
+def update_milestones_in_global_follow_up_mission(pmo_table : PMOTable, current_project : ProjectDTO, mission : MissionDTO):
+    if current_project.global_follow_up_mission_id != "":
+        # If the project has a Global Follow-up mission, we update its milestones
+        # to include the new mission
+        global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, current_project.global_follow_up_mission_id)
+        if global_follow_up_mission:
+            # Create a new milestone for the Global Follow-up mission
+            new_milestone = MilestoneDTO(
+                id=StringHelper.generate_uuid(),
+                name=mission.mission_name,
+                done=False
+            )
+            global_follow_up_mission.milestones.append(new_milestone)
+
+
+def log_new_mission_status(pmo_table: PMOTable, project: ProjectDTO, mission: MissionDTO):
+    # Track status change when adding new mission
+    new_entry = {
+        "mission_id": mission.id,
+        "project": project.name,
+        "mission": mission.mission_name,
+        "status_before": None,  # No previous status for new mission
+        "status_after": mission.status,
+        "date": datetime.now().isoformat()
+    }
+    pmo_table.pmo_state.append_status_change_log(new_entry)
+
 def create_root_folder_in_space(current_client: ClientDTO,
                                 id_team_to_share: str = None):
     with StreamlitAuthenticateUser():
@@ -173,20 +201,15 @@ def add_predefined_missions(pmo_table: PMOTable, current_project: ProjectDTO):
                 status=mission_data.status,
                 priority=Priority.NONE.value, progress=0.0)
             current_project.missions.append(new_mission)
+
+            update_milestones_in_global_follow_up_mission(pmo_table, current_project, new_mission)
+
             if not first_mission:
                 #Keep track of the first mission added
                 first_mission = new_mission
 
-            # Track status change when adding new mission
-            new_entry = {
-                "mission_id": mission_id,
-                "project": current_project.name,
-                "mission": mission_data.mission_name,
-                "status_before": None,  # No previous status for new mission
-                "status_after": mission_data.status,
-                "date": datetime.now().isoformat()
-            }
-            pmo_table.pmo_state.append_status_change_log(new_entry)
+            log_new_mission_status(pmo_table, current_project, new_mission)
+
         # Convert the log to JSON
         pmo_table.pmo_state.convert_log_to_json()
 
@@ -243,16 +266,10 @@ def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
             # Add mission to project
             current_project.missions.append(new_mission)
 
-            # Track status change when adding new mission
-            new_entry = {
-                "mission_id": mission_id,
-                "project": current_project.name,
-                "mission": mission_name,
-                "status_before": None,  # No previous status for new mission
-                "status_after": status,
-                "date": datetime.now().isoformat()
-            }
-            pmo_table.pmo_state.append_status_change_log(new_entry)
+            update_milestones_in_global_follow_up_mission(pmo_table, current_project, new_mission)
+
+            log_new_mission_status(pmo_table, current_project, new_mission)
+
             # Convert the log to JSON
             pmo_table.pmo_state.convert_log_to_json()
 
@@ -325,6 +342,14 @@ def delete_mission(pmo_table: PMOTable, project_id: str, mission_id: str):
                     project.missions = [m for m in project.missions if m.id != mission_id]
                     break
 
+        # If the project has Global Follow-up mission, we remove the milestone
+        if project.global_follow_up_mission_id != "":
+            global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, project.global_follow_up_mission_id)
+            if global_follow_up_mission:
+                # Remove the milestone corresponding to the mission being deleted
+                global_follow_up_mission.milestones = [
+                    m for m in global_follow_up_mission.milestones if m.name != mission_name]
+
         pmo_table.commit_and_save()
         # Set success message in session state
         pmo_table.pmo_state.set_show_success_delete_mission(True)
@@ -343,6 +368,8 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
 
         # Store original status before changes
         original_status = current_mission.status
+        # Store original name before changes
+        original_name = current_mission.mission_name
 
         # Add fields for mission details with existing values
         mission_name, mission_referee, team_members, start_date, end_date, status, priority, progress = get_fields_mission(
@@ -375,6 +402,17 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
             current_mission.status = status
             current_mission.priority = priority
             current_mission.progress = progress
+
+            if current_project.global_follow_up_mission_id != "":
+                # If the project has a Global Follow-up mission, we update its milestones
+                # to include the new mission name
+                global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, current_project.global_follow_up_mission_id)
+                if global_follow_up_mission:
+                    for milestone in global_follow_up_mission.milestones:
+                        if milestone.name == original_name:
+                            # If the milestone already exists, we modify its name to the new one
+                            milestone.name = current_mission.mission_name
+                            break
 
             pmo_table.commit_and_save()
 
@@ -535,8 +573,6 @@ def add_project(pmo_table: PMOTable, current_client: ClientDTO):
             if pmo_table.data_settings.create_folders_in_space:
                 create_subfolders_in_space(current_client, new_project)
 
-
-
             if pmo_table.get_create_folders_in_space():
                 # Create a mission "Global Follow-up" : this mission will be used to track the global follow-up of the project
                 # and to update the status of the project (tags on folders)
@@ -549,12 +585,13 @@ def add_project(pmo_table: PMOTable, current_client: ClientDTO):
                     start_date=datetime.now().strftime("%Y-%m-%d"),
                     end_date=None,
                     milestones=[],
-                    status=Status.TODO.value,
+                    status=Status.IN_PROGRESS.value,
                     priority=Priority.NONE.value,
                     progress=0.0
                 )
                 new_project.global_follow_up_mission_id = global_follow_up_mission_id
                 new_project.missions.append(global_follow_up_mission)
+                pmo_table.pmo_state.set_current_mission(global_follow_up_mission)
 
             current_client.projects.append(new_project)
 

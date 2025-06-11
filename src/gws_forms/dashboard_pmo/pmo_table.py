@@ -274,6 +274,20 @@ class PMOTable:
         # Process each project and its missions
         for client in self.data.data:
             for project in client.projects:
+                # --- Begin: Global follow-up milestone sync ---
+                if project.global_follow_up_mission_id:
+                    global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(self.data, project.global_follow_up_mission_id)
+                    if global_follow_up_mission:
+                        for mission in project.missions:
+                            if mission.id == project.global_follow_up_mission_id:
+                                continue  # skip the global follow-up mission itself
+                            if mission.status == Status.DONE.value:
+                                # Find the milestone in the global follow-up mission with the same name as this mission
+                                for milestone in global_follow_up_mission.milestones:
+                                    if milestone.name == mission.mission_name and not milestone.done:
+                                        milestone.done = True
+                # --- End: Global follow-up milestone sync ---
+
                 for mission in project.missions:
                     # Set end date if status is DONE and no end date exists
                     if mission.status == Status.DONE.value and not mission.end_date:
@@ -306,7 +320,6 @@ class PMOTable:
 
                         # Log status change
                         self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
-
         # Handle mission order dependencies
         if self.missions_order:
             # Process each mission except the last one
@@ -319,11 +332,20 @@ class PMOTable:
                         current_mission = next((m for m in project.missions if m.mission_name ==
                                                 mission_name and m.status == Status.DONE.value), None)
                         if current_mission:
+                            if project.global_follow_up_mission_id:
+                                global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(
+                                    self.data, project.global_follow_up_mission_id)
+                                if global_follow_up_mission:
+                                    # Ensure the global follow-up mission is updated
+                                    for milestone in global_follow_up_mission.milestones:
+                                        if milestone.name == current_mission.mission_name and not milestone.done:
+                                            milestone.done = True
                             # Find and update next mission in sequence
                             next_mission = next(
                                 (m for m in project.missions if m.mission_name == next_mission_name),
                                 None
                             )
+
                             if next_mission:
                                 if not next_mission.start_date:
                                     next_mission.start_date = formatted_date
@@ -435,15 +457,16 @@ class PMOTable:
 
 
     def update_folders_tags(self, current_project: ProjectDTO):
-        space_service = SpaceService.get_instance()
+        with StreamlitAuthenticateUser():
+            space_service = SpaceService.get_instance()
 
-        current_folder_project_id = current_project.folder_project_id
-        if current_folder_project_id != "":
-            mission_global_follow_up = ProjectPlanDTO.get_mission_by_id(self.data, current_project.global_follow_up_mission_id)
-            if mission_global_follow_up:
-                current_progress = str(round(mission_global_follow_up.progress, 2))
-                current_status = " ".join(mission_global_follow_up.status.split(" ")[1:])  # Remove the emoji
-                space_service.add_or_replace_tags_on_object(
-                    current_folder_project_id,
-                    [Tag(key="status", value=current_status, auto_parse=True),
-                        Tag(key="progress", value=current_progress, auto_parse=True)])
+            current_folder_project_id = current_project.folder_project_id
+            if current_folder_project_id != "":
+                mission_global_follow_up = ProjectPlanDTO.get_mission_by_id(self.data, current_project.global_follow_up_mission_id)
+                if mission_global_follow_up:
+                    current_progress = str(round(mission_global_follow_up.progress, 2))
+                    current_status = " ".join(mission_global_follow_up.status.split(" ")[1:])  # Remove the emoji
+                    space_service.add_or_replace_tags_on_object(
+                        current_folder_project_id,
+                        [Tag(key="status", value=current_status, auto_parse=True),
+                            Tag(key="progress", value=current_progress, auto_parse=True)])

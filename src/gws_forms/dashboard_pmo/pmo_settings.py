@@ -35,6 +35,11 @@ def missions_change(pmo_table : PMOTable, number_predefined_missions : int):
             list_predefined_missions.append(mission)
     pmo_table.set_predefined_missions(list_predefined_missions)
 
+    if pmo_table.missions_order == []:
+        if pmo_table.pmo_state.get_predefined_missions():
+            for mission in pmo_table.pmo_state.get_predefined_missions():
+                pmo_table.missions_order.append(mission.mission_name)
+            pmo_table.missions_order = pmo_table.pmo_state.get_predefined_missions()
 
 
 def display_settings_tab(pmo_table: PMOTable):
