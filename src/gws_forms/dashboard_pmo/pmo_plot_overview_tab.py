@@ -12,7 +12,8 @@ def display_plot_overview_tab(pmo_table: PMOTable):
         # Calculate the count of each status using Counter
         status_counts = Counter(
             mission.status
-            for project in pmo_table.data.data
+            for client in pmo_table.data.data
+            for project in client.projects
             for mission in project.missions
         )
 
@@ -46,7 +47,8 @@ def display_plot_overview_tab(pmo_table: PMOTable):
         # Filter and count priorities
         priority_counts = Counter(
             mission.priority
-            for project in pmo_table.data.data
+            for client in pmo_table.data.data
+            for project in client.projects
             for mission in project.missions
         )
 

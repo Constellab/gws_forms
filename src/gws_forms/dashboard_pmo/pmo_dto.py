@@ -73,10 +73,8 @@ class MissionDTO(BaseModelDTO):
 class ProjectDTO(BaseModelDTO):
     """Represents a project with its missions"""
     id: str
-    client_name: str
     name: str
     missions: List[MissionDTO]
-    folder_root_id: str
     folder_project_id: str
 
     @classmethod
@@ -99,97 +97,87 @@ class ProjectDTO(BaseModelDTO):
         return next((project for project in projects if project.id == project_id), None)
 
 
-class ProjectPlanDTO(BaseModelDTO):
-    """Root structure for the project plan data"""
-    data: List[ProjectDTO]
+class ClientDTO(BaseModelDTO):
+    """Represents a client with its projects"""
+    id : str
+    client_name: str
+    projects: List[ProjectDTO]
+    folder_root_id: str
 
     @classmethod
-    def get_projects(cls, projects: "ProjectPlanDTO") -> List[ProjectDTO]:
-        """
-        Get all projects from the project plan
-        Args:
-            projects: ProjectPlanDTO object containing the list of projects
-        Returns:
-            List[ProjectDTO]: List of ProjectDTO objects
-        """
-        return projects.data
-
-    @classmethod
-    def get_project_by_client_and_project_name(cls, projects: "ProjectPlanDTO", project_selected :str) -> Optional[str]:
-        """
-        Get project ID by its client and prokect name
-        Args:
-            projects: ProjectPlanDTO object containing the list of projects
-            client_name: Name of the client to find
-            project_name: Name of the project to find
-        Returns:
-            str: Project ID if found, None otherwise
-        """
-        client_name = project_selected.split(" ⸱ ")[0]
-        project_name = project_selected.split(" ⸱ ")[1]
-        for project in projects.data:
-            if project.name == project_name and project.client_name == client_name:
-                return project
-        return None
-
-    @classmethod
-    def get_mission_by_id(cls, projects: "ProjectPlanDTO", mission_id: str) -> Optional[MissionDTO]:
-        """
-        Get mission by its ID
-        Args:
-            projects: ProjectPlanDTO object containing the list of projects
-            mission_id: ID of the mission to find
-        Returns:
-            MissionDTO: Mission object if found, None otherwise
-        """
-        for project in projects.data:
-            mission = MissionDTO.get_mission_by_id(project.missions, mission_id)
-            if mission:
-                return mission
-        return None
-
-    @classmethod
-    def get_project_by_id(cls, projects: "ProjectPlanDTO", project_id: str) -> Optional[ProjectDTO]:
-        """
-        Get project by its ID
-        Args:
-            projects: ProjectPlanDTO object containing the list of projects
-            project_id: ID of the project to find
-        Returns:
-            ProjectDTO: Project object if found, None otherwise
-        """
-        return ProjectDTO.get_project_by_id(projects.data, project_id)
-
-    @classmethod
-    def get_project_by_mission_id(cls, projects: "ProjectPlanDTO", mission_id: str) -> Optional[ProjectDTO]:
-        """
-        Get project by its mission ID
-        Args:
-            projects: ProjectPlanDTO object containing the list of projects
-            mission_id: ID of the mission to find
-        Returns:
-            ProjectDTO: Project object if found, None otherwise
-        """
-        for project in projects.data:
-            for mission in project.missions:
-                if mission.id == mission_id:
+    def get_project_by_id(cls, clients: List["ClientDTO"], project_id: str) -> Optional[ProjectDTO]:
+        for client in clients:
+            for project in client.projects:
+                if project.id == project_id:
                     return project
         return None
 
     @classmethod
-    def get_milestone_by_id(cls, projects: "ProjectPlanDTO", milestone_id: str) -> Optional[MilestoneDTO]:
-        """
-        Get milestone by its ID within a specific mission
-        Args:
-            projects: ProjectPlanDTO object containing the list of projects
-            mission_id: ID of the mission containing the milestone
-            milestone_id: ID of the milestone to find
-        Returns:
-            MilestoneDTO: Milestone object if found, None otherwise
-        """
-        for project in projects.data:
-            for mission in project.missions:
-                milestone = MilestoneDTO.get_milestone_by_id(mission.milestones, milestone_id)
-                if milestone:
-                    return milestone
+    def get_client_by_name(cls, clients: List["ClientDTO"], client_name: str) -> Optional["ClientDTO"]:
+        for client in clients:
+            if client.client_name == client_name:
+                return client
+        return None
+
+
+class ProjectPlanDTO(BaseModelDTO):
+    """Root structure for the project plan data"""
+    data: List["ClientDTO"]
+
+    @classmethod
+    def get_clients(cls, project_plan: "ProjectPlanDTO") -> List["ClientDTO"]:
+        return project_plan.data
+
+    @classmethod
+    def get_projects(cls, project_plan: "ProjectPlanDTO") -> List["ProjectDTO"]:
+        projects = []
+        for client in project_plan.data:
+            projects.extend(client.projects)
+        return projects
+
+    @classmethod
+    def get_project_by_id(cls, project_plan: "ProjectPlanDTO", project_id: str) -> Optional["ProjectDTO"]:
+        for client in project_plan.data:
+            for project in client.projects:
+                if project.id == project_id:
+                    return project
+        return None
+
+    @classmethod
+    def get_project_by_client_and_project_name(cls, project_plan: "ProjectPlanDTO", project_selected: str) -> Optional["ProjectDTO"]:
+        client_name = project_selected.split(" ⸱ ")[0]
+        project_name = project_selected.split(" ⸱ ")[1]
+        for client in project_plan.data:
+            if client.client_name == client_name:
+                for project in client.projects:
+                    if project.name == project_name:
+                        return project
+        return None
+
+    @classmethod
+    def get_mission_by_id(cls, project_plan: "ProjectPlanDTO", mission_id: str) -> Optional["MissionDTO"]:
+        for client in project_plan.data:
+            for project in client.projects:
+                mission = MissionDTO.get_mission_by_id(project.missions, mission_id)
+                if mission:
+                    return mission
+        return None
+
+    @classmethod
+    def get_project_by_mission_id(cls, project_plan: "ProjectPlanDTO", mission_id: str) -> Optional["ProjectDTO"]:
+        for client in project_plan.data:
+            for project in client.projects:
+                for mission in project.missions:
+                    if mission.id == mission_id:
+                        return project
+        return None
+
+    @classmethod
+    def get_milestone_by_id(cls, project_plan: "ProjectPlanDTO", milestone_id: str) -> Optional["MilestoneDTO"]:
+        for client in project_plan.data:
+            for project in client.projects:
+                for mission in project.missions:
+                    milestone = MilestoneDTO.get_milestone_by_id(mission.milestones, milestone_id)
+                    if milestone:
+                        return milestone
         return None

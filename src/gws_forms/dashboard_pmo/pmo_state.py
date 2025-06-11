@@ -4,7 +4,7 @@ from typing import List
 import streamlit as st
 import pandas as pd
 
-from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO
+from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ClientDTO
 from gws_core import User, UserGroup
 
 class PMOState():
@@ -17,6 +17,7 @@ class PMOState():
     SHOW_SUCCESS_MISSION_ADDED_KEY = "show_success_mission_added"
     CURRENT_PROJECT_KEY = "current_project"
     CURRENT_MISSION_KEY = "current_mission"
+    CURRENT_CLIENT_KEY = "current_client"
     CREATE_FOLDERS = "create_folders_in_space"
     COMPANY_MEMBERS_KEY = "company_members"
     PREDEFINED_MISSIONS_KEY = "predefined_missions"
@@ -29,6 +30,12 @@ class PMOState():
         st.session_state[self.STATUS_CHANGE_JSON_KEY] = self.get_status_change_json()
         # Initialize company numbers
         st.session_state[self.COMPANY_MEMBERS_KEY] = self.get_company_members()
+
+    def get_current_client(self) -> ClientDTO:
+        return st.session_state.get(self.CURRENT_CLIENT_KEY, None)
+
+    def set_current_client(self, client: ClientDTO) -> None:
+        st.session_state[self.CURRENT_CLIENT_KEY] = client
 
     def get_current_project(self) -> ProjectDTO:
         return st.session_state.get(self.CURRENT_PROJECT_KEY, None)
