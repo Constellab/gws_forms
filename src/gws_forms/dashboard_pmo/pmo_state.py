@@ -25,6 +25,7 @@ class PMOState():
     PREDEFINED_MISSIONS_KEY = "predefined_missions"
     TREE_PMO_KEY = "tree_pmo"
     SHARE_FOLDERS_WITH_TEAM_KEY = "share_folders_with_team"
+    PMO_STANDALONE_KEY = "pmo_standalone"
 
     def __init__(self, file_path_change_log: str):
         self.file_path_change_log = file_path_change_log
@@ -34,6 +35,14 @@ class PMOState():
         st.session_state[self.STATUS_CHANGE_JSON_KEY] = self.get_status_change_json()
         # Initialize company numbers
         st.session_state[self.COMPANY_MEMBERS_KEY] = self.get_company_members()
+
+    def is_standalone(self) -> bool:
+        """Check if the PMO is running in standalone mode."""
+        return st.session_state.get(self.PMO_STANDALONE_KEY, False)
+
+    def set_standalone(self, value: bool) -> None:
+        """Set the PMO to standalone mode."""
+        st.session_state[self.PMO_STANDALONE_KEY] = value
 
     def get_current_client(self) -> ClientDTO:
         return st.session_state.get(self.CURRENT_CLIENT_KEY, None)

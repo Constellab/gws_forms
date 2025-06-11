@@ -1,5 +1,6 @@
 from datetime import date, datetime
 import streamlit as st
+import numpy as np
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ProjectPlanDTO, MilestoneDTO, ClientDTO
 from gws_core import (StringHelper, SpaceService, ExternalSpaceCreateFolder, Tag, User)
@@ -126,11 +127,20 @@ def get_fields_mission(pmo_table: PMOTable, mission: MissionDTO = None):
     # Add fields for mission details
     mission_name = st.text_input("Insert your mission name",
                                  value=mission.mission_name if mission else "")
+    if mission and mission.mission_referee != "":
+        options_mission_referee = np.unique(pmo_table.pmo_state.get_company_members() + [mission.mission_referee])
+    else:
+        options_mission_referee = pmo_table.pmo_state.get_company_members()
     mission_referee = st.selectbox("Select your mission referee",
-                                   options = pmo_table.pmo_state.get_company_members(),
-                                   index=pmo_table.pmo_state.get_list_lab_users().index(mission.mission_referee) if mission and mission.mission_referee!= "" else None)
+                                   options = options_mission_referee,
+                                   index=pmo_table.pmo_state.get_list_lab_users().index(mission.mission_referee) if mission and mission.mission_referee != "" else None)
+    if mission and mission.team_members:
+        # If the mission already has team members, we add them to the options
+        options_team_members = np.unique(pmo_table.pmo_state.get_company_members() + mission.team_members)
+    else:
+        options_team_members = np.unique(pmo_table.pmo_state.get_company_members())
     team_members = st.multiselect("Select your team members",
-                                  options=pmo_table.pmo_state.get_company_members(),
+                                  options=options_team_members,
                                   default=mission.team_members if mission and mission.team_members else [])
 
     # Handle start date

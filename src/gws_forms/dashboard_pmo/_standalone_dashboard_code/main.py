@@ -7,8 +7,6 @@ import os
 import tempfile
 from gws_core import Folder, Settings
 
-st.title("Standalone PMO Dashboard")
-
 if "data_folder" not in st.session_state:
     data_folder_path = Settings.make_temp_dir()
     data_folder : Folder = Folder(data_folder_path)
@@ -29,6 +27,9 @@ pmo_table = PMOTable(folder_project_plan=folder_project_plan,
                      folder_details=folder_details, folder_change_log=folder_change_log,
                      folder_settings=folder_settings)
 
+pmo_table.pmo_state.set_standalone(True)
+pmo_table.set_create_folders_in_space(False)
+
 if st.button("Use test data"):
     # Load test data
     test_data_path = os.path.join(os.path.dirname(__file__), "data_test.json")
@@ -36,5 +37,10 @@ if st.button("Use test data"):
         test_data = json.load(f)
     pmo_table.data = ProjectPlanDTO.from_json(test_data)
     pmo_table.commit_and_save()
+    # Set current project/client/mission to None
+    pmo_table.pmo_state.set_current_client(None)
+    pmo_table.pmo_state.set_current_project(None)
+    pmo_table.pmo_state.set_current_mission(None)
+    pmo_table.pmo_state.reset_tree_pmo()
 run(pmo_table)
 

@@ -115,6 +115,8 @@ def display_settings_tab(pmo_table: PMOTable):
     # TODO faire le choix de la langue
 
     with st.expander("**Folders**", expanded=False):
+        if pmo_table.pmo_state.is_standalone():
+            st.info("These features aren't available in demo mode. Try them out in a lab on Constellab!")
         col1, col2 = st.columns(2)
         with col1:
             def on_checkbox_change():
@@ -122,6 +124,7 @@ def display_settings_tab(pmo_table: PMOTable):
             st.checkbox(
                 "Create folders in space",
                 key="create_folders_in_space",
+                disabled=True if pmo_table.pmo_state.is_standalone() else False,
                 on_change=on_checkbox_change
             )
         with col2:
@@ -130,6 +133,8 @@ def display_settings_tab(pmo_table: PMOTable):
             st.text_input(
                 "Share folders with a team",
                 key="share_folders_with_team",
+                help="Enter the id of the team to share folders with.",
+                disabled=True if pmo_table.pmo_state.is_standalone() else False,
                 on_change=on_text_input_share_change
             )
 
