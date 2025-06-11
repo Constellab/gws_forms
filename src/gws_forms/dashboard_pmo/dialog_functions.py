@@ -96,6 +96,64 @@ def delete_milestone(pmo_table: PMOTable, project_id: str, mission_id: str, mile
         pmo_table.commit_and_save()
         st.rerun()
 
+@st.dialog("Add predefined missions")
+def add_predefined_missions(pmo_table: PMOTable, current_project: ProjectDTO):
+    predefined_missions_dict = pmo_table.pmo_state.get_predefined_missions()
+    if not predefined_missions_dict:
+        st.warning("No predefined missions available. Please add some in the settings.")
+        return
+
+    st.warning(
+        f"Are you sure to add the predefined missions defined in the settings ? ")
+    if st.button("Add", use_container_width=True, icon=":material/add:"):
+        # Add missions to the project
+        first_mission = None
+        for mission_data in predefined_missions_dict:
+            if any(mission.mission_name == mission_data.mission_name for mission in current_project.missions):
+                continue
+            milestones = [
+                MilestoneDTO(id=StringHelper.generate_uuid(), name=milestone.name, done=False)
+                for milestone in mission_data.milestones if milestone
+            ]
+
+            mission_id = StringHelper.generate_uuid()
+            new_mission = MissionDTO(
+                id=mission_id,
+                mission_name=mission_data.mission_name,
+                mission_referee=mission_data.mission_referee,
+                team_members=mission_data.team_members,
+                start_date=datetime.now().strftime("%Y-%m-%d")
+                if mission_data.status == Status.IN_PROGRESS.value else None,
+                end_date=None,
+                milestones=milestones,
+                status=mission_data.status,
+                priority=Priority.NONE.value, progress=0.0)
+            current_project.missions.append(new_mission)
+            if not first_mission:
+                #Keep track of the first mission added
+                first_mission = new_mission
+
+            # Track status change when adding new mission
+            new_entry = {
+                "mission_id": mission_id,
+                "project": current_project.name,
+                "mission": mission_data.mission_name,
+                "status_before": None,  # No previous status for new mission
+                "status_after": mission_data.status,
+                "date": datetime.now().isoformat()
+            }
+            pmo_table.pmo_state.append_status_change_log(new_entry)
+        # Convert the log to JSON
+        pmo_table.pmo_state.convert_log_to_json()
+
+        # Save changes
+        pmo_table.commit_and_save()
+
+        # Set success message in session state
+        pmo_table.pmo_state.set_show_success_mission_added(True)
+        pmo_table.pmo_state.set_current_mission(first_mission)
+        st.rerun()
+
 
 @st.dialog("Add mission")
 def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):

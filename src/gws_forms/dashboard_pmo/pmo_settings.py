@@ -1,9 +1,39 @@
 import os
 import json
+from typing import List
 import streamlit as st
-from gws_forms.dashboard_pmo.pmo_table import PMOTable
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO
-from gws_core import User, UserGroup
+from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
+from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MissionDTO, MilestoneDTO
+from gws_core import User, UserGroup, StringHelper
+from gws_core.streamlit import StreamlitContainers
+
+
+def missions_change(pmo_table : PMOTable, number_predefined_missions : int):
+    list_predefined_missions : List[MissionDTO]= []
+    for i in range(0, number_predefined_missions + 1):
+        mission_name = st.session_state.get(f"predefined_missions_{i}", "")
+        milestones_str = st.session_state.get(f"predefined_milestones_{i}", "")
+        if mission_name != "" or milestones_str != "":
+            milestone_names = [m.strip() for m in milestones_str.split(",") if m.strip()]
+            milestones = [
+                MilestoneDTO(id=StringHelper.generate_uuid(), name=name, done=False)
+                for name in milestone_names
+            ]
+            mission = MissionDTO(
+                mission_name=mission_name,
+                mission_referee="",
+                team_members=[],
+                start_date=None,
+                end_date=None,
+                milestones=milestones,
+                status=Status.IN_PROGRESS.value if i == 0 else Status.NONE.value,
+                priority=Priority.NONE.value,
+                progress=0.0,
+                id=StringHelper.generate_uuid()
+            )
+            list_predefined_missions.append(mission)
+    pmo_table.set_predefined_missions(list_predefined_missions)
+
 
 
 def display_settings_tab(pmo_table: PMOTable):
@@ -96,3 +126,45 @@ def display_settings_tab(pmo_table: PMOTable):
         key="company_members",
         on_change=on_multiselect_change
     )
+
+    with st.expander("**Predefined missions**", expanded=False):
+
+        # Get current number of missions
+        number_predefined_missions = len(pmo_table.pmo_state.get_predefined_missions())
+        # Create inputs
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("**Missions**")
+        with col2:
+            st.write("**Milestones**")
+        for i in range(0, number_predefined_missions + 1):
+            # Get current mission name and milestones as comma-separated string
+            current_mission = pmo_table.pmo_state.get_predefined_missions()[i] if i < number_predefined_missions else None
+            mission_name_value = current_mission.mission_name if current_mission else ""
+            milestones_value = (
+                ", ".join([m.name for m in current_mission.milestones]) if current_mission else ""
+            )
+            col1, col2 = StreamlitContainers.columns_with_fit_content(
+                    key=f"container_{i}",
+                    cols=[1, 1], vertical_align_items='start')
+
+            with col1:
+                st.text_input(
+                    label="Predefined missions",
+                    value=mission_name_value,
+                    placeholder="Enter the name of your mission",
+                    label_visibility="collapsed",
+                    key=f"predefined_missions_{i}",
+                    on_change=missions_change,
+                    args = (pmo_table, number_predefined_missions,)
+                )
+            with col2:
+                st.text_area(
+                    label="Predefined milestones (comma-separated)",
+                    value=milestones_value,
+                    placeholder="Enter the name of your milestones",
+                    label_visibility="collapsed",
+                    key=f"predefined_milestones_{i}",
+                    on_change=missions_change,
+                    args = (pmo_table, number_predefined_missions,)
+                )

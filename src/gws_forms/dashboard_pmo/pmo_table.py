@@ -125,10 +125,6 @@ class PMOTable:
         self.folder_settings = folder_settings
         self.selected_file = selected_file
         self.observer = observer
-        if missions_order is None:
-            self.missions_order = []
-        else:
-            self.missions_order = missions_order
         self.folder_details = folder_details
         self.folder_change_log = folder_change_log
         if folder_change_log:
@@ -141,14 +137,24 @@ class PMOTable:
             self.file_path_change_log = None
 
         self.pmo_state = PMOState(self.file_path_change_log)
-        self.data = self.load_pmo_data()
         self.data_settings = self.load_settings_data_from_json()
+
+        if missions_order is None:
+            self.missions_order = []
+            if self.pmo_state.get_predefined_missions():
+                for mission in self.pmo_state.get_predefined_missions():
+                    self.missions_order.append(mission.mission_name)
+                self.missions_order = self.pmo_state.get_predefined_missions()
+        else:
+            self.missions_order = missions_order
+        self.data = self.load_pmo_data()
         self.save_settings()
         self.commit_and_save()
+
         # Persist initial value to session state
         self.pmo_state.set_create_folders_in_space_value(self.data_settings.create_folders_in_space)
         self.pmo_state.set_company_members(self.data_settings.company_members)
-
+        self.pmo_state.set_predefined_missions(self.data_settings.predefined_missions)
 
     def save_settings(self) -> None:
         """
@@ -163,7 +169,9 @@ class PMOTable:
 
     def load_pmo_settings_from_example(self):
         # Initialize example settings data
-        data = SettingsDTO(create_folders_in_space = True)
+        data = SettingsDTO(create_folders_in_space = True,
+                           company_members=[],
+                           predefined_missions=[])
         return data
 
     def load_settings_data_from_json(self):
@@ -420,3 +428,17 @@ class PMOTable:
         Get the company_members attribute from settings DTO.
         """
         return getattr(self.data_settings, "company_members", self.pmo_state.get_list_lab_users())
+
+    def set_predefined_missions(self, missions: list) -> None:
+        """
+        Set the predefined_missions attribute in settings DTO and persist it.
+        """
+        self.data_settings.predefined_missions = missions
+        self.pmo_state.set_predefined_missions(missions)
+        self.save_settings()
+
+    def get_predefined_missions(self) -> list:
+        """
+        Get the predefined_missions attribute from settings DTO.
+        """
+        return getattr(self.data_settings, "predefined_missions", self.pmo_state.get_predefined_missions())
