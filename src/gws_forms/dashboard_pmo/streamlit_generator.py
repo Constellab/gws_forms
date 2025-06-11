@@ -46,6 +46,7 @@ class StreamlitPMOGenerator(Task):
         data_folder.create_dir_if_not_exist("Project Plan")
         data_folder.create_dir_if_not_exist("Change Log")
         data_folder.create_dir_if_not_exist("Notes")
+        data_folder.create_dir_if_not_exist("Settings")
 
         streamlit_resource.add_resource(
             data_folder, create_new_resource=False)

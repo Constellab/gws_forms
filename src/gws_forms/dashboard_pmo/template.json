@@ -6,10 +6,8 @@
       "missions": [
         {
           "mission_name": "xxx",
-          "mission_referee": "Person1",
-          "team_members": [
-            ""
-          ],
+          "mission_referee": "",
+          "team_members": [],
           "start_date": "2025-05-19",
           "end_date": "2025-05-31",
           "milestones": [],
@@ -28,10 +26,8 @@
       "missions": [
         {
           "mission_name": "xxx",
-          "mission_referee": "Person1",
-          "team_members": [
-            ""
-          ],
+          "mission_referee": "",
+          "team_members": [],
           "start_date": "2025-05-19",
           "end_date": "2025-05-31",
           "milestones": [],
@@ -50,11 +46,8 @@
       "missions": [
         {
           "mission_name": "xxx",
-          "mission_referee": "Person2",
-          "team_members": [
-            "Person1",
-            "Person5"
-          ],
+          "mission_referee": "",
+          "team_members": [],
           "start_date": "2025-05-01",
           "end_date": "2025-05-29",
           "milestones": [],
@@ -65,10 +58,8 @@
         },
         {
           "mission_name": "xxx_1",
-          "mission_referee": "Person3",
-          "team_members": [
-            "Person4"
-          ],
+          "mission_referee": "",
+          "team_members": [],
           "start_date": "2025-06-13",
           "end_date": "2025-06-26",
           "milestones": [],

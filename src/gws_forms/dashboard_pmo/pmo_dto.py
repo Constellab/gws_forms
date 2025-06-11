@@ -3,6 +3,11 @@ from datetime import datetime, date
 from pydantic import field_validator
 from gws_core.core.model.model_dto import BaseModelDTO
 
+class SettingsDTO(BaseModelDTO):
+    """Represents the settings for the project plan"""
+    create_folders_in_space: bool = False
+    company_members: List[str] = []
+
 
 class MilestoneDTO(BaseModelDTO):
     """Represents a single milestone in a mission"""
@@ -67,6 +72,7 @@ class MissionDTO(BaseModelDTO):
 class ProjectDTO(BaseModelDTO):
     """Represents a project with its missions"""
     id: str
+    client_name: str
     name: str
     missions: List[MissionDTO]
     folder_root_id: str
@@ -97,17 +103,31 @@ class ProjectPlanDTO(BaseModelDTO):
     data: List[ProjectDTO]
 
     @classmethod
-    def get_project_by_name(cls, projects: "ProjectPlanDTO", project_name: str) -> Optional[str]:
+    def get_projects(cls, projects: "ProjectPlanDTO") -> List[ProjectDTO]:
         """
-        Get project ID by its name
+        Get all projects from the project plan
         Args:
             projects: ProjectPlanDTO object containing the list of projects
+        Returns:
+            List[ProjectDTO]: List of ProjectDTO objects
+        """
+        return projects.data
+
+    @classmethod
+    def get_project_by_client_and_project_name(cls, projects: "ProjectPlanDTO", project_selected :str) -> Optional[str]:
+        """
+        Get project ID by its client and prokect name
+        Args:
+            projects: ProjectPlanDTO object containing the list of projects
+            client_name: Name of the client to find
             project_name: Name of the project to find
         Returns:
             str: Project ID if found, None otherwise
         """
+        client_name = project_selected.split(" ⸱ ")[0]
+        project_name = project_selected.split(" ⸱ ")[1]
         for project in projects.data:
-            if project.name == project_name:
+            if project.name == project_name and project.client_name == client_name:
                 return project
         return None
 
@@ -138,6 +158,22 @@ class ProjectPlanDTO(BaseModelDTO):
             ProjectDTO: Project object if found, None otherwise
         """
         return ProjectDTO.get_project_by_id(projects.data, project_id)
+
+    @classmethod
+    def get_project_by_mission_id(cls, projects: "ProjectPlanDTO", mission_id: str) -> Optional[ProjectDTO]:
+        """
+        Get project by its mission ID
+        Args:
+            projects: ProjectPlanDTO object containing the list of projects
+            mission_id: ID of the mission to find
+        Returns:
+            ProjectDTO: Project object if found, None otherwise
+        """
+        for project in projects.data:
+            for mission in project.missions:
+                if mission.id == mission_id:
+                    return project
+        return None
 
     @classmethod
     def get_milestone_by_id(cls, projects: "ProjectPlanDTO", milestone_id: str) -> Optional[MilestoneDTO]:
