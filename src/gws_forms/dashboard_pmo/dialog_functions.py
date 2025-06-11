@@ -342,14 +342,6 @@ def delete_mission(pmo_table: PMOTable, project_id: str, mission_id: str):
                     project.missions = [m for m in project.missions if m.id != mission_id]
                     break
 
-        # If the project has Global Follow-up mission, we remove the milestone
-        if project.global_follow_up_mission_id != "":
-            global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, project.global_follow_up_mission_id)
-            if global_follow_up_mission:
-                # Remove the milestone corresponding to the mission being deleted
-                global_follow_up_mission.milestones = [
-                    m for m in global_follow_up_mission.milestones if m.name != mission_name]
-
         pmo_table.commit_and_save()
         # Set success message in session state
         pmo_table.pmo_state.set_show_success_delete_mission(True)
