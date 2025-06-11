@@ -3,7 +3,7 @@ from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO
 from gws_forms.dashboard_pmo.pmo_config import PMOConfig
 from gws_forms.dashboard_pmo.dialog_functions import delete_milestone, add_milestone, edit_milestone
-from gws_core.streamlit import StreamlitTreeMenu, StreamlitTreeMenuItem, StreamlitGridCell, StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
+from gws_core.streamlit import StreamlitTreeMenu, StreamlitTreeMenuItem, StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
 
 def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO):
     """Update the milestone status when the checkbox is clicked."""
@@ -14,7 +14,7 @@ def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO):
 def build_tree_menu_from_data(pmo_table: PMOTable):
     button_menu = StreamlitTreeMenu(key = pmo_table.pmo_state.TREE_PMO_KEY)
     clients_list = ProjectPlanDTO.get_clients(pmo_table.data)
-    # Sort project data by client name
+    # Sort project data by client names
     clients_list.sort(key=lambda x: x.client_name.lower())
 
     # Build nodes from actual data: Client > Project > Mission
@@ -156,40 +156,39 @@ def display_mission_tab(pmo_table: PMOTable):
                         # Display all the projects for the client
                         st.markdown("---")
                         for p in client.projects:
-                            # Custom CSS to make a button look like a string but clickable
-                            st.markdown(
-                                """
-                                <style>
-                                button[kind="tertiary"] {
-                                    background: none!important;
-                                    border: none;
-                                    padding: 0!important;
-                                    color: black !important;
-                                    text-decoration: none;
-                                    cursor: pointer;
-                                    border: none !important;
-                                }
-                                button[kind="primary"]:hover {
-                                    text-decoration: none;
-                                    color: black !important;
-                                }
-                                button[kind="primary"]:focus {
-                                    outline: none !important;
-                                    box-shadow: none !important;
-                                    color: black !important;
-                                }
-                                </style>
-                                """,
-                                unsafe_allow_html=True,
-                            )
-
-
                             project_id = p.id
                             # Create a container for the header with project title and action buttons
                             header_col1, header_col2 = StreamlitContainers.columns_with_fit_content(
                                     key=f"header_project_list_{project_id}",
                                     cols=[1, 'fit-content'], vertical_align_items='center')
                             with header_col1:
+                                # Custom CSS to make a button look like a string but clickable
+                                st.markdown(
+                                    """
+                                    <style>
+                                    button[kind="tertiary"] {
+                                        background: none!important;
+                                        border: none;
+                                        padding: 0!important;
+                                        color: black !important;
+                                        text-decoration: none;
+                                        cursor: pointer;
+                                        border: none !important;
+                                    }
+                                    button[kind="tertiary"]:hover {
+                                        text-decoration: none;
+                                        color: green !important;
+                                    }
+                                    button[kind="tertiary"]:focus {
+                                        outline: none !important;
+                                        box-shadow: none !important;
+                                        color: black !important;
+                                    }
+                                    </style>
+                                    """,
+                                    unsafe_allow_html=True,
+                                )
+
                                 if st.button(p.name, type="tertiary", icon=":material/folder:"):
                                     pmo_table.pmo_state.set_current_client(client)
                                     pmo_table.pmo_state.set_current_project(p)
@@ -231,6 +230,31 @@ def display_mission_tab(pmo_table: PMOTable):
                                         key=f"header_mission_{mission_id}",
                                         cols=[1, 'fit-content'], vertical_align_items='center')
                                 with header_col1:
+                                    st.markdown(
+                                        """
+                                        <style>
+                                        button[kind="tertiary"] {
+                                            background: none!important;
+                                            border: none;
+                                            padding: 0!important;
+                                            color: black !important;
+                                            text-decoration: none;
+                                            cursor: pointer;
+                                            border: none !important;
+                                        }
+                                        button[kind="tertiary"]:hover {
+                                            text-decoration: none;
+                                            color: green !important;
+                                        }
+                                        button[kind="tertiary"]:focus {
+                                            outline: none !important;
+                                            box-shadow: none !important;
+                                            color: black !important;
+                                        }
+                                        </style>
+                                        """,
+                                        unsafe_allow_html=True,
+                                    )
                                     if st.button(m.mission_name, type="tertiary", icon=":material/description:"):
                                         pmo_table.pmo_state.set_current_client(client)
                                         pmo_table.pmo_state.set_current_project(project)
