@@ -146,13 +146,45 @@ def display_mission_tab(pmo_table: PMOTable):
                     # Display all the projects for the client
                     st.markdown("---")
                     for p in client.projects:
+                        # Custom CSS to make a button look like a string but clickable
+                        st.markdown(
+                            """
+                            <style>
+                            button[kind="tertiary"] {
+                                background: none!important;
+                                border: none;
+                                padding: 0!important;
+                                color: black !important;
+                                text-decoration: none;
+                                cursor: pointer;
+                                border: none !important;
+                            }
+                            button[kind="primary"]:hover {
+                                text-decoration: none;
+                                color: black !important;
+                            }
+                            button[kind="primary"]:focus {
+                                outline: none !important;
+                                box-shadow: none !important;
+                                color: black !important;
+                            }
+                            </style>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+
                         project_id = p.id
                         # Create a container for the header with project title and action buttons
                         header_col1, header_col2 = StreamlitContainers.columns_with_fit_content(
                                 key=f"header_project_list_{project_id}",
                                 cols=[1, 'fit-content'], vertical_align_items='center')
                         with header_col1:
-                            st.subheader(f"{p.name}")
+                            if st.button(p.name, type="tertiary"):
+                                pmo_table.pmo_state.set_current_client(client)
+                                pmo_table.pmo_state.set_current_project(p)
+                                pmo_table.pmo_state.reset_tree_pmo() # TODO tester si ça change bien d'endroit dans le tree
+                                st.rerun()
                         with header_col2:
                             button_project: StreamlitMenuButton = pmo_config.build_project_menu_button(pmo_table, client, p)
                             button_project.render()
@@ -189,7 +221,12 @@ def display_mission_tab(pmo_table: PMOTable):
                                     key=f"header_mission_{mission_id}",
                                     cols=[1, 'fit-content'], vertical_align_items='center')
                             with header_col1:
-                                st.subheader(f"{m.mission_name}")
+                                if st.button(m.mission_name, type="tertiary"):
+                                    pmo_table.pmo_state.set_current_client(client)
+                                    pmo_table.pmo_state.set_current_project(project)
+                                    pmo_table.pmo_state.set_current_mission(m)
+                                    #pmo_table.pmo_state.reset_tree_pmo() # TODO tester si ça change bien d'endroit dans le tree
+                                    st.rerun()
                             with header_col2:
                                 button_mission: StreamlitMenuButton = pmo_config.build_mission_menu_button(pmo_table, project, m)
                                 button_mission.render()

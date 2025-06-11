@@ -167,6 +167,10 @@ class PMOState():
         list_lab_users = list(User.select().where(User.group != UserGroup.SYSUSER))
         return [user.first_name for user in list_lab_users]
 
+    def get_list_lab_users(self) -> List:
+        list_lab_users = list(User.select().where(User.group != UserGroup.SYSUSER))
+        return [user.first_name for user in list_lab_users]
+
     def set_predefined_missions(self, value: List[MissionDTO]) -> None:
         st.session_state[self.PREDEFINED_MISSIONS_KEY] = value
 
