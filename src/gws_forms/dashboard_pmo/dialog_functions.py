@@ -87,6 +87,12 @@ def create_subfolders_in_space(current_client: ClientDTO, current_project: Proje
 
         # Retrieve the id of the folder root client already created
         folder_root_client_space_id = current_client.folder_root_id
+        if folder_root_client_space_id == "":
+            # If the root folder does not exist, we create it
+            create_root_folder_in_space(current_client)
+
+            # Retrieve the id of the folder root client after creation
+            folder_root_client_space_id = current_client.folder_root_id
 
         # Create the subfolders
         folder_project = ExternalSpaceCreateFolder(
