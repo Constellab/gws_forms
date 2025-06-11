@@ -2,6 +2,7 @@ import os
 import json
 from typing import List
 import streamlit as st
+import numpy as np
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MissionDTO, MilestoneDTO
 from gws_core import User, UserGroup, StringHelper
@@ -37,6 +38,7 @@ def missions_change(pmo_table : PMOTable, number_predefined_missions : int):
 
 
 def display_settings_tab(pmo_table: PMOTable):
+    pmo_state = pmo_table.pmo_state
 
     st.write("**Project Plan Files**")
     # List all JSON files in the saved directory
@@ -61,8 +63,8 @@ def display_settings_tab(pmo_table: PMOTable):
                                      folder_details=pmo_table.folder_details,
                                      folder_change_log=pmo_table.folder_change_log, folder_settings= pmo_table.folder_settings, selected_file=selected_file)
                 # Set current project to None
-                pmo_table.pmo_state.set_current_project(None)
-                pmo_table.pmo_state.set_current_mission(None)
+                pmo_state.set_current_project(None)
+                pmo_state.set_current_mission(None)
 
     # Upload data
     # Add a file uploader to allow users to upload their project plan file
@@ -75,8 +77,8 @@ def display_settings_tab(pmo_table: PMOTable):
                 pmo_table.data = ProjectPlanDTO.from_json(loaded_data)
                 pmo_table.commit_and_save()
                 # Set current project to None
-                pmo_table.pmo_state.set_current_project(None)
-                pmo_table.pmo_state.set_current_mission(None)
+                pmo_state.set_current_project(None)
+                pmo_state.set_current_mission(None)
             else:
                 st.warning('You need to upload a JSON file.')
                 # Use example data - already in the pmo_table
@@ -86,8 +88,8 @@ def display_settings_tab(pmo_table: PMOTable):
                                      folder_change_log=pmo_table.folder_change_log, folder_settings= pmo_table.folder_settings)
                 pmo_table.save_data_in_folder()
                 # Set current project to None
-                pmo_table.pmo_state.set_current_project(None)
-                pmo_table.pmo_state.set_current_mission(None)
+                pmo_state.set_current_project(None)
+                pmo_state.set_current_mission(None)
 
         # Load and allow users to download the JSON template
         template_path = os.path.join(os.path.abspath(
@@ -120,9 +122,10 @@ def display_settings_tab(pmo_table: PMOTable):
     st.write("**Company members**")
     def on_multiselect_change():
         pmo_table.set_company_members(st.session_state["company_members"])
+    options = np.unique(pmo_state.get_list_lab_users() + pmo_table.get_company_members())
     st.multiselect(
         "Select company members",
-        options=pmo_table.pmo_state.get_list_lab_users(),
+        options=options,
         key="company_members",
         on_change=on_multiselect_change
     )
@@ -130,7 +133,7 @@ def display_settings_tab(pmo_table: PMOTable):
     with st.expander("**Predefined missions**", expanded=False):
 
         # Get current number of missions
-        number_predefined_missions = len(pmo_table.pmo_state.get_predefined_missions())
+        number_predefined_missions = len(pmo_state.get_predefined_missions())
         # Create inputs
         col1, col2 = st.columns(2)
         with col1:
@@ -139,7 +142,7 @@ def display_settings_tab(pmo_table: PMOTable):
             st.write("**Milestones**")
         for i in range(0, number_predefined_missions + 1):
             # Get current mission name and milestones as comma-separated string
-            current_mission = pmo_table.pmo_state.get_predefined_missions()[i] if i < number_predefined_missions else None
+            current_mission = pmo_state.get_predefined_missions()[i] if i < number_predefined_missions else None
             mission_name_value = current_mission.mission_name if current_mission else ""
             milestones_value = (
                 ", ".join([m.name for m in current_mission.milestones]) if current_mission else ""
@@ -170,7 +173,7 @@ def display_settings_tab(pmo_table: PMOTable):
                 )
 
         # Check for duplicate mission names
-        mission_names = [m.mission_name.strip() for m in pmo_table.pmo_state.get_predefined_missions() if m.mission_name.strip()]
+        mission_names = [m.mission_name.strip() for m in pmo_state.get_predefined_missions() if m.mission_name.strip()]
         duplicates = set([name for name in mission_names if mission_names.count(name) > 1])
         if duplicates:
             st.warning(f"Duplicate mission names found: {', '.join(duplicates)}. Each predefined mission name must be unique.")
