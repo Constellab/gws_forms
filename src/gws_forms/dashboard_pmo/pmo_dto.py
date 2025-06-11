@@ -76,6 +76,7 @@ class ProjectDTO(BaseModelDTO):
     name: str
     missions: List[MissionDTO]
     folder_project_id: str
+    global_follow_up_mission_id: Optional[str]
 
     @classmethod
     def get_mission_of_a_project_by_name(cls, project: "ProjectDTO", mission_name: str) -> Optional[str]:

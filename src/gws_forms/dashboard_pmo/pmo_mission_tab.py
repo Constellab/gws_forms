@@ -183,7 +183,7 @@ def display_mission_tab(pmo_table: PMOTable):
                             if st.button(p.name, type="tertiary"):
                                 pmo_table.pmo_state.set_current_client(client)
                                 pmo_table.pmo_state.set_current_project(p)
-                                pmo_table.pmo_state.reset_tree_pmo() # TODO tester si ça change bien d'endroit dans le tree
+                                pmo_table.pmo_state.reset_tree_pmo()
                                 st.rerun()
                         with header_col2:
                             button_project: StreamlitMenuButton = pmo_config.build_project_menu_button(pmo_table, client, p)
@@ -225,7 +225,7 @@ def display_mission_tab(pmo_table: PMOTable):
                                     pmo_table.pmo_state.set_current_client(client)
                                     pmo_table.pmo_state.set_current_project(project)
                                     pmo_table.pmo_state.set_current_mission(m)
-                                    #pmo_table.pmo_state.reset_tree_pmo() # TODO tester si ça change bien d'endroit dans le tree
+                                    pmo_table.pmo_state.reset_tree_pmo()
                                     st.rerun()
                             with header_col2:
                                 button_mission: StreamlitMenuButton = pmo_config.build_mission_menu_button(pmo_table, project, m)

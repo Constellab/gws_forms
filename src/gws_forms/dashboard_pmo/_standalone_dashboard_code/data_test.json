@@ -21,7 +21,8 @@
                                 "id": "26e8a681-ce1f-4316-84cb-9ac0b23bcc6a"
                             }
                         ],
-                        "folder_project_id": "30f8c8b1-003d-47d4-a2ad-6da030514f51"
+                        "folder_project_id": "30f8c8b1-003d-47d4-a2ad-6da030514f51",
+                        "global_follow_up_mission_id": ""
                     }
                 ],
                 "folder_root_id": ""
@@ -65,7 +66,8 @@
                                 "id": "69398cbd-ce10-4fba-8280-cbcf836068a7"
                             }
                         ],
-                        "folder_project_id": "f581c1ee-ec23-4bbc-8d94-8affb21b1ec1"
+                        "folder_project_id": "f581c1ee-ec23-4bbc-8d94-8affb21b1ec1",
+                        "global_follow_up_mission_id": ""
                     }
                 ],
                 "folder_root_id": "f2f064ab-a4bc-4d9a-8466-47919ea6380d"
@@ -174,7 +176,8 @@
                                 "id": "15b61711-dc37-47a0-9311-b32ffd091acd"
                             }
                         ],
-                        "folder_project_id": "19313d96-f650-46f1-b2ee-aa338303f13b"
+                        "folder_project_id": "19313d96-f650-46f1-b2ee-aa338303f13b",
+                        "global_follow_up_mission_id": ""
                     },
                     {
                         "id": "60aead53-8ed7-48f0-9090-e1ca8836849c",
@@ -216,7 +219,8 @@
                                 "id": "f0f282bf-927b-4a38-a304-e3a0e1cf9a2e"
                             }
                         ],
-                        "folder_project_id": "e7e2ebf0-4655-4d61-b5e2-282bd6184aef"
+                        "folder_project_id": "e7e2ebf0-4655-4d61-b5e2-282bd6184aef",
+                        "global_follow_up_mission_id": ""
                     }
                 ],
                 "folder_root_id": "131983aa-8406-4bb5-b00b-0e363989c29f"

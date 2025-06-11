@@ -1,4 +1,4 @@
-from .dashboard_pmo.pmo_table import PMOTable, MessageObserver, Event, Status, Priority
+from .dashboard_pmo.pmo_table import PMOTable, Event, Status, Priority
 from .dashboard_pmo.pmo_state import PMOState
 from .dashboard_pmo.pmo_dashboard import run, add_notes_page, add_home_page, add_gantt_page, add_kpis_page, add_settings_page, add_mission_page
 from .dashboard_pmo.pmo_project_plan_tab import display_project_plan_tab

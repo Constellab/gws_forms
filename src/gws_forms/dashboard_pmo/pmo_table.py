@@ -7,7 +7,7 @@ from abc import abstractmethod
 import pytz
 from gws_forms.dashboard_pmo.pmo_state import PMOState
 from gws_forms.dashboard_pmo.pmo_dto import SettingsDTO, ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO, ClientDTO
-from gws_core import StringHelper
+from gws_core import StringHelper, SpaceService, Tag
 from gws_core.streamlit import StreamlitAuthenticateUser
 
 
@@ -15,14 +15,6 @@ class Event:
     def __init__(self, event_type: Literal['update_mission_progress'], data: Any = None):
         self.event_type = event_type  # Store the event type
         self.data = data
-
-
-class MessageObserver:
-    @abstractmethod
-    def update(self, event: Event, current_project: ProjectDTO) -> bool:
-        """Method called when a message is dispatched"""
-        # This method is implemented in subclasses to update tags on folders when the project plan is saved
-        pass
 
 # Class to define the different status
 
@@ -108,7 +100,6 @@ class PMOTable:
     folder_details: str
     missions_order: List
     folder_change_log: str
-    observer: Optional[MessageObserver]
     data: ProjectPlanDTO
     pmo_state: PMOState
     selected_file: str
@@ -116,7 +107,7 @@ class PMOTable:
     folder_settings: str
 
     def __init__(self, folder_project_plan=None, folder_details=None, missions_order=None,
-                 folder_change_log=None, folder_settings = None, observer=None, selected_file=None):
+                 folder_change_log=None, folder_settings = None, selected_file=None):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
@@ -124,7 +115,6 @@ class PMOTable:
         self.folder_project_plan = folder_project_plan
         self.folder_settings = folder_settings
         self.selected_file = selected_file
-        self.observer = observer
         self.folder_details = folder_details
         self.folder_change_log = folder_change_log
         if folder_change_log:
@@ -218,7 +208,8 @@ class PMOTable:
             id=StringHelper.generate_uuid(),
             name="Project 1",
             missions=[example_mission],
-            folder_project_id=""
+            folder_project_id="",
+            global_follow_up_mission_id = ""
         )
         example_client = ClientDTO(
             id=StringHelper.generate_uuid(),
@@ -253,13 +244,6 @@ class PMOTable:
             loaded_data = json.load(f)
             # Convert raw data to ProjectPlanDTO
             return ProjectPlanDTO.from_json(loaded_data)
-
-    def apply_observer_update_mission_progress(self, current_project: ProjectDTO) -> None:
-        # Apply the observer -> Update tag folder
-        if self.observer:
-            check = self.observer.update(Event(event_type='update_mission_progress'), current_project)
-            if not check:
-                raise Exception("Something got wrong, close the app and try again.")
 
     def log_status_change(self, mission_id: str, project_name: str, mission_name: str,
                           old_status: str, new_status: str) -> None:
@@ -355,10 +339,10 @@ class PMOTable:
         if self.pmo_state.get_status_change_log():
             self.pmo_state.convert_log_to_json()
 
-        # Apply the observer -> Update tag folder if a external observer is set
+        # Update tags folder
         for client in self.data.data:
             for project in client.projects:
-                self.apply_observer_update_mission_progress(project)
+                self.update_folders_tags(project)
 
     def update_milestone_status_by_id(self, milestone_id: str, done: bool) -> None:
         """
@@ -448,3 +432,18 @@ class PMOTable:
         Get the predefined_missions attribute from settings DTO.
         """
         return getattr(self.data_settings, "predefined_missions", self.pmo_state.get_predefined_missions())
+
+
+    def update_folders_tags(self, current_project: ProjectDTO):
+        space_service = SpaceService.get_instance()
+
+        current_folder_project_id = current_project.folder_project_id
+        if current_folder_project_id != "":
+            mission_global_follow_up = ProjectPlanDTO.get_mission_by_id(self.data, current_project.global_follow_up_mission_id)
+            if mission_global_follow_up:
+                current_progress = str(round(mission_global_follow_up.progress, 2))
+                current_status = " ".join(mission_global_follow_up.status.split(" ")[1:])  # Remove the emoji
+                space_service.add_or_replace_tags_on_object(
+                    current_folder_project_id,
+                    [Tag(key="status", value=current_status, auto_parse=True),
+                        Tag(key="progress", value=current_progress, auto_parse=True)])

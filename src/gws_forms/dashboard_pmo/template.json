@@ -21,7 +21,8 @@
               "id": "6a6eede0-9277-4302-9f94-847adf18ac43"
             }
           ],
-          "folder_project_id": ""
+          "folder_project_id": "",
+          "global_follow_up_mission_id": ""
         },
         {
           "id": "0457214e-f998-4edb-ab24-740c463eb10c",
@@ -40,7 +41,8 @@
               "id": "e7e6fc30-55b7-43f6-95a3-c7c930c6bd5c"
             }
           ],
-          "folder_project_id": ""
+          "folder_project_id": "",
+          "global_follow_up_mission_id": ""
         }
       ],
       "folder_root_id": ""
@@ -78,7 +80,8 @@
               "id": "dded02a9-d924-449c-858b-fb1a17efd388"
             }
           ],
-          "folder_project_id": ""
+          "folder_project_id": "",
+          "global_follow_up_mission_id": ""
         }
       ],
       "folder_root_id": ""

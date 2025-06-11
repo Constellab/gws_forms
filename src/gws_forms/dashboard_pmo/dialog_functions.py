@@ -309,6 +309,11 @@ def delete_client(pmo_table: PMOTable, current_client: ClientDTO):
 
 @st.dialog("Delete mission")
 def delete_mission(pmo_table: PMOTable, project_id: str, mission_id: str):
+    project = ProjectPlanDTO.get_project_by_id(pmo_table.data, project_id)
+    if mission_id == project.global_follow_up_mission_id:
+        st.warning(
+            "You cannot delete the Global Follow-up mission. This mission is used to track the global follow-up of the project.")
+        return
     mission_name = ProjectPlanDTO.get_mission_by_id(pmo_table.data, mission_id).mission_name
     st.warning(
         f"Are you sure you want to delete the mission {mission_name}? This action cannot be undone.")
@@ -523,11 +528,33 @@ def add_project(pmo_table: PMOTable, current_client: ClientDTO):
                 id=StringHelper.generate_uuid(),
                 name=name_project,
                 missions=[],
-                folder_project_id=""
+                folder_project_id="",
+                global_follow_up_mission_id = ""
             )
 
             if pmo_table.data_settings.create_folders_in_space:
                 create_subfolders_in_space(current_client, new_project)
+
+
+
+            if pmo_table.get_create_folders_in_space():
+                # Create a mission "Global Follow-up" : this mission will be used to track the global follow-up of the project
+                # and to update the status of the project (tags on folders)
+                global_follow_up_mission_id = StringHelper.generate_uuid()
+                global_follow_up_mission = MissionDTO(
+                    id=global_follow_up_mission_id,
+                    mission_name="Global Follow-up",
+                    mission_referee="",
+                    team_members=[],
+                    start_date=datetime.now().strftime("%Y-%m-%d"),
+                    end_date=None,
+                    milestones=[],
+                    status=Status.TODO.value,
+                    priority=Priority.NONE.value,
+                    progress=0.0
+                )
+                new_project.global_follow_up_mission_id = global_follow_up_mission_id
+                new_project.missions.append(global_follow_up_mission)
 
             current_client.projects.append(new_project)
 
