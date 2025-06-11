@@ -355,7 +355,31 @@ def edit_project(pmo_table: PMOTable, current_client : ClientDTO, current_projec
             pmo_table.update_project_name_by_id(current_project.id, project_name)
 
             pmo_table.commit_and_save()
+
+            # Update folder names in the space if needed
+            update_folders_names(current_client, current_project)
+
             st.rerun()
+
+
+def update_folders_names(current_client: ClientDTO, current_project: ProjectDTO):
+    with StreamlitAuthenticateUser():
+        # Update folder names in the space if needed
+        space_service = SpaceService.get_instance()
+        current_folder_root_id = current_client.folder_root_id
+        if current_folder_root_id != "":
+            # Update the root folder name in the space
+            new_folder = ExternalSpaceCreateFolder(
+                name=current_client.client_name)
+            space_service.update_folder(current_folder_root_id, new_folder)
+        current_folder_project_id = current_project.folder_project_id
+        if current_folder_project_id != "":
+            new_folder = ExternalSpaceCreateFolder(
+                name=current_project.name,
+                tags=[Tag(key="type", value="client", auto_parse=True),
+                    Tag(key="client", value=current_client.client_name,
+                        auto_parse=True)])
+            space_service.update_folder(current_folder_project_id, new_folder)
 
 
 @st.dialog("Edit milestone")
