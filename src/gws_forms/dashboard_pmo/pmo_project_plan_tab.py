@@ -211,7 +211,7 @@ def display_project_plan_tab(pmo_table: PMOTable):
             client = ProjectPlanDTO.get_client_by_project_id(pmo_table.data, project.id)
             pmo_table.pmo_state.set_current_project(project)
             pmo_table.pmo_state.set_current_client(client)
-            pmo_table.pmo_state.set_current_mission(None)
+            pmo_table.pmo_state.set_current_mission(mission)
             router.navigate('mission')
 
 
