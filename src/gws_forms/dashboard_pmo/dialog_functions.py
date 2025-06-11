@@ -40,8 +40,6 @@ def create_root_folder_in_space(current_client: ClientDTO,
         if not id_team_to_share:
             # Get the id of the current user to share the folder with
             id_team_to_share = CurrentUserService.get_current_user().id
-        st.write(folder_root_client_space.id)
-        st.write(id_team_to_share)
         space_service.share_root_folder(root_folder_id=folder_root_client_space.id,
                                         group_id=id_team_to_share, role = SpaceRootFolderUserRole.OWNER)
         current_client.folder_root_id = folder_root_client_space.id
