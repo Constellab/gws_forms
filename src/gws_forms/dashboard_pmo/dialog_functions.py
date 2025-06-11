@@ -63,8 +63,7 @@ def log_new_mission_status(pmo_table: PMOTable, project: ProjectDTO, mission: Mi
     }
     pmo_table.pmo_state.append_status_change_log(new_entry)
 
-def create_root_folder_in_space(current_client: ClientDTO,
-                                id_team_to_share: str = None):
+def create_root_folder_in_space(pmo_table : PMOTable, current_client: ClientDTO):
     with StreamlitAuthenticateUser():
         # Create folder in the space
         space_service = SpaceService.get_instance()
@@ -74,6 +73,7 @@ def create_root_folder_in_space(current_client: ClientDTO,
                   Tag(key="client", value=current_client.client_name, auto_parse=True)])
         folder_root_client_space = space_service.create_root_folder(folder=folder_root_client)
         # Share
+        id_team_to_share = pmo_table.pmo_state.get_share_folders_with_team()
         if not id_team_to_share:
             # Get the id of the current user to share the folder with
             id_team_to_share = CurrentUserService.get_current_user().id
@@ -81,7 +81,7 @@ def create_root_folder_in_space(current_client: ClientDTO,
                                         group_id=id_team_to_share, role = SpaceRootFolderUserRole.OWNER)
         current_client.folder_root_id = folder_root_client_space.id
 
-def create_subfolders_in_space(current_client: ClientDTO, current_project: ProjectDTO):
+def create_subfolders_in_space(pmo_table : PMOTable, current_client: ClientDTO, current_project: ProjectDTO):
     with StreamlitAuthenticateUser():
         space_service = SpaceService.get_instance()
 
@@ -89,7 +89,7 @@ def create_subfolders_in_space(current_client: ClientDTO, current_project: Proje
         folder_root_client_space_id = current_client.folder_root_id
         if folder_root_client_space_id == "":
             # If the root folder does not exist, we create it
-            create_root_folder_in_space(current_client)
+            create_root_folder_in_space(pmo_table, current_client)
 
             # Retrieve the id of the folder root client after creation
             folder_root_client_space_id = current_client.folder_root_id
@@ -569,7 +569,7 @@ def add_project(pmo_table: PMOTable, current_client: ClientDTO):
             )
 
             if pmo_table.data_settings.create_folders_in_space:
-                create_subfolders_in_space(current_client, new_project)
+                create_subfolders_in_space(pmo_table, current_client, new_project)
 
             if pmo_table.get_create_folders_in_space():
                 # Create a mission "Global Follow-up" : this mission will be used to track the global follow-up of the project
@@ -605,7 +605,7 @@ def add_project(pmo_table: PMOTable, current_client: ClientDTO):
 
 
 @st.dialog("Add client")
-def add_client(pmo_table: PMOTable, id_team_to_share : str = None):
+def add_client(pmo_table: PMOTable):
     with st.form(clear_on_submit=False, enter_to_submit=True, key="project_form"):
         client_name = st.text_input("Insert your client name")
 
@@ -626,7 +626,7 @@ def add_client(pmo_table: PMOTable, id_team_to_share : str = None):
 
             if pmo_table.data_settings.create_folders_in_space:
                 # Create root folders in the space with the client name
-                create_root_folder_in_space(new_client, id_team_to_share)
+                create_root_folder_in_space(pmo_table, new_client)
 
             pmo_table.data.data.append(new_client)
 
