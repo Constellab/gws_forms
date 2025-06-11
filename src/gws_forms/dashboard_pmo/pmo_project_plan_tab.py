@@ -204,13 +204,14 @@ def display_project_plan_tab(pmo_table: PMOTable):
             mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, row)
             if mission:
                 project = ProjectPlanDTO.get_project_by_mission_id(pmo_table.data,row)
-                pmo_table.pmo_state.set_current_project(project)
-                pmo_table.pmo_state.set_current_mission(mission)
             else:
                 # if the id refer to a project, we need to find the project
+                mission = None
                 project = ProjectPlanDTO.get_project_by_id(pmo_table.data, row)
-                pmo_table.pmo_state.set_current_project(project)
-                pmo_table.pmo_state.set_current_mission(None)
+            client = ProjectPlanDTO.get_client_by_project_id(pmo_table.data, project.id)
+            pmo_table.pmo_state.set_current_project(project)
+            pmo_table.pmo_state.set_current_client(client)
+            pmo_table.pmo_state.set_current_mission(None)
             router.navigate('mission')
 
 

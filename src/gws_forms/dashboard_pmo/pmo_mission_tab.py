@@ -146,6 +146,7 @@ def display_mission_tab(pmo_table: PMOTable):
 
 
     # Display the details tab for the current mission
+    client = pmo_state.get_current_client()
     project = pmo_state.get_current_project()
     mission = pmo_state.get_current_mission()
 
@@ -161,7 +162,7 @@ def display_mission_tab(pmo_table: PMOTable):
             with header_col1:
                 st.header(f"{project.name}")
             with header_col2:
-                button_project: StreamlitMenuButton = pmo_config.build_project_menu_button(pmo_table, project)
+                button_project: StreamlitMenuButton = pmo_config.build_project_menu_button(pmo_table, client, project)
                 button_project.render()
 
 

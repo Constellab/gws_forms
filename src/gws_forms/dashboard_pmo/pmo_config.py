@@ -1,5 +1,5 @@
 import streamlit as st
-from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO
+from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ClientDTO
 from gws_forms.dashboard_pmo.dialog_functions import delete_project, delete_mission, add_mission, edit_mission, edit_project, create_project, add_predefined_missions
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
 from gws_core.streamlit import StreamlitMenuButton, StreamlitMenuButtonItem
@@ -31,7 +31,7 @@ class PMOConfig():
             on_click=lambda: add_mission(pmo_table, project))
         return new_mission_button
 
-    def build_project_menu_button(self, pmo_table: PMOTable, project: ProjectDTO) -> StreamlitMenuButton:
+    def build_project_menu_button(self, pmo_table: PMOTable, client : ClientDTO, project: ProjectDTO) -> StreamlitMenuButton:
         button_menu_project = StreamlitMenuButton(key="button_menu_project")
         add_predefined_mission_button = StreamlitMenuButtonItem(label='Add predefined missions', material_icon='add',
                                                      on_click=lambda: add_predefined_missions(pmo_table, project))
@@ -41,7 +41,7 @@ class PMOConfig():
         button_menu_project.add_button_item(add_mission_button)
         edit_project_button = StreamlitMenuButtonItem(
             label='Edit project', material_icon='edit',
-            on_click=lambda: edit_project(pmo_table, project))
+            on_click=lambda: edit_project(pmo_table, client, project))
         button_menu_project.add_button_item(edit_project_button)
         delete_project_button = StreamlitMenuButtonItem(
             label='Delete project', material_icon='delete', color='warn',

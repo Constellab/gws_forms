@@ -144,6 +144,13 @@ class ProjectPlanDTO(BaseModelDTO):
         return None
 
     @classmethod
+    def get_client_by_id(cls, project_plan: "ProjectPlanDTO", client_id: str) -> Optional["ClientDTO"]:
+        for client in project_plan.data:
+            if client.id == client_id:
+                return client
+        return None
+
+    @classmethod
     def get_project_by_client_and_project_name(cls, project_plan: "ProjectPlanDTO", project_selected: str) -> Optional["ProjectDTO"]:
         client_name = project_selected.split(" ⸱ ")[0]
         project_name = project_selected.split(" ⸱ ")[1]
@@ -170,6 +177,14 @@ class ProjectPlanDTO(BaseModelDTO):
                 for mission in project.missions:
                     if mission.id == mission_id:
                         return project
+        return None
+
+    @classmethod
+    def get_client_by_project_id(cls, project_plan: "ProjectPlanDTO", project_id: str) -> Optional["ClientDTO"]:
+        for client in project_plan.data:
+            for project in client.projects:
+                if project.id == project_id:
+                    return client
         return None
 
     @classmethod

@@ -380,16 +380,16 @@ class PMOTable:
         project = ProjectPlanDTO.get_project_by_id(self.data, project_id)
         project.name = project_name
 
-    def update_client_name_by_id(self, project_id: str, client_name: str) -> None:
+    def update_client_name_by_id(self, client_id: str, client_name: str) -> None:
         """
         Update the name of a client by its ID.
 
         Args:
-            project_id: The ID of the project to update.
-            client_name: The new name for the project.
+            client_id: The ID of the client to update.
+            client_name: The new name for the client.
         """
-        project = ProjectPlanDTO.get_project_by_id(self.data, project_id)
-        project.client = client_name
+        client = ProjectPlanDTO.get_client_by_id(self.data, client_id)
+        client.client_name = client_name
 
     def save_data_in_folder(self) -> None:
         """Save data as JSON using DTOs"""
