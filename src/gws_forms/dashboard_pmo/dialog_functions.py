@@ -190,6 +190,9 @@ def add_predefined_missions(pmo_table: PMOTable, current_project: ProjectDTO):
         # Set success message in session state
         pmo_table.pmo_state.set_show_success_mission_added(True)
         pmo_table.pmo_state.set_current_mission(first_mission)
+        # We delete the tree-menu state to remove data concerning the tree
+        # So at the next rerun, the tree will be rebuilt and we can set default values
+        del st.session_state[pmo_table.pmo_state.TREE_PMO_KEY]
         st.rerun()
 
 
@@ -251,6 +254,9 @@ def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
             # Set success message in session state
             pmo_table.pmo_state.set_show_success_mission_added(True)
             pmo_table.pmo_state.set_current_mission(new_mission)
+            # We delete the tree-menu state to remove data concerning the tree
+            # So at the next rerun, the tree will be rebuilt and we can set default values
+            del st.session_state[pmo_table.pmo_state.TREE_PMO_KEY]
             st.rerun()
 
 
@@ -269,6 +275,9 @@ def delete_project(pmo_table: PMOTable, current_project: ProjectDTO):
         # Set current project to None
         pmo_table.pmo_state.set_current_project(None)
         pmo_table.pmo_state.set_current_mission(None)
+        # We delete the tree-menu state to remove data concerning the tree
+        # So at the next rerun, the tree will be rebuilt and we can set default values
+        del st.session_state[pmo_table.pmo_state.TREE_PMO_KEY]
         st.rerun()
 
 
@@ -290,6 +299,9 @@ def delete_mission(pmo_table: PMOTable, project_id: str, mission_id: str):
         pmo_table.pmo_state.set_show_success_delete_mission(True)
         # Set current mission to None
         pmo_table.pmo_state.set_current_mission(None)
+        # We delete the tree-menu state to remove data concerning the tree
+        # So at the next rerun, the tree will be rebuilt and we can set default values
+        del st.session_state[pmo_table.pmo_state.TREE_PMO_KEY]
         st.rerun()
 
 
@@ -499,4 +511,7 @@ def create_project(pmo_table: PMOTable):
             pmo_table.pmo_state.set_show_success_project_created(True)
             pmo_table.pmo_state.set_current_project(new_project)
             pmo_table.pmo_state.set_current_client(new_client)
+            # We delete the tree-menu state to remove data concerning the tree
+            # So at the next rerun, the tree will be rebuilt and we can set default values
+            del st.session_state[pmo_table.pmo_state.TREE_PMO_KEY]
             st.rerun()
