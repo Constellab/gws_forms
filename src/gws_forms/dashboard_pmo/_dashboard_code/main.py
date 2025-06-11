@@ -11,8 +11,9 @@ data_folder = sources[0].path
 folder_project_plan = os.path.join(data_folder, "Project Plan")
 folder_details = os.path.join(data_folder, "Notes")
 folder_change_log = os.path.join(data_folder, "Change Log")
+folder_settings = os.path.join(data_folder, "Settings")
 
 pmo_table = PMOTable(folder_project_plan=folder_project_plan,
-                     folder_details=folder_details, folder_change_log=folder_change_log)
+                     folder_details=folder_details, folder_change_log=folder_change_log, folder_settings=folder_settings)
 
 run(pmo_table)

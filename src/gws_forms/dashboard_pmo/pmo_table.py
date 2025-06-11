@@ -6,8 +6,8 @@ from typing import Any, Literal, Optional, List, Dict
 from abc import abstractmethod
 import pytz
 from gws_forms.dashboard_pmo.pmo_state import PMOState
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO
-from gws_core import StringHelper
+from gws_forms.dashboard_pmo.pmo_dto import SettingsDTO, ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO, ClientDTO
+from gws_core import StringHelper, SpaceService, Tag
 from gws_core.streamlit import StreamlitAuthenticateUser
 
 
@@ -15,14 +15,6 @@ class Event:
     def __init__(self, event_type: Literal['update_mission_progress'], data: Any = None):
         self.event_type = event_type  # Store the event type
         self.data = data
-
-
-class MessageObserver:
-    @abstractmethod
-    def update(self, event: Event, current_project: ProjectDTO) -> bool:
-        """Method called when a message is dispatched"""
-        # This method is implemented in subclasses to update tags on folders when the project plan is saved
-        pass
 
 # Class to define the different status
 
@@ -98,6 +90,7 @@ class PMOTable:
     NAME_COLUMN_PRIORITY = 'Priority'
     NAME_COLUMN_PROGRESS = 'Progress (%)'
     NAME_COLUMN_PROJECT_NAME = 'Project Name'
+    NAME_COLUMN_CLIENT_NAME = 'Client Name'
     NAME_COLUMN_MISSION_NAME = 'Mission Name'
     NAME_COLUMN_MISSION_REFEREE = 'Mission Referee'
     NAME_COLUMN_TEAM_MEMBERS = 'Team Members'
@@ -107,28 +100,22 @@ class PMOTable:
     folder_details: str
     missions_order: List
     folder_change_log: str
-    observer: Optional[MessageObserver]
     data: ProjectPlanDTO
     pmo_state: PMOState
     selected_file: str
     file_path_change_log: str
-    create_folders_in_space : bool
+    folder_settings: str
 
     def __init__(self, folder_project_plan=None, folder_details=None, missions_order=None,
-                 folder_change_log=None, observer=None, selected_file=None):
+                 folder_change_log=None, folder_settings = None, selected_file=None):
         """
         Initialize the PMOTable object with the data file containing the project missions.
         Functions will define the actions to perform with the PMO table in order to see them in the dashboard
         """
         self.folder_project_plan = folder_project_plan
+        self.folder_settings = folder_settings
         self.selected_file = selected_file
-        self.observer = observer
-        if missions_order is None:
-            self.missions_order = []
-        else:
-            self.missions_order = missions_order
         self.folder_details = folder_details
-        self.data, self.create_folders_in_space = self.load_pmo_data()
         self.folder_change_log = folder_change_log
         if folder_change_log:
             self.file_path_change_log = os.path.join(
@@ -140,32 +127,65 @@ class PMOTable:
             self.file_path_change_log = None
 
         self.pmo_state = PMOState(self.file_path_change_log)
+        self.data_settings = self.load_settings_data_from_json()
+
+        if missions_order is None:
+            self.missions_order = []
+            if self.pmo_state.get_predefined_missions():
+                for mission in self.pmo_state.get_predefined_missions():
+                    self.missions_order.append(mission.mission_name)
+                self.missions_order = self.pmo_state.get_predefined_missions()
+        else:
+            self.missions_order = missions_order
+        self.data = self.load_pmo_data()
+        self.save_settings()
         self.commit_and_save()
+
         # Persist initial value to session state
-        self.pmo_state.set_create_folders_in_space_value(self.create_folders_in_space)
+        self.pmo_state.set_create_folders_in_space_value(self.data_settings.create_folders_in_space)
+        self.pmo_state.set_company_members(self.data_settings.company_members)
+        self.pmo_state.set_predefined_missions(self.data_settings.predefined_missions)
+        self.pmo_state.set_share_folders_with_team(self.data_settings.share_folders_with_team)
 
-    def set_create_folders_in_space(self, value: bool) -> None:
+    def save_settings(self) -> None:
         """
-        Set the create_folders_in_space attribute and persist it.
+        Set the settings for the PMOTable.
+        Set the parameter create folder in space
+        Set the company members
         """
-        self.create_folders_in_space = value
-        self.pmo_state.set_create_folders_in_space_value(value)
-        self.save_data_in_folder()
+        path_json = os.path.join(self.folder_settings, f"settings.json")
+        data_dict = self.data_settings.to_json_dict()
+        with open(path_json, 'w', encoding='utf-8') as f:
+            json.dump(data_dict, f, indent=2)
 
-    def get_create_folders_in_space(self) -> bool:
+    def load_pmo_settings_from_example(self):
+        # Initialize example settings data
+        data = SettingsDTO(create_folders_in_space = True,
+                           company_members=self.pmo_state.get_list_lab_users(),
+                           predefined_missions=[],
+                           share_folders_with_team = "")
+        return data
+
+    def load_settings_data_from_json(self):
+        """Load PMO settings data from file or create new if none exists
         """
-        Get the create_folders_in_space attribute.
-        Returns:
-            Boolean value of create_folders_in_space.
-        """
-        return bool(self.create_folders_in_space)
+        file = [f for f in os.listdir(self.folder_settings) if f.endswith(".json")]
+
+        if file:
+            settings_file = os.path.join(self.folder_settings, file[0])
+            with open(settings_file, 'r', encoding='utf-8') as f:
+                loaded_data = json.load(f)
+                # Convert raw data to ProjectPlanDTO
+                return SettingsDTO.from_json(loaded_data)
+        else:
+            return self.load_pmo_settings_from_example()
 
     def load_pmo_data(self):
         if self.folder_project_plan:
-            data, create_folders_in_space = self.load_pmo_data_from_json()
+            data = self.load_pmo_data_from_json()
         else:
-            data, create_folders_in_space = self.load_pmo_data_from_example()
-        return data, create_folders_in_space
+            data = self.load_pmo_data_from_example()
+        return data
 
     def load_pmo_data_from_example(self):
         # Initialize example data if no folder_project_plan is provided
@@ -176,8 +196,8 @@ class PMOTable:
         )
         example_mission = MissionDTO(
             mission_name="Mission 1",
-            mission_referee="Person1",
-            team_members=["Person1", "Person2"],
+            mission_referee=self.pmo_state.get_list_lab_users()[0],
+            team_members=[self.pmo_state.get_list_lab_users()[0]],
             start_date=datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
             end_date=None,
             milestones=[example_milestone],
@@ -190,11 +210,17 @@ class PMOTable:
             id=StringHelper.generate_uuid(),
             name="Project 1",
             missions=[example_mission],
-            folder_root_id="",
-            folder_project_id=""
+            folder_project_id="",
+            global_follow_up_mission_id = ""
+        )
+        example_client = ClientDTO(
+            id=StringHelper.generate_uuid(),
+            client_name="Client 1",
+            projects=[example_project],
+            folder_root_id=""
         )
         # Default to True for new example data
-        return ProjectPlanDTO(data=[example_project]), True
+        return ProjectPlanDTO(data=[example_client])
 
     def load_pmo_data_from_json(self):
         """Load PMO data from file or create new if none exists
@@ -218,17 +244,8 @@ class PMOTable:
             self.folder_project_plan, selected_file)
         with open(file_path, 'r', encoding='utf-8') as f:
             loaded_data = json.load(f)
-            # Extract persisted value or default to True
-            create_folders_in_space = loaded_data.get("create_folders_in_space", True)
             # Convert raw data to ProjectPlanDTO
-            return ProjectPlanDTO.from_json(loaded_data), create_folders_in_space
-
-    def apply_observer_update_mission_progress(self, current_project: ProjectDTO) -> None:
-        # Apply the observer -> Update tag folder
-        if self.observer:
-            check = self.observer.update(Event(event_type='update_mission_progress'), current_project)
-            if not check:
-                raise Exception("Something got wrong, close the app and try again.")
+            return ProjectPlanDTO.from_json(loaded_data)
 
     def log_status_change(self, mission_id: str, project_name: str, mission_name: str,
                           old_status: str, new_status: str) -> None:
@@ -256,42 +273,55 @@ class PMOTable:
         """Ensures required fields are present and have correct types.
         Auto-updates progress, status and dates based on conditions."""
         formatted_date = datetime.now().date()
-
         # Process each project and its missions
-        for project in self.data.data:
-            for mission in project.missions:
-                # Set end date if status is DONE and no end date exists
-                if mission.status == Status.DONE.value and not mission.end_date:
-                    mission.end_date = formatted_date
+        for client in self.data.data:
+            for project in client.projects:
+                # --- Begin: Global follow-up milestone sync ---
+                if project.global_follow_up_mission_id:
+                    global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(self.data, project.global_follow_up_mission_id)
+                    if global_follow_up_mission:
+                        for mission in project.missions:
+                            if mission.id == project.global_follow_up_mission_id:
+                                continue  # skip the global follow-up mission itself
+                            if mission.status == Status.DONE.value:
+                                # Find the milestone in the global follow-up mission with the same name as this mission
+                                for milestone in global_follow_up_mission.milestones:
+                                    if milestone.name == mission.mission_name and not milestone.done:
+                                        milestone.done = True
+                # --- End: Global follow-up milestone sync ---
 
-                # Calculate progress based on milestones
-                if mission.milestones:
-                    total_steps = len(mission.milestones)
-                    completed_steps = sum(1 for m in mission.milestones if m.done)
-                    mission.progress = round((completed_steps / total_steps) * 100, 2) if total_steps > 0 else 0.0
-
-                # Auto-set status to DONE if progress is 100%
-                if (mission.progress == 100 and
-                        mission.status in [Status.IN_PROGRESS.value, Status.TODO.value, Status.NONE.value]):
-                    old_status = mission.status
-                    mission.status = Status.DONE.value
-                    if not mission.end_date:
+                for mission in project.missions:
+                    # Set end date if status is DONE and no end date exists
+                    if mission.status == Status.DONE.value and not mission.end_date:
                         mission.end_date = formatted_date
 
-                    # Log status change
-                    self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
+                    # Calculate progress based on milestones
+                    if mission.milestones:
+                        total_steps = len(mission.milestones)
+                        completed_steps = sum(1 for m in mission.milestones if m.done)
+                        mission.progress = round((completed_steps / total_steps) * 100, 2) if total_steps > 0 else 0.0
 
-                # Auto-set status to in progress if progress is more than 0% and status is none or todo
-                if (mission.progress != 0 and
-                        mission.status in [Status.TODO.value, Status.NONE.value]):
-                    old_status = mission.status
-                    mission.status = Status.IN_PROGRESS.value
-                    if not mission.start_date:
-                        mission.start_date = formatted_date
+                    # Auto-set status to DONE if progress is 100%
+                    if (mission.progress == 100 and
+                            mission.status in [Status.IN_PROGRESS.value, Status.TODO.value, Status.NONE.value]):
+                        old_status = mission.status
+                        mission.status = Status.DONE.value
+                        if not mission.end_date:
+                            mission.end_date = formatted_date
 
-                    # Log status change
-                    self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
+                        # Log status change
+                        self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
 
+                    # Auto-set status to in progress if progress is more than 0% and status is none or todo
+                    if (mission.progress != 0 and
+                            mission.status in [Status.TODO.value, Status.NONE.value]):
+                        old_status = mission.status
+                        mission.status = Status.IN_PROGRESS.value
+                        if not mission.start_date:
+                            mission.start_date = formatted_date
+
+                        # Log status change
+                        self.log_status_change(mission.id, project.name, mission.mission_name, old_status, mission.status)
         # Handle mission order dependencies
         if self.missions_order:
             # Process each mission except the last one
@@ -299,33 +329,44 @@ class PMOTable:
                 next_mission_name = self.missions_order[idx + 1]
 
                 # Find completed missions and their projects
-                for project in self.data.data:
-                    current_mission = next((m for m in project.missions if m.mission_name ==
-                                            mission_name and m.status == Status.DONE.value), None)
-                    if current_mission:
-                        # Find and update next mission in sequence
-                        next_mission = next(
-                            (m for m in project.missions if m.mission_name == next_mission_name),
-                            None
-                        )
-                        if next_mission:
-                            if not next_mission.start_date:
-                                next_mission.start_date = formatted_date
-                            if next_mission.status == Status.TODO.value:
-                                old_status = next_mission.status
-                                next_mission.status = Status.IN_PROGRESS.value
+                for client in self.data.data:
+                    for project in client.projects:
+                        current_mission = next((m for m in project.missions if m.mission_name ==
+                                                mission_name and m.status == Status.DONE.value), None)
+                        if current_mission:
+                            if project.global_follow_up_mission_id:
+                                global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(
+                                    self.data, project.global_follow_up_mission_id)
+                                if global_follow_up_mission:
+                                    # Ensure the global follow-up mission is updated
+                                    for milestone in global_follow_up_mission.milestones:
+                                        if milestone.name == current_mission.mission_name and not milestone.done:
+                                            milestone.done = True
+                            # Find and update next mission in sequence
+                            next_mission = next(
+                                (m for m in project.missions if m.mission_name == next_mission_name),
+                                None
+                            )
 
-                                # Log status change
-                                self.log_status_change(next_mission.id, project.name,
-                                                       next_mission.mission_name, old_status, next_mission.status)
+                            if next_mission:
+                                if not next_mission.start_date:
+                                    next_mission.start_date = formatted_date
+                                if next_mission.status == Status.TODO.value:
+                                    old_status = next_mission.status
+                                    next_mission.status = Status.IN_PROGRESS.value
+
+                                    # Log status change
+                                    self.log_status_change(next_mission.id, project.name,
+                                                        next_mission.mission_name, old_status, next_mission.status)
 
         # Convert any accumulated log entries to JSON
         if self.pmo_state.get_status_change_log():
             self.pmo_state.convert_log_to_json()
 
-        # Apply the observer -> Update tag folder if a external observer is set
-        for project in self.data.data:
-            self.apply_observer_update_mission_progress(project)
+        # Update tags folder
+        for client in self.data.data:
+            for project in client.projects:
+                self.update_folders_tags(project)
 
     def update_milestone_status_by_id(self, milestone_id: str, done: bool) -> None:
         """
@@ -349,13 +390,22 @@ class PMOTable:
         project = ProjectPlanDTO.get_project_by_id(self.data, project_id)
         project.name = project_name
 
+    def update_client_name_by_id(self, client_id: str, client_name: str) -> None:
+        """
+        Update the name of a client by its ID.
+
+        Args:
+            client_id: The ID of the client to update.
+            client_name: The new name for the client.
+        """
+        client = ProjectPlanDTO.get_client_by_id(self.data, client_id)
+        client.client_name = client_name
+
     def save_data_in_folder(self) -> None:
         """Save data as JSON using DTOs"""
         timestamp = datetime.now().strftime("plan_%Y-%m-%d-%Hh%M")
         path_json = os.path.join(self.folder_project_plan, f"{timestamp}.json")
-        # Save create_folders_in_space in the JSON
         data_dict = self.data.to_json_dict()
-        data_dict["create_folders_in_space"] = self.create_folders_in_space
         with open(path_json, 'w', encoding='utf-8') as f:
             json.dump(data_dict, f, indent=2)
 
@@ -364,3 +414,75 @@ class PMOTable:
             self.update_mission_statuses_and_progress()
             # Save changes
             self.save_data_in_folder()
+
+    def set_create_folders_in_space(self, value: bool) -> None:
+        """
+        Set the create_folders_in_space attribute in settings DTO and persist it.
+        """
+        self.data_settings.create_folders_in_space = value
+        self.pmo_state.set_create_folders_in_space_value(value)
+        self.save_settings()
+
+    def get_create_folders_in_space(self) -> bool:
+        """
+        Get the create_folders_in_space attribute from settings DTO.
+        """
+        return bool(getattr(self.data_settings, "create_folders_in_space", True))
+
+    def set_company_members(self, members: list) -> None:
+        """
+        Set the company_members attribute in settings DTO and persist it.
+        """
+        self.data_settings.company_members = members
+        self.pmo_state.set_company_members(members)
+        self.save_settings()
+
+    def get_company_members(self) -> list:
+        """
+        Get the company_members attribute from settings DTO.
+        """
+        return getattr(self.data_settings, "company_members", self.pmo_state.get_list_lab_users())
+
+    def get_share_folders_with_team(self) -> str:
+        """
+        Get the share_folders_with_team attribute from settings DTO.
+        """
+        return getattr(self.data_settings, "share_folders_with_team", self.pmo_state.get_share_folders_with_team())
+
+    def set_share_folders_with_team(self, value: str) -> None:
+        """
+        Set the share_folders_with_team attribute in settings DTO and persist it.
+        """
+        self.data_settings.share_folders_with_team = value
+        self.pmo_state.set_share_folders_with_team(value)
+        self.save_settings()
+
+    def set_predefined_missions(self, missions: list) -> None:
+        """
+        Set the predefined_missions attribute in settings DTO and persist it.
+        """
+        self.data_settings.predefined_missions = missions
+        self.pmo_state.set_predefined_missions(missions)
+        self.save_settings()
+
+    def get_predefined_missions(self) -> list:
+        """
+        Get the predefined_missions attribute from settings DTO.
+        """
+        return getattr(self.data_settings, "predefined_missions", self.pmo_state.get_predefined_missions())
+
+
+    def update_folders_tags(self, current_project: ProjectDTO):
+        with StreamlitAuthenticateUser():
+            space_service = SpaceService.get_instance()
+
+            current_folder_project_id = current_project.folder_project_id
+            if current_folder_project_id != "":
+                mission_global_follow_up = ProjectPlanDTO.get_mission_by_id(self.data, current_project.global_follow_up_mission_id)
+                if mission_global_follow_up:
+                    current_progress = str(round(mission_global_follow_up.progress, 2))
+                    current_status = " ".join(mission_global_follow_up.status.split(" ")[1:])  # Remove the emoji
+                    space_service.add_or_replace_tags_on_object(
+                        current_folder_project_id,
+                        [Tag(key="status", value=current_status, auto_parse=True),
+                            Tag(key="progress", value=current_progress, auto_parse=True)])

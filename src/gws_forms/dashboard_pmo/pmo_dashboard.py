@@ -4,12 +4,16 @@ from gws_forms.dashboard_pmo.pmo_gantt_tab import display_gantt_tab
 from gws_forms.dashboard_pmo.pmo_plot_overview_tab import display_plot_overview_tab
 from gws_forms.dashboard_pmo.pmo_details_tab import display_details_tab
 from gws_forms.dashboard_pmo.pmo_settings import display_settings_tab
+from gws_forms.dashboard_pmo.pmo_mission_tab import display_mission_tab
 from gws_core.streamlit import StreamlitRouter
 
 
 def display_project_plan_page(pmo_table: PMOTable):
     display_project_plan_tab(pmo_table)
 
+
+def display_mission_page(pmo_table: PMOTable):
+    display_mission_tab(pmo_table)
 
 def display_gantt_page(pmo_table: PMOTable):
     display_gantt_tab(pmo_table)
@@ -36,6 +40,14 @@ def add_home_page(router: StreamlitRouter, pmo_table: PMOTable):
         hide_from_sidebar=False
     )
 
+def add_mission_page(router: StreamlitRouter, pmo_table: PMOTable):
+    router.add_page(
+        lambda: display_mission_tab(pmo_table),
+        title='Mission',
+        url_path='mission',
+        icon=":material/assignment:",
+        hide_from_sidebar=False
+    )
 
 def add_gantt_page(router: StreamlitRouter, pmo_table: PMOTable):
     router.add_page(
@@ -82,6 +94,7 @@ def show_content(pmo_table: PMOTable):
     router = StreamlitRouter.load_from_session()
     # Add pages
     add_home_page(router, pmo_table)
+    add_mission_page(router, pmo_table)
     add_gantt_page(router, pmo_table)
     add_kpis_page(router, pmo_table)
     add_notes_page(router, pmo_table)
