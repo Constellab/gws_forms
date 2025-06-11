@@ -1,9 +1,9 @@
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ClientDTO
-from gws_forms.dashboard_pmo.dialog_functions import delete_project, delete_mission, add_mission, edit_mission, edit_project, create_project, add_predefined_missions
+from gws_forms.dashboard_pmo.dialog_functions import delete_project, delete_mission, add_mission, edit_client, delete_client, edit_mission, edit_project, add_project, add_predefined_missions, add_client
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
 from gws_core.streamlit import StreamlitMenuButton, StreamlitMenuButtonItem
-
+from gws_core import StringHelper
 
 class PMOConfig():
 
@@ -19,10 +19,16 @@ class PMOConfig():
     def store_instance(cls, instance: "PMOConfig") -> None:
         st.session_state[PMOConfig.PMO_CONFIG_KEY] = instance
 
-    def build_new_project_button(self, pmo_table: PMOTable) -> bool:
+    def build_new_client_button(self, pmo_table: PMOTable) -> bool:
+        new_client_button = st.button(
+            "New client", key = StringHelper.generate_uuid(), use_container_width=True, icon=":material/add:", type="primary",
+            on_click=lambda: add_client(pmo_table))
+        return new_client_button
+
+    def build_new_project_button(self, pmo_table: PMOTable, client : ClientDTO) -> bool:
         new_project_button = st.button(
-            "New project", use_container_width=True, icon=":material/add:", type="primary",
-            on_click=lambda: create_project(pmo_table))
+            "New project", key = StringHelper.generate_uuid(),use_container_width=True, icon=":material/add:",
+            on_click=lambda: add_project(pmo_table, client))
         return new_project_button
 
     def build_new_mission_button(self, pmo_table: PMOTable, project: ProjectDTO) -> bool:
@@ -31,8 +37,24 @@ class PMOConfig():
             on_click=lambda: add_mission(pmo_table, project))
         return new_mission_button
 
+    def build_client_menu_button(self, pmo_table: PMOTable, client : ClientDTO) -> StreamlitMenuButton:
+        button_menu_client = StreamlitMenuButton(key="button_menu_client_" + client.id)
+        add_project_button = StreamlitMenuButtonItem(label='Add project', material_icon='add',
+                                                     on_click=lambda: add_project(pmo_table, client))
+        button_menu_client.add_button_item(add_project_button)
+        edit_client_button = StreamlitMenuButtonItem(
+            label='Edit client', material_icon='edit',
+            on_click=lambda: edit_client(pmo_table, client))
+        button_menu_client.add_button_item(edit_client_button)
+        delete_client_button = StreamlitMenuButtonItem(
+            label='Delete client', material_icon='delete', color='warn',
+            on_click=lambda: delete_client(pmo_table, client))
+        button_menu_client.add_button_item(delete_client_button)
+
+        return button_menu_client
+
     def build_project_menu_button(self, pmo_table: PMOTable, client : ClientDTO, project: ProjectDTO) -> StreamlitMenuButton:
-        button_menu_project = StreamlitMenuButton(key="button_menu_project")
+        button_menu_project = StreamlitMenuButton(key="button_menu_project_" + project.id)
         add_predefined_mission_button = StreamlitMenuButtonItem(label='Add predefined missions', material_icon='add',
                                                      on_click=lambda: add_predefined_missions(pmo_table, project))
         button_menu_project.add_button_item(add_predefined_mission_button)

@@ -8,10 +8,6 @@ from gws_core.streamlit import StreamlitAuthenticateUser
 from gws_core.user.current_user_service import CurrentUserService
 
 def check_set_client_and_project_name_unique_and_not_empty(client_name: str, project_name: str, pmo_table: PMOTable) -> None:
-    # Check if the client name is empty
-    if not client_name:
-        st.warning("Client name cannot be empty")
-        return True
 
     # Check if the project name is empty
     if not project_name:
@@ -27,6 +23,17 @@ def check_set_client_and_project_name_unique_and_not_empty(client_name: str, pro
                     return True
     return False
 
+def check_client_name_unique_and_not_empty(client_name: str, pmo_table: PMOTable) -> None:
+    # Check if the client name is empty
+    if not client_name:
+        st.warning("Client name cannot be empty")
+        return True
+
+    for client in pmo_table.data.data:
+        if client.client_name == client_name:
+            st.warning("A client with this name already exists.")
+            return True
+    return False
 
 def create_root_folder_in_space(current_client: ClientDTO,
                                 id_team_to_share: str = None):
@@ -192,7 +199,7 @@ def add_predefined_missions(pmo_table: PMOTable, current_project: ProjectDTO):
         pmo_table.pmo_state.set_current_mission(first_mission)
         # We delete the tree-menu state to remove data concerning the tree
         # So at the next rerun, the tree will be rebuilt and we can set default values
-        del st.session_state[pmo_table.pmo_state.TREE_PMO_KEY]
+        pmo_table.pmo_state.reset_tree_pmo()
         st.rerun()
 
 
@@ -256,7 +263,7 @@ def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
             pmo_table.pmo_state.set_current_mission(new_mission)
             # We delete the tree-menu state to remove data concerning the tree
             # So at the next rerun, the tree will be rebuilt and we can set default values
-            del st.session_state[pmo_table.pmo_state.TREE_PMO_KEY]
+            pmo_table.pmo_state.reset_tree_pmo()
             st.rerun()
 
 
@@ -277,7 +284,27 @@ def delete_project(pmo_table: PMOTable, current_project: ProjectDTO):
         pmo_table.pmo_state.set_current_mission(None)
         # We delete the tree-menu state to remove data concerning the tree
         # So at the next rerun, the tree will be rebuilt and we can set default values
-        del st.session_state[pmo_table.pmo_state.TREE_PMO_KEY]
+        pmo_table.pmo_state.reset_tree_pmo()
+        st.rerun()
+
+@st.dialog("Delete client")
+def delete_client(pmo_table: PMOTable, current_client: ClientDTO):
+    st.warning(
+        f"Are you sure you want to delete the client {current_client.client_name}? This action cannot be undone. All projects and missions will be deleted.")
+    if st.button("Delete", use_container_width=True, icon=":material/delete:"):
+        # Remove client from DTOs
+        pmo_table.data.data = [c for c in pmo_table.data.data if c.id != current_client.id]
+        # Save
+        pmo_table.commit_and_save()
+        # Set success message in session state
+        pmo_table.pmo_state.set_show_success_client_deleted(True)
+        # Set current project to None
+        pmo_table.pmo_state.set_current_client(None)
+        pmo_table.pmo_state.set_current_project(None)
+        pmo_table.pmo_state.set_current_mission(None)
+        # We delete the tree-menu state to remove data concerning the tree
+        # So at the next rerun, the tree will be rebuilt and we can set default values
+        pmo_table.pmo_state.reset_tree_pmo()
         st.rerun()
 
 
@@ -301,7 +328,7 @@ def delete_mission(pmo_table: PMOTable, project_id: str, mission_id: str):
         pmo_table.pmo_state.set_current_mission(None)
         # We delete the tree-menu state to remove data concerning the tree
         # So at the next rerun, the tree will be rebuilt and we can set default values
-        del st.session_state[pmo_table.pmo_state.TREE_PMO_KEY]
+        pmo_table.pmo_state.reset_tree_pmo()
         st.rerun()
 
 
@@ -350,6 +377,30 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
             st.rerun()
 
 
+@st.dialog("Edit client")
+def edit_client(pmo_table: PMOTable, current_client : ClientDTO):
+    with st.form(key="edit_client_form", clear_on_submit=False, enter_to_submit=True):
+        existing_client_name = current_client.client_name
+        # Add fields for client details
+        client_name = st.text_input("Insert your client name", value=existing_client_name)
+
+        submit_button = st.form_submit_button(label="Submit")
+
+        if submit_button:
+            # Check if the client name is the same as previously
+            # If so, do nothing and return
+            if client_name == existing_client_name:
+                return
+
+            check_client_name_unique_and_not_empty(client_name, pmo_table)
+
+            # Update client name
+            pmo_table.update_client_name_by_id(current_client.id, client_name)
+            pmo_table.commit_and_save()
+            # Update folder names in the space if needed
+            update_folders_names(current_client)
+            st.rerun()
+
 @st.dialog("Edit project")
 def edit_project(pmo_table: PMOTable, current_client : ClientDTO, current_project: ProjectDTO):
 
@@ -384,7 +435,7 @@ def edit_project(pmo_table: PMOTable, current_client : ClientDTO, current_projec
             st.rerun()
 
 
-def update_folders_names(current_client: ClientDTO, current_project: ProjectDTO):
+def update_folders_names(current_client: ClientDTO, current_project: ProjectDTO = None):
     with StreamlitAuthenticateUser():
         # Update folder names in the space if needed
         space_service = SpaceService.get_instance()
@@ -394,14 +445,17 @@ def update_folders_names(current_client: ClientDTO, current_project: ProjectDTO)
             new_folder = ExternalSpaceCreateFolder(
                 name=current_client.client_name)
             space_service.update_folder(current_folder_root_id, new_folder)
+        if not current_project:
+            return
         current_folder_project_id = current_project.folder_project_id
-        if current_folder_project_id != "":
-            new_folder = ExternalSpaceCreateFolder(
-                name=current_project.name,
-                tags=[Tag(key="type", value="client", auto_parse=True),
-                    Tag(key="client", value=current_client.client_name,
-                        auto_parse=True)])
-            space_service.update_folder(current_folder_project_id, new_folder)
+        if current_folder_project_id == "":
+            return
+        new_folder = ExternalSpaceCreateFolder(
+            name=current_project.name,
+            tags=[Tag(key="type", value="client", auto_parse=True),
+                Tag(key="client", value=current_client.client_name,
+                    auto_parse=True)])
+        space_service.update_folder(current_folder_project_id, new_folder)
 
 
 @st.dialog("Edit milestone")
@@ -452,10 +506,9 @@ def add_milestone(pmo_table: PMOTable, project_id: str, mission_id: str):
             st.rerun()
 
 
-@st.dialog("Create project")
-def create_project(pmo_table: PMOTable):
+@st.dialog("Add project")
+def add_project(pmo_table: PMOTable, current_client: ClientDTO):
     with st.form(clear_on_submit=False, enter_to_submit=True, key="project_form"):
-        client_name = st.text_input("Insert your client name")
         name_project = st.text_input("Insert your project name")
 
         submit_button = st.form_submit_button(
@@ -463,7 +516,7 @@ def create_project(pmo_table: PMOTable):
         )
 
         if submit_button:
-            if check_set_client_and_project_name_unique_and_not_empty(client_name, name_project, pmo_table):
+            if check_set_client_and_project_name_unique_and_not_empty(current_client.client_name, name_project, pmo_table):
                 return
 
             # Create new project using DTO
@@ -474,44 +527,54 @@ def create_project(pmo_table: PMOTable):
                 folder_project_id=""
             )
 
-            # Check if client already exists
-            existing_client = next((client for client in pmo_table.data.data if client.client_name == client_name), None)
-            if existing_client:
-                new_client = existing_client
-            else:
-                new_client = ClientDTO(
-                    id=StringHelper.generate_uuid(),
-                    client_name=client_name,
-                    projects=[new_project],
-                    folder_root_id="",
-                )
-
-
             if pmo_table.data_settings.create_folders_in_space:
-                # Check if the client already exists
-                existing_clients = [client.client_name for client in pmo_table.data.data]
-                if client_name in existing_clients:
-                    # Retrieve the id of the folder root client already created
-                    for client in pmo_table.data.data:
-                        if client.client_name == client_name:
-                            new_client.folder_root_id = client.folder_root_id
-                else:
-                    # Create root folders in the space with the client name
-                    create_root_folder_in_space(new_client)
-                create_subfolders_in_space(new_client, new_project)
+                create_subfolders_in_space(current_client, new_project)
 
-            if existing_client:
-                existing_client.projects.append(new_project)
-            else:
-                pmo_table.data.data.append(new_client)
+            current_client.projects.append(new_project)
 
             # Save
             pmo_table.commit_and_save()
             # Set success message in session state
             pmo_table.pmo_state.set_show_success_project_created(True)
             pmo_table.pmo_state.set_current_project(new_project)
+            # We delete the tree-menu state to remove data concerning the tree
+            # So at the next rerun, the tree will be rebuilt and we can set default values
+            pmo_table.pmo_state.reset_tree_pmo()
+            st.rerun()
+
+
+@st.dialog("Add client")
+def add_client(pmo_table: PMOTable):
+    with st.form(clear_on_submit=False, enter_to_submit=True, key="project_form"):
+        client_name = st.text_input("Insert your client name")
+
+        submit_button = st.form_submit_button(
+            label="Submit"
+        )
+
+        if submit_button:
+            if check_client_name_unique_and_not_empty(client_name, pmo_table):
+                return
+
+            new_client = ClientDTO(
+                id=StringHelper.generate_uuid(),
+                client_name=client_name,
+                projects=[],
+                folder_root_id="",
+            )
+
+            if pmo_table.data_settings.create_folders_in_space:
+                # Create root folders in the space with the client name
+                create_root_folder_in_space(new_client)
+
+            pmo_table.data.data.append(new_client)
+
+            # Save
+            pmo_table.commit_and_save()
+            # Set success message in session state
+            pmo_table.pmo_state.set_show_success_client_created(True)
             pmo_table.pmo_state.set_current_client(new_client)
             # We delete the tree-menu state to remove data concerning the tree
             # So at the next rerun, the tree will be rebuilt and we can set default values
-            del st.session_state[pmo_table.pmo_state.TREE_PMO_KEY]
+            pmo_table.pmo_state.reset_tree_pmo()
             st.rerun()
