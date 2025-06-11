@@ -41,7 +41,9 @@ def create_root_folder_in_space(current_client: ClientDTO,
         # Create folder in the space
         space_service = SpaceService.get_instance()
         # We create a root folder in the space
-        folder_root_client = ExternalSpaceCreateFolder(name=current_client.client_name)
+        folder_root_client = ExternalSpaceCreateFolder(name=current_client.client_name,
+            tags=[Tag(key="type", value="client", auto_parse=True),
+                  Tag(key="client", value=current_client.client_name, auto_parse=True)])
         folder_root_client_space = space_service.create_root_folder(folder=folder_root_client)
         # Share
         if not id_team_to_share:
@@ -60,10 +62,7 @@ def create_subfolders_in_space(current_client: ClientDTO, current_project: Proje
 
         # Create the subfolders
         folder_project = ExternalSpaceCreateFolder(
-            name=current_project.name,
-            tags=[Tag(key="type", value="client", auto_parse=True),
-                  Tag(key="client", value=current_client.client_name,
-                      auto_parse=True)])
+            name=current_project.name)
         folder_project_space = space_service.create_child_folder(
             parent_id=folder_root_client_space_id, folder=folder_project)
         current_project.folder_project_id = folder_project_space.id
@@ -544,7 +543,7 @@ def add_project(pmo_table: PMOTable, current_client: ClientDTO):
 
 
 @st.dialog("Add client")
-def add_client(pmo_table: PMOTable):
+def add_client(pmo_table: PMOTable, id_team_to_share : str = None):
     with st.form(clear_on_submit=False, enter_to_submit=True, key="project_form"):
         client_name = st.text_input("Insert your client name")
 
@@ -565,7 +564,7 @@ def add_client(pmo_table: PMOTable):
 
             if pmo_table.data_settings.create_folders_in_space:
                 # Create root folders in the space with the client name
-                create_root_folder_in_space(new_client)
+                create_root_folder_in_space(new_client, id_team_to_share)
 
             pmo_table.data.data.append(new_client)
 
