@@ -1,0 +1,87 @@
+{
+  "data": [
+    {
+      "id": "a09f82c2-f34a-49fe-a44a-eb822b4e083f",
+      "client_name": "Client A",
+      "projects": [
+        {
+          "id": "ad374d13-8d8b-4626-a479-40eb39e5df48",
+          "name": "Project Alpha",
+          "missions": [
+            {
+              "mission_name": "Mission 1",
+              "mission_referee": "",
+              "team_members": [],
+              "start_date": "2025-05-19",
+              "end_date": "2025-05-31",
+              "milestones": [],
+              "status": "No status",
+              "priority": "No priority",
+              "progress": 0.0,
+              "id": "6a6eede0-9277-4302-9f94-847adf18ac43"
+            }
+          ],
+          "folder_project_id": ""
+        },
+        {
+          "id": "0457214e-f998-4edb-ab24-740c463eb10c",
+          "name": "Project Beta",
+          "missions": [
+            {
+              "mission_name": "Mission 2",
+              "mission_referee": "",
+              "team_members": [],
+              "start_date": "2025-06-01",
+              "end_date": "2025-06-15",
+              "milestones": [],
+              "status": "📈 In progress",
+              "priority": "🟡 Medium",
+              "progress": 10.0,
+              "id": "e7e6fc30-55b7-43f6-95a3-c7c930c6bd5c"
+            }
+          ],
+          "folder_project_id": ""
+        }
+      ],
+      "folder_root_id": ""
+    },
+    {
+      "id": "dded02a9-d924-449c-858b-fb1a17efd380",
+      "client_name": "Client B",
+      "projects": [
+        {
+          "id": "dded02a9-d924-449c-858b-fb1a17efd381",
+          "name": "Project Gamma",
+          "missions": [
+            {
+              "mission_name": "Mission 3",
+              "mission_referee": "",
+              "team_members": [],
+              "start_date": "2025-07-01",
+              "end_date": "2025-07-15",
+              "milestones": [],
+              "status": "No status",
+              "priority": "No priority",
+              "progress": 0.0,
+              "id": "dded02a9-d924-449c-858b-fb1a17efd382"
+            },
+            {
+              "mission_name": "Mission 4",
+              "mission_referee": "",
+              "team_members": [],
+              "start_date": "2025-08-01",
+              "end_date": "2025-08-15",
+              "milestones": [],
+              "status": "No status",
+              "priority": "No priority",
+              "progress": 0.0,
+              "id": "dded02a9-d924-449c-858b-fb1a17efd388"
+            }
+          ],
+          "folder_project_id": ""
+        }
+      ],
+      "folder_root_id": ""
+    }
+  ]
+}
