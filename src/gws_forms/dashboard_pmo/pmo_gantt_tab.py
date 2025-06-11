@@ -47,6 +47,7 @@ def display_gantt_tab(pmo_table: PMOTable):
         color=gantt_choice,  # Use the column name directly
         hover_name=pmo_table.NAME_COLUMN_MISSION_NAME,
         color_discrete_sequence=px.colors.qualitative.Pastel,
+        title = " ",
         range_x=[df[pmo_table.NAME_COLUMN_START_DATE].min(), df[pmo_table.NAME_COLUMN_END_DATE].max()],
     )
 
@@ -59,6 +60,7 @@ def display_gantt_tab(pmo_table: PMOTable):
         yaxis_title="Projects",
         title_x=0.5,
         barmode='group',
+        margin=dict(l=60, r=60, t=60, b=60),  # <-- Added margin here
         xaxis=dict(
             tickfont_size=15,
             tickangle=270,
