@@ -8,4 +8,4 @@ from .dashboard_pmo.pmo_plot_overview_tab import display_plot_overview_tab
 from .dashboard_pmo.pmo_details_tab import display_details_tab
 from .dashboard_pmo.pmo_dto import ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO, ClientDTO
 from .dashboard_pmo.pmo_config import PMOConfig
-from .dashboard_pmo.dialog_functions import create_root_folder_in_space, add_client, check_set_client_and_project_name_unique_and_not_empty, update_milestones_in_global_follow_up_mission, log_new_mission_status
+from .dashboard_pmo.dialog_functions import create_root_folder_in_space, add_client, edit_client, delete_client, check_set_client_and_project_name_unique_and_not_empty, update_milestones_in_global_follow_up_mission, log_new_mission_status

@@ -129,11 +129,15 @@ def get_fields_mission(pmo_table: PMOTable, mission: MissionDTO = None):
                                  value=mission.mission_name if mission else "")
     if mission and mission.mission_referee != "":
         options_mission_referee = np.unique(pmo_table.pmo_state.get_company_members() + [mission.mission_referee])
+        # Convert to list for the index method
+        options_mission_referee_list = options_mission_referee.tolist()
+        index = options_mission_referee_list.index(mission.mission_referee) if mission.mission_referee in options_mission_referee_list else 0
     else:
         options_mission_referee = pmo_table.pmo_state.get_company_members()
+        index = None
     mission_referee = st.selectbox("Select your mission referee",
                                    options = options_mission_referee,
-                                   index=pmo_table.pmo_state.get_list_lab_users().index(mission.mission_referee) if mission and mission.mission_referee != "" else None)
+                                   index=index)
     if mission and mission.team_members:
         # If the mission already has team members, we add them to the options
         options_team_members = np.unique(pmo_table.pmo_state.get_company_members() + mission.team_members)
