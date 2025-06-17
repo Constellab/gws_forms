@@ -30,7 +30,7 @@ pmo_table = PMOTable(folder_project_plan=folder_project_plan,
 pmo_table.pmo_state.set_standalone(True)
 pmo_table.set_create_folders_in_space(False)
 
-if st.button("Use test data"):
+if 'first_launch' not in st.session_state:
     # Load test data
     test_data_path = os.path.join(os.path.dirname(__file__), "data_test.json")
     with open(test_data_path, 'r', encoding='utf-8') as f:
@@ -42,5 +42,7 @@ if st.button("Use test data"):
     pmo_table.pmo_state.set_current_project(None)
     pmo_table.pmo_state.set_current_mission(None)
     pmo_table.pmo_state.reset_tree_pmo()
+    st.session_state['first_launch'] = True
+
 run(pmo_table)
 
