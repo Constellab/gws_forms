@@ -12,7 +12,7 @@ def display_gantt_tab(pmo_table: PMOTable):
     gantt_choice = st.selectbox(
         "View Gantt Chart by:",
         [pmo_table.NAME_COLUMN_MISSION_REFEREE, pmo_table.NAME_COLUMN_TEAM_MEMBERS, pmo_table.NAME_COLUMN_PROGRESS,
-         pmo_table.NAME_COLUMN_PROJECT_NAME, pmo_table.NAME_COLUMN_MISSION_NAME],
+        pmo_table.NAME_COLUMN_CLIENT_NAME,pmo_table.NAME_COLUMN_PROJECT_NAME, pmo_table.NAME_COLUMN_MISSION_NAME],
         index=0)
 
     # Prepare data for Gantt chart
@@ -21,7 +21,8 @@ def display_gantt_tab(pmo_table: PMOTable):
         for project in client.projects:
             for mission in project.missions:
                 gantt_data.append({
-                    pmo_table.NAME_COLUMN_PROJECT_NAME: project.name,
+                    pmo_table.NAME_COLUMN_CLIENT_NAME: client.client_name,
+                    pmo_table.NAME_COLUMN_PROJECT_NAME: client.client_name+"_"+project.name,
                     pmo_table.NAME_COLUMN_MISSION_NAME: mission.mission_name,
                     pmo_table.NAME_COLUMN_START_DATE: mission.start_date,
                     pmo_table.NAME_COLUMN_END_DATE: mission.end_date,
