@@ -35,10 +35,9 @@ def build_tree_menu_from_data(pmo_table: PMOTable):
             # Define status order mapping
             status_order = Status.get_order()
 
-            # Sort project data by status first, then mission name
+            # Sort project data by status first
             project.missions.sort(key=lambda x: (
-                status_order.get(x.status),  # Status order
-                x.mission_name.lower()  # Mission name alphabetically
+                status_order.get(x.status)  # Status order
             ))
 
             for mission in project.missions:

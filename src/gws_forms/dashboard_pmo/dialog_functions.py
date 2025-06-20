@@ -427,6 +427,9 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
                             break
 
             pmo_table.commit_and_save()
+            # We delete the tree-menu state to remove data concerning the tree
+            # So at the next rerun, the tree will be rebuilt and we can set default values
+            pmo_table.pmo_state.reset_tree_pmo()
 
             st.rerun()
 
@@ -453,6 +456,9 @@ def edit_client(pmo_table: PMOTable, current_client : ClientDTO):
             pmo_table.commit_and_save()
             # Update folder names in the space if needed
             update_folders_names(current_client)
+            # We delete the tree-menu state to remove data concerning the tree
+            # So at the next rerun, the tree will be rebuilt and we can set default values
+            pmo_table.pmo_state.reset_tree_pmo()
             st.rerun()
 
 @st.dialog("Edit project")
@@ -485,6 +491,9 @@ def edit_project(pmo_table: PMOTable, current_client : ClientDTO, current_projec
 
             # Update folder names in the space if needed
             update_folders_names(current_client, current_project)
+            # We delete the tree-menu state to remove data concerning the tree
+            # So at the next rerun, the tree will be rebuilt and we can set default values
+            pmo_table.pmo_state.reset_tree_pmo()
 
             st.rerun()
 
