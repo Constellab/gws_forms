@@ -2,7 +2,7 @@ import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
 from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO
 from gws_forms.dashboard_pmo.pmo_config import PMOConfig
-from gws_forms.dashboard_pmo.dialog_functions import delete_milestone, add_milestone, edit_milestone
+from gws_forms.dashboard_pmo.dialog_functions import delete_milestone, add_milestone, edit_milestone, move_milestone_up, move_milestone_down
 from gws_core.streamlit import StreamlitTreeMenu, StreamlitTreeMenuItem, StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
 
 def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO):
@@ -376,7 +376,6 @@ def display_mission_tab(pmo_table: PMOTable):
                                         value=done,
                                         on_change=update_milestone,
                                         args=(pmo_table, key, milestone,))
-
                                 with col2:
                                     button_menu_milestone = StreamlitMenuButton(key=button_key)
                                     edit_milestone_button = StreamlitMenuButtonItem(
@@ -388,6 +387,19 @@ def display_mission_tab(pmo_table: PMOTable):
                                         on_click=lambda mission_id=mission_id,
                                         milestone=milestone: delete_milestone(pmo_table, project_id, mission_id, milestone))
                                     button_menu_milestone.add_button_item(delete_milestone_button)
+
+                                    # Move up/down buttons
+                                    if i > 0:  # Only show up button if not first item
+                                        up_button = StreamlitMenuButtonItem(
+                                            label='Move up', material_icon='arrow_upward',
+                                            on_click= lambda pmo_table=pmo_table, mission_id = mission_id, milestone_id = milestone.id: move_milestone_up(pmo_table, mission_id, milestone_id))
+                                        button_menu_milestone.add_button_item(up_button)
+
+                                    if i < len(milestones) - 1:  # Only show down button if not last item
+                                        down_button = StreamlitMenuButtonItem(
+                                            label='Move down', material_icon='arrow_downward',
+                                            on_click= lambda pmo_table=pmo_table, mission_id = mission_id, milestone_id = milestone.id:move_milestone_down(pmo_table, mission_id, milestone_id))
+                                        button_menu_milestone.add_button_item(down_button)
 
                                     button_menu_milestone.render()
 

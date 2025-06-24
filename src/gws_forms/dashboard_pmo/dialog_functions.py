@@ -662,3 +662,78 @@ def add_client(pmo_table: PMOTable):
             # So at the next rerun, the tree will be rebuilt and we can set default values
             pmo_table.pmo_state.reset_tree_pmo()
             st.rerun()
+
+@st.dialog("Move milestone up")
+def move_milestone_up(pmo_table: PMOTable, mission_id: str, milestone_id: str) -> None:
+    """
+    Move a milestone up in the list (swap with the previous one)
+
+    Args:
+        pmo_table: The PMO table
+        mission_id: ID of the mission containing the milestone
+        milestone_id: ID of the milestone to move
+    """
+    with st.form(clear_on_submit=False, enter_to_submit=True, key="move_up_form"):
+        st.write("Move the milestone up in the list?")
+
+        submit_button = st.form_submit_button(
+            label="Move up"
+        )
+
+        if submit_button:
+            # Find the mission and its milestones
+            mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, mission_id)
+            if not mission or not mission.milestones:
+                return
+
+            # Find the milestone index
+            try:
+                idx = next(i for i, m in enumerate(mission.milestones) if m.id == milestone_id)
+            except StopIteration:
+                return
+
+            # If it's already at the top, do nothing
+            if idx == 0:
+                return
+
+            # Swap with the previous milestone
+            mission.milestones[idx], mission.milestones[idx-1] = mission.milestones[idx-1], mission.milestones[idx]
+            pmo_table.commit_and_save()
+            st.rerun()
+
+@st.dialog("Move milestone down")
+def move_milestone_down(pmo_table: PMOTable, mission_id: str, milestone_id: str) -> None:
+    """
+    Move a milestone down in the list (swap with the next one)
+
+    Args:
+        pmo_table: The PMO table
+        mission_id: ID of the mission containing the milestone
+        milestone_id: ID of the milestone to move
+    """
+    with st.form(clear_on_submit=False, enter_to_submit=True, key="move_down_form"):
+        st.write("Move the milestone down in the list?")
+        submit_button = st.form_submit_button(
+            label="Move down"
+        )
+
+        if submit_button:
+            # Find the mission and its milestones
+            mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, mission_id)
+            if not mission or not mission.milestones:
+                return
+
+            # Find the milestone index
+            try:
+                idx = next(i for i, m in enumerate(mission.milestones) if m.id == milestone_id)
+            except StopIteration:
+                return
+
+            # If it's already at the bottom, do nothing
+            if idx == len(mission.milestones) - 1:
+                return
+
+            # Swap with the next milestone
+            mission.milestones[idx], mission.milestones[idx+1] = mission.milestones[idx+1], mission.milestones[idx]
+            pmo_table.commit_and_save()
+            st.rerun()
