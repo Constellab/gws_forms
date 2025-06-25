@@ -1,22 +1,17 @@
 import streamlit as st
-from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO
+from gws_forms.dashboard_pmo.pmo_table import PMOTable
+from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO
 from gws_forms.dashboard_pmo.pmo_config import PMOConfig
-from gws_forms.dashboard_pmo.dialog_functions import delete_milestone,  add_milestone, edit_milestone
-from gws_core.streamlit import StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
-from st_aggrid import AgGrid
+from gws_core.streamlit import StreamlitRouter
 from streamlit_slickgrid import (
     add_tree_info,
     slickgrid,
     Formatters,
     Filters,
     FieldType,
-    OperatorType,
     ExportServices,
     StreamlitSlickGridFormatters,
-    StreamlitSlickGridSorters,
 )
-
 
 
 def display_project_plan_tab(pmo_table: PMOTable):
@@ -96,29 +91,16 @@ def display_project_plan_tab(pmo_table: PMOTable):
         white = "#fafafa"
 
         columns = [
+            # Column for the tree structure
                 {
-                    "id": pmo_table.NAME_COLUMN_CLIENT_NAME,
-                    "name": pmo_table.NAME_COLUMN_CLIENT_NAME,
-                    "field": pmo_table.NAME_COLUMN_CLIENT_NAME,
+                    "id": "tree",
+                    "name": "Missions",
+                    "field": "tree",
                     "sortable": True,
                     "type": FieldType.string,
                     "filterable": True,
-                },
-                {
-                    "id": pmo_table.NAME_COLUMN_PROJECT_NAME,
-                    "name": pmo_table.NAME_COLUMN_PROJECT_NAME,
-                    "field": pmo_table.NAME_COLUMN_PROJECT_NAME,
-                    "sortable": True,
-                    "type": FieldType.string,
-                    "filterable": True,
-                },
-                {
-                    "id": pmo_table.NAME_COLUMN_MISSION_NAME,
-                    "name": pmo_table.NAME_COLUMN_MISSION_NAME,
-                    "field": pmo_table.NAME_COLUMN_MISSION_NAME,
-                    "sortable": True,
-                    "type": FieldType.string,
-                    "filterable": True,
+                    "formatter": Formatters.tree,
+                    "exportCustomFormatter": Formatters.treeExport,
                 },
                 {
                     "id": pmo_table.NAME_COLUMN_MISSION_REFEREE,
@@ -196,6 +178,14 @@ def display_project_plan_tab(pmo_table: PMOTable):
                 "filterable": True,
             }"""
 
+        # Coalesce the milestone, epic, and task fields into a single one called tree
+        projects_data = add_tree_info(
+            projects_data,
+            tree_fields=[pmo_table.NAME_COLUMN_CLIENT_NAME, pmo_table.NAME_COLUMN_PROJECT_NAME, pmo_table.NAME_COLUMN_MISSION_NAME],
+            join_fields_as="tree",
+            id_field="id",
+        )
+
         options = {
             "enableFiltering": True,
             # Set up export options.
@@ -214,6 +204,17 @@ def display_project_plan_tab(pmo_table: PMOTable):
             "autoResize": {
                 "minHeight": 500,
             },
+            "multiColumnSort": False,
+            "enableTreeData": True,
+            "treeDataOptions": {
+            "columnId": "title",
+            "indentMarginLeft": 15,
+            "initiallyCollapsed": True,
+            # This is a field that add_tree_info() inserts in your data:
+            "parentPropName": "__parent",
+            # This is a field that add_tree_info() inserts in your data:
+            "levelPropName": "__depth"}
+
         }
         out = slickgrid(projects_data, columns=columns, options=options, key="mygrid", on_click="rerun")
         if out is not None:
