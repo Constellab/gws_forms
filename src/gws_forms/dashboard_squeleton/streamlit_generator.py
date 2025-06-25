@@ -1,11 +1,13 @@
 
 import os
 
-from gws_core import (ConfigParams, OutputSpec, OutputSpecs, StreamlitResource, Task, TaskInputs, TaskOutputs, task_decorator,
-                      dashboard_decorator, Dashboard, DashboardType, TypingStyle)
+from gws_core import (AppConfig, AppType, ConfigParams, OutputSpec,
+                      OutputSpecs, StreamlitResource, Task, TaskInputs,
+                      TaskOutputs, TypingStyle, app_decorator, task_decorator)
 
-@dashboard_decorator("GenerateDashboardSqueleton", dashboard_type=DashboardType.STREAMLIT)
-class GenerateDashboardSqueleton(Dashboard):
+
+@app_decorator("GenerateDashboardSqueleton", dashboard_type=AppType.STREAMLIT)
+class GenerateDashboardSqueleton(AppConfig):
 
     # retrieve the path of the app folder, relative to this file
     # the dashboard code folder starts with a underscore to avoid being loaded when the brick is loaded
@@ -39,6 +41,6 @@ class StreamlitSqueletonGenerator(Task):
         streamlit_resource = StreamlitResource()
 
         # set dashboard reference
-        streamlit_resource.set_dashboard(GenerateDashboardSqueleton())
+        streamlit_resource.set_app_config(GenerateDashboardSqueleton())
 
         return {'streamlit_app': streamlit_resource}

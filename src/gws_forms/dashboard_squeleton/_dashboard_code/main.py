@@ -1,5 +1,6 @@
-import os
 import json
+import os
+
 import streamlit as st
 
 # thoses variable will be set by the streamlit app
@@ -8,7 +9,7 @@ sources: list
 params: dict
 
 # Streamlit app title
-st.title("Squeleton Dashboard")
+st.title("Squeleton AppConfig")
 
 
 # Function to show content in tabs

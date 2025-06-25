@@ -1,12 +1,13 @@
 import os
 
-from gws_core import (
-    ConfigParams, InputSpecs, InputSpec, OutputSpec, OutputSpecs, StreamlitResource, Task, TaskInputs, TaskOutputs,
-    task_decorator, dashboard_decorator, Dashboard, DashboardType, Folder, TypingStyle)
+from gws_core import (AppConfig, AppType, ConfigParams, Folder, InputSpec,
+                      InputSpecs, OutputSpec, OutputSpecs, StreamlitResource,
+                      Task, TaskInputs, TaskOutputs, TypingStyle,
+                      app_decorator, task_decorator)
 
 
-@dashboard_decorator("GenerateDashboardPMO", dashboard_type=DashboardType.STREAMLIT)
-class GenerateDashboardPMO(Dashboard):
+@app_decorator("GenerateDashboardPMO", dashboard_type=AppType.STREAMLIT)
+class GenerateDashboardPMO(AppConfig):
 
     # retrieve the path of the app folder, relative to this file
     # the dashboard code folder starts with a underscore to avoid being loaded when the brick is loaded
@@ -52,6 +53,6 @@ class StreamlitPMOGenerator(Task):
             data_folder, create_new_resource=False)
 
         # set dashboard reference
-        streamlit_resource.set_dashboard(GenerateDashboardPMO())
+        streamlit_resource.set_app_config(GenerateDashboardPMO())
 
         return {'streamlit_app': streamlit_resource}
