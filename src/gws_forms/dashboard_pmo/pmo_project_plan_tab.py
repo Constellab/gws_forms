@@ -1,6 +1,6 @@
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MissionDTO, ProjectDTO, ClientDTO
+from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MissionDTO, ProjectDTO
 from gws_forms.dashboard_pmo.pmo_config import PMOConfig
 from gws_core.streamlit import StreamlitRouter
 from streamlit_slickgrid import (
