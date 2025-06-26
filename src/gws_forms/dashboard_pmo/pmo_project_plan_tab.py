@@ -1,6 +1,6 @@
 import streamlit as st
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO
+from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MissionDTO, ProjectDTO, ClientDTO
 from gws_forms.dashboard_pmo.pmo_config import PMOConfig
 from gws_core.streamlit import StreamlitRouter
 from streamlit_slickgrid import (
@@ -27,10 +27,53 @@ def display_project_plan_tab(pmo_table: PMOTable):
     for client in pmo_table.data.data:
         client_name = client.client_name
         if client.projects:
+            first_client = True
             for project in client.projects:
+                if first_client:
+                    first_client = False
+                    # Add the project as a row with no mission and the data summarising the project
+                    start_date = ProjectDTO.get_earlier_start_date(client.projects)
+                    end_date = ProjectDTO.get_latest_end_date(client.projects)
+                    # Convert dates to string for JSON serialization
+                    start_date= start_date.isoformat() if hasattr(start_date, "isoformat") else str(start_date) if start_date else ""
+                    end_date = end_date.isoformat() if hasattr(end_date, "isoformat") else str(end_date) if end_date else ""
+                    # Add the client as a row with no project or mission
+                    projects_data.append({
+                        "id": client.id,
+                        pmo_table.NAME_COLUMN_CLIENT_NAME: client_name,
+                        pmo_table.NAME_COLUMN_PROJECT_NAME: "",
+                        pmo_table.NAME_COLUMN_MISSION_NAME: "",
+                        pmo_table.NAME_COLUMN_MISSION_REFEREE: "",
+                        pmo_table.NAME_COLUMN_START_DATE: start_date,
+                        pmo_table.NAME_COLUMN_END_DATE: end_date,
+                        pmo_table.NAME_COLUMN_STATUS: ProjectDTO.get_average_status(client.projects),
+                        pmo_table.NAME_COLUMN_PRIORITY: "",
+                        pmo_table.NAME_COLUMN_PROGRESS: ProjectDTO.get_average_progress(client.projects),
+                    })
                 project_name = project.name
                 if project.missions:
+                    first_project = True
                     for mission in project.missions:
+                        if first_project:
+                            first_project = False
+                            # Add the project as a row with no mission and the data summarising the project
+                            start_date = MissionDTO.get_earlier_start_date(project.missions)
+                            end_date = MissionDTO.get_latest_end_date(project.missions)
+                            # Convert dates to string for JSON serialization
+                            start_date= start_date.isoformat() if hasattr(start_date, "isoformat") else str(start_date) if start_date else ""
+                            end_date = end_date.isoformat() if hasattr(end_date, "isoformat") else str(end_date) if end_date else ""
+                            projects_data.append({
+                                "id": project.id,
+                                pmo_table.NAME_COLUMN_CLIENT_NAME: client_name,
+                                pmo_table.NAME_COLUMN_PROJECT_NAME: project_name,
+                                pmo_table.NAME_COLUMN_MISSION_NAME: "",
+                                pmo_table.NAME_COLUMN_MISSION_REFEREE: "",
+                                pmo_table.NAME_COLUMN_START_DATE: start_date,
+                                pmo_table.NAME_COLUMN_END_DATE: end_date,
+                                pmo_table.NAME_COLUMN_STATUS: MissionDTO.get_average_status(project.missions),
+                                pmo_table.NAME_COLUMN_PRIORITY: "",
+                                pmo_table.NAME_COLUMN_PROGRESS: MissionDTO.get_average_progress(project.missions),
+                            })
                         mission_name = mission.mission_name
                         # Convert dates to string for JSON serialization
                         start_date = mission.start_date.isoformat() if hasattr(mission.start_date, "isoformat") else str(mission.start_date) if mission.start_date else ""
@@ -41,13 +84,11 @@ def display_project_plan_tab(pmo_table: PMOTable):
                             pmo_table.NAME_COLUMN_PROJECT_NAME: project_name,
                             pmo_table.NAME_COLUMN_MISSION_NAME: mission_name,
                             pmo_table.NAME_COLUMN_MISSION_REFEREE: mission.mission_referee,
-                            pmo_table.NAME_COLUMN_TEAM_MEMBERS: ", ".join(mission.team_members) if mission.team_members else "",
                             pmo_table.NAME_COLUMN_START_DATE: start_date,
                             pmo_table.NAME_COLUMN_END_DATE: end_date,
                             pmo_table.NAME_COLUMN_STATUS: mission.status,
                             pmo_table.NAME_COLUMN_PRIORITY: mission.priority,
                             pmo_table.NAME_COLUMN_PROGRESS: mission.progress,
-                            pmo_table.NAME_COLUMN_MILESTONES: ", ".join([m.name for m in mission.milestones]) if mission.milestones else "",
                         })
                 else:
                     # Provide a placeholder for mission name
@@ -57,13 +98,11 @@ def display_project_plan_tab(pmo_table: PMOTable):
                         pmo_table.NAME_COLUMN_PROJECT_NAME: project_name,
                         pmo_table.NAME_COLUMN_MISSION_NAME: "",
                         pmo_table.NAME_COLUMN_MISSION_REFEREE: "",
-                        pmo_table.NAME_COLUMN_TEAM_MEMBERS: "",
                         pmo_table.NAME_COLUMN_START_DATE: "",
                         pmo_table.NAME_COLUMN_END_DATE: "",
                         pmo_table.NAME_COLUMN_STATUS: "",
                         pmo_table.NAME_COLUMN_PRIORITY: "",
                         pmo_table.NAME_COLUMN_PROGRESS: "",
-                        pmo_table.NAME_COLUMN_MILESTONES: "",
                     })
         else:
             # Provide a placeholder for project and mission name
@@ -73,13 +112,11 @@ def display_project_plan_tab(pmo_table: PMOTable):
                 pmo_table.NAME_COLUMN_PROJECT_NAME: "",
                 pmo_table.NAME_COLUMN_MISSION_NAME: "",
                 pmo_table.NAME_COLUMN_MISSION_REFEREE: "",
-                pmo_table.NAME_COLUMN_TEAM_MEMBERS: "",
                 pmo_table.NAME_COLUMN_START_DATE: "",
                 pmo_table.NAME_COLUMN_END_DATE: "",
                 pmo_table.NAME_COLUMN_STATUS: "",
                 pmo_table.NAME_COLUMN_PRIORITY: "",
                 pmo_table.NAME_COLUMN_PROGRESS: "",
-                pmo_table.NAME_COLUMN_MILESTONES: "",
             })
 
 

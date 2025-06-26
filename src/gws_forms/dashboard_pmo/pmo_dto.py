@@ -70,6 +70,77 @@ class MissionDTO(BaseModelDTO):
         """
         return next((mission for mission in missions if mission.id == mission_id), None)
 
+    @classmethod
+    def get_earlier_start_date(cls, missions: List["MissionDTO"]) -> Optional[date]:
+        """
+        Get the earliest start date from a list of missions
+        Args:
+            missions: List of MissionDTO objects
+        Returns:
+            date: Earliest start date if found, None otherwise
+        """
+        earliest_date = None
+        for mission in missions:
+            if mission.start_date:
+                if earliest_date is None or mission.start_date < earliest_date:
+                    earliest_date = mission.start_date
+        return earliest_date
+
+    @classmethod
+    def get_latest_end_date(cls, missions: List["MissionDTO"]) -> Optional[date]:
+        """
+        Get the latest end date from a list of missions
+        Args:
+            missions: List of MissionDTO objects
+        Returns:
+            date: Latest end date if found, None otherwise
+        """
+        latest_date = None
+        for mission in missions:
+            if mission.end_date:
+                if latest_date is None or mission.end_date > latest_date:
+                    latest_date = mission.end_date
+        return latest_date
+
+    @classmethod
+    def get_average_status(cls, missions: List["MissionDTO"]) -> str:
+        """
+        Calculate the average status of all missions :
+        If all is done, return done
+        If all is closed, return closed
+        If there is at least one mission in progress, return in progress
+        If there is at least one mission in todo, return todo
+        else return ""
+        Args:
+            missions: List of MissionDTO objects
+        Returns:
+            status: Average status of the missions
+        """
+        statuses = {mission.status for mission in missions}
+        if "✅ Done" in statuses and len(statuses) == 1:
+            return "✅ Done"
+        elif "☑️ Closed" in statuses and len(statuses) == 1:
+            return "☑️ Closed"
+        elif "📈 In progress" in statuses:
+            return "📈 In progress"
+        elif "📝 Todo" in statuses:
+            return "📝 Todo"
+        else:
+            return ""
+
+    @classmethod
+    def get_average_progress(cls, missions: List["MissionDTO"]) -> float:
+        """
+        Calculate the average progress of all missions
+        Args:
+            missions: List of MissionDTO objects
+        Returns:
+            float: Average progress of the missions
+        """
+        if not missions:
+            return 0.0
+        total_progress = sum(mission.progress for mission in missions)
+        return total_progress / len(missions) if len(missions) > 0 else 0.0
 
 class ProjectDTO(BaseModelDTO):
     """Represents a project with its missions"""
@@ -97,6 +168,81 @@ class ProjectDTO(BaseModelDTO):
             ProjectDTO: Project object if found, None otherwise
         """
         return next((project for project in projects if project.id == project_id), None)
+
+    @classmethod
+    def get_earlier_start_date(cls, projects: List["ProjectDTO"]) -> Optional[date]:
+        """
+        Get the earliest start date from all missions in all projects
+        Args:
+            projects: List of ProjectDTO objects
+        Returns:
+            date: Earliest start date if found, None otherwise
+        """
+        earliest_date = None
+        for project in projects:
+            for mission in project.missions:
+                if mission.start_date:
+                    if earliest_date is None or mission.start_date < earliest_date:
+                        earliest_date = mission.start_date
+        return earliest_date
+
+    @classmethod
+    def get_latest_end_date(cls, projects: List["ProjectDTO"]) -> Optional[date]:
+        """
+        Get the latest end date from all missions in all projects
+        Args:
+            projects: List of ProjectDTO objects
+        Returns:
+            date: Latest end date if found, None otherwise
+        """
+        latest_date = None
+        for project in projects:
+            for mission in project.missions:
+                if mission.end_date:
+                    if latest_date is None or mission.end_date > latest_date:
+                        latest_date = mission.end_date
+        return latest_date
+
+    @classmethod
+    def get_average_status(cls, projects: List["ProjectDTO"]) -> str:
+        """
+        Calculate the average status of all projects:
+        If all are done, return done
+        If all are closed, return closed
+        If there is at least one project in progress, return in progress
+        If there is at least one project in todo, return todo
+        else return ""
+        Args:
+            projects: List of ProjectDTO objects
+        Returns:
+            status: Average status of the projects
+        """
+        statuses = {mission.status for project in projects for mission in project.missions}
+        if "✅ Done" in statuses and len(statuses) == 1:
+            return "✅ Done"
+        elif "☑️ Closed" in statuses and len(statuses) == 1:
+            return "☑️ Closed"
+        elif "📈 In progress" in statuses:
+            return "📈 In progress"
+        elif "📝 Todo" in statuses:
+            return "📝 Todo"
+        else:
+            return ""
+
+    @classmethod
+    def get_average_progress(cls, projects: List["ProjectDTO"]) -> float:
+        """
+        Calculate the average progress of all projects
+        Args:
+            projects: List of ProjectDTO objects
+        Returns:
+            float: Average progress of the projects
+        """
+        if not projects:
+            return 0.0
+        total_progress = sum(mission.progress for project in projects for mission in project.missions)
+        total_missions = sum(len(project.missions) for project in projects)
+        return total_progress / total_missions if total_missions > 0 else 0.0
 
 
 class ClientDTO(BaseModelDTO):
