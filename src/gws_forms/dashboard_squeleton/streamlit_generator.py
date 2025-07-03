@@ -6,7 +6,7 @@ from gws_core import (AppConfig, AppType, ConfigParams, OutputSpec,
                       TaskOutputs, TypingStyle, app_decorator, task_decorator)
 
 
-@app_decorator("GenerateDashboardSqueleton", dashboard_type=AppType.STREAMLIT)
+@app_decorator("GenerateDashboardSqueleton", app_type=AppType.STREAMLIT)
 class GenerateDashboardSqueleton(AppConfig):
 
     # retrieve the path of the app folder, relative to this file
@@ -21,7 +21,7 @@ class GenerateDashboardSqueleton(AppConfig):
 @task_decorator("StreamlitSqueletonGenerator", human_name="Squeleton dashboard",
                 short_description="Task to generate a squeleton Streamlit dashboard",
                 style=TypingStyle.community_icon(icon_technical_name="dashboard",
-                                                     background_color="#b57fb4"))
+                                                 background_color="#b57fb4"))
 class StreamlitSqueletonGenerator(Task):
 
     """

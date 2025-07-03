@@ -6,7 +6,7 @@ from gws_core import (AppConfig, AppType, ConfigParams, Folder, InputSpec,
                       app_decorator, task_decorator)
 
 
-@app_decorator("GenerateDashboardPMO", dashboard_type=AppType.STREAMLIT)
+@app_decorator("GenerateDashboardPMO", app_type=AppType.STREAMLIT)
 class GenerateDashboardPMO(AppConfig):
 
     # retrieve the path of the app folder, relative to this file

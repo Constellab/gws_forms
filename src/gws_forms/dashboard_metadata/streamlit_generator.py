@@ -6,7 +6,7 @@ from gws_core import (AppConfig, AppType, ConfigParams, Folder, OutputSpec,
                       TaskOutputs, TypingStyle, app_decorator, task_decorator)
 
 
-@app_decorator("GenerateDashboardMetadata", dashboard_type=AppType.STREAMLIT)
+@app_decorator("GenerateDashboardMetadata", app_type=AppType.STREAMLIT)
 class GenerateDashboardMetadata(AppConfig):
 
     # retrieve the path of the app folder, relative to this file
@@ -17,10 +17,11 @@ class GenerateDashboardMetadata(AppConfig):
             "_dashboard_code"
         )
 
+
 @task_decorator("StreamlitMetadataGenerator", human_name="Metadata dashboard",
                 short_description="Task to generate a Metadata Streamlit dashboard",
                 style=TypingStyle.community_icon(icon_technical_name="database_2",
-                                                     background_color="#b57fb4"))
+                                                 background_color="#b57fb4"))
 class StreamlitMetadataGenerator(Task):
 
     """

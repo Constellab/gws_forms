@@ -5,7 +5,7 @@ from gws_core import (AppConfig, AppType, ConfigParams, Folder, OutputSpec,
                       TaskOutputs, TypingStyle, app_decorator, task_decorator)
 
 
-@app_decorator("PMOStandaloneDashboard", dashboard_type=AppType.STREAMLIT)
+@app_decorator("PMOStandaloneDashboard", app_type=AppType.STREAMLIT)
 class PMOStandaloneDashboardClass(AppConfig):
 
     def get_app_folder_path(self):
@@ -13,6 +13,7 @@ class PMOStandaloneDashboardClass(AppConfig):
             os.path.abspath(os.path.dirname(__file__)),
             "_standalone_dashboard_code"
         )
+
 
 @task_decorator("PMOStandaloneDashboard",
                 human_name="Standalone PMO dashboard)",

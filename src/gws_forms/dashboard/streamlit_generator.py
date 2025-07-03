@@ -8,7 +8,7 @@ from gws_core import (AppConfig, AppType, BoolParam, ConfigParams, ConfigSpecs,
                       TypingStyle, app_decorator, task_decorator)
 
 
-@app_decorator("GenerateFormsDashboard", dashboard_type=AppType.STREAMLIT)
+@app_decorator("GenerateFormsDashboard", app_type=AppType.STREAMLIT)
 class GenerateFormsDashboard(AppConfig):
 
     # retrieve the path of the app folder, relative to this file
@@ -43,7 +43,7 @@ class StreamlitFormsDashbaordGenerator(Task):
     output_specs: OutputSpecs = OutputSpecs({
         'streamlit_form_app': OutputSpec(StreamlitResource, human_name="Streamlit Form app")
     })
-    config_specs: ConfigSpecs = ConfigSpecs ({
+    config_specs: ConfigSpecs = ConfigSpecs({
         'title': StrParam(
             human_name="Title",
             short_description="Title of the form",

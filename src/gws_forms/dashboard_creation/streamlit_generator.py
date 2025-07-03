@@ -6,7 +6,7 @@ from gws_core import (AppConfig, AppType, ConfigParams, Folder, OutputSpec,
                       TaskOutputs, TypingStyle, app_decorator, task_decorator)
 
 
-@app_decorator("GenerateDashboardCreationForms", dashboard_type=AppType.STREAMLIT)
+@app_decorator("GenerateDashboardCreationForms", app_type=AppType.STREAMLIT)
 class GenerateDashboardCreationForms(AppConfig):
 
     # retrieve the path of the app folder, relative to this file
