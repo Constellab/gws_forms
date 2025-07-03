@@ -1,12 +1,12 @@
 import os
 
-from gws_core import (
-    ConfigParams, Dashboard, DashboardType, OutputSpec, Folder, OutputSpecs, StreamlitResource, Task, TaskInputs, TaskOutputs,
-    dashboard_decorator, task_decorator, TypingStyle
-)
+from gws_core import (AppConfig, AppType, ConfigParams, Folder, OutputSpec,
+                      OutputSpecs, StreamlitResource, Task, TaskInputs,
+                      TaskOutputs, TypingStyle, app_decorator, task_decorator)
 
-@dashboard_decorator("PMOStandaloneDashboard", dashboard_type=DashboardType.STREAMLIT)
-class PMOStandaloneDashboardClass(Dashboard):
+
+@app_decorator("PMOStandaloneDashboard", dashboard_type=AppType.STREAMLIT)
+class PMOStandaloneDashboardClass(AppConfig):
 
     def get_app_folder_path(self):
         return os.path.join(
@@ -29,7 +29,7 @@ class PMOStandaloneDashboard(Task):
 
     def run(self, params: ConfigParams, inputs: TaskInputs) -> TaskOutputs:
         streamlit_resource = StreamlitResource()
-        streamlit_resource.set_dashboard(PMOStandaloneDashboardClass())
+        streamlit_resource.set_app_config(PMOStandaloneDashboardClass())
 
         streamlit_resource.set_requires_authentication(False)
         return {'streamlit_app': streamlit_resource}

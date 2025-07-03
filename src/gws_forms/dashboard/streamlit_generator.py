@@ -1,15 +1,15 @@
 
 import os
 
-from gws_core import (BoolParam, ConfigParams, ConfigSpecs, Dashboard,
-                      DashboardType, File, Folder, InputSpec, InputSpecs,
-                      JSONDict, OutputSpec, OutputSpecs, StreamlitResource,
-                      StrParam, Task, TaskInputs, TaskOutputs, Text, TextParam,
-                      TypingStyle, dashboard_decorator, task_decorator)
+from gws_core import (AppConfig, AppType, BoolParam, ConfigParams, ConfigSpecs,
+                      File, Folder, InputSpec, InputSpecs, JSONDict,
+                      OutputSpec, OutputSpecs, StreamlitResource, StrParam,
+                      Task, TaskInputs, TaskOutputs, Text, TextParam,
+                      TypingStyle, app_decorator, task_decorator)
 
 
-@dashboard_decorator("GenerateFormsDashboard", dashboard_type=DashboardType.STREAMLIT)
-class GenerateFormsDashboard(Dashboard):
+@app_decorator("GenerateFormsDashboard", dashboard_type=AppType.STREAMLIT)
+class GenerateFormsDashboard(AppConfig):
 
     # retrieve the path of the app folder, relative to this file
     # the dashboard code folder starts with a underscore to avoid being loaded when the brick is loaded
@@ -82,7 +82,7 @@ class StreamlitFormsDashbaordGenerator(Task):
         params['banner'] = banner
         streamlit_resource.set_params(params)
         # set the app folder
-        streamlit_resource.set_dashboard(GenerateFormsDashboard())
+        streamlit_resource.set_app_config(GenerateFormsDashboard())
 
         # build the streamlit responses app resource with the code and the resources
         return {'streamlit_form_app': streamlit_resource}
