@@ -69,9 +69,15 @@ def create_root_folder_in_space(pmo_table : PMOTable, current_client: ClientDTO)
         # Create folder in the space
         space_service = SpaceService.get_instance()
         # We create a root folder in the space
+        # TODO : remove when maj of gws_core
+        # We parse value to ensure it is a valid tag format because auto parse is not longer availaible
+        # for values in lab
+        current_client_name = current_client.client_name
+        current_client_name = Tag.parse_tag(current_client_name)
+
         folder_root_client = ExternalSpaceCreateFolder(name=current_client.client_name,
             tags=[Tag(key="type", value="client", auto_parse=True),
-                  Tag(key="client", value=current_client.client_name, auto_parse=True)])
+                  Tag(key="client", value=current_client_name, auto_parse=True)])
         folder_root_client_space = space_service.create_root_folder(folder=folder_root_client)
         # Share
         id_team_to_share = pmo_table.pmo_state.get_share_folders_with_team()
@@ -80,6 +86,7 @@ def create_root_folder_in_space(pmo_table : PMOTable, current_client: ClientDTO)
             id_team_to_share = CurrentUserService.get_current_user().id
         space_service.share_root_folder(root_folder_id=folder_root_client_space.id,
                                         group_id=id_team_to_share, role = SpaceRootFolderUserRole.OWNER)
+        space_service.share_root_folder_with_current_lab(root_folder_id=folder_root_client_space.id)
         current_client.folder_root_id = folder_root_client_space.id
 
 def create_subfolders_in_space(pmo_table : PMOTable, current_client: ClientDTO, current_project: ProjectDTO):
@@ -513,10 +520,15 @@ def update_folders_names(current_client: ClientDTO, current_project: ProjectDTO 
         current_folder_project_id = current_project.folder_project_id
         if current_folder_project_id == "":
             return
+        # TODO : remove when maj of gws_core
+        # We parse value to ensure it is a valid tag format because auto parse is not longer availaible
+        # for values in lab
+        current_client_name = current_client.client_name
+        current_client_name = Tag.parse_tag(current_client_name)
         new_folder = ExternalSpaceCreateFolder(
             name=current_project.name,
             tags=[Tag(key="type", value="client", auto_parse=True),
-                Tag(key="client", value=current_client.client_name,
+                Tag(key="client", value=current_client_name,
                     auto_parse=True)])
         space_service.update_folder(current_folder_project_id, new_folder)
 
