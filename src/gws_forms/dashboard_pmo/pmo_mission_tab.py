@@ -4,6 +4,7 @@ from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MilestoneDTO
 from gws_forms.dashboard_pmo.pmo_config import PMOConfig
 from gws_forms.dashboard_pmo.dialog_functions import delete_milestone, add_milestone, edit_milestone, move_milestone_up, move_milestone_down
 from gws_core.streamlit import StreamlitTreeMenu, StreamlitTreeMenuItem, StreamlitMenuButton, StreamlitRouter, StreamlitMenuButtonItem, StreamlitContainers, StreamlitHelper
+from gws_core import SpaceFrontService
 
 def update_milestone(pmo_table: PMOTable, key: str, milestone: MilestoneDTO):
     """Update the milestone status when the checkbox is clicked."""
@@ -61,6 +62,8 @@ def display_mission_tab(pmo_table: PMOTable):
     pmo_state.display_success_message()
 
     router = StreamlitRouter.load_from_session()
+
+    space_front_service = SpaceFrontService()
 
     # Create two columns for layout
     left_col, right_col = st.columns([1, 4])
@@ -138,7 +141,22 @@ def display_mission_tab(pmo_table: PMOTable):
                         key=f"header_client_{client.id}",
                         cols=[1, 'fit-content'], vertical_align_items='center')
                 with header_col1:
-                    st.header(f"{client.client_name}")
+                    url = space_front_service.get_folder_url(client.folder_root_id)
+                    st.markdown(f"""
+                                    <style>
+                                    a {{
+                                        color: black !important;
+                                        text-decoration: none !important;
+                                    }}
+                                    a:hover {{
+                                        color: green !important;
+                                        text-decoration: underline !important;
+                                    }}
+                                    </style>
+                                    ## [{client.client_name}]({url})
+                                    """, unsafe_allow_html=True)
+                    st.markdown(f"## [{client.client_name}](%s)" % url)
+
                 with header_col2:
                     button_client: StreamlitMenuButton = pmo_config.build_client_menu_button(pmo_table, client)
                     button_client.render()
@@ -206,7 +224,8 @@ def display_mission_tab(pmo_table: PMOTable):
                             key=f"header_project_{project_id}",
                             cols=[1, 'fit-content'], vertical_align_items='center')
                     with header_col1:
-                        st.header(f"{project.name}")
+                        url = space_front_service.get_folder_url(project.folder_project_id)
+                        st.markdown(f"## [{project.name}](%s)" % url)
                     with header_col2:
                         button_project: StreamlitMenuButton = pmo_config.build_project_menu_button(pmo_table, client, project)
                         button_project.render()
