@@ -141,21 +141,25 @@ def display_mission_tab(pmo_table: PMOTable):
                         key=f"header_client_{client.id}",
                         cols=[1, 'fit-content'], vertical_align_items='center')
                 with header_col1:
-                    url = space_front_service.get_folder_url(client.folder_root_id)
-                    st.markdown(f"""
-                                    <style>
-                                    a {{
-                                        color: black !important;
-                                        text-decoration: none !important;
-                                    }}
-                                    a:hover {{
-                                        color: green !important;
-                                        text-decoration: underline !important;
-                                    }}
-                                    </style>
-                                    ## [{client.client_name}]({url})
-                                    """, unsafe_allow_html=True)
-                    st.markdown(f"## [{client.client_name}](%s)" % url)
+                    if client.folder_root_id :
+                        url = space_front_service.get_folder_url(client.folder_root_id)
+
+                        st.markdown(f"""
+                                        <style>
+                                        a {{
+                                            color: black !important;
+                                            text-decoration: none !important;
+                                        }}
+                                        a:hover {{
+                                            color: green !important;
+                                            text-decoration: underline !important;
+                                        }}
+                                        </style>
+                                        ## [{client.client_name}]({url})
+                                        """, unsafe_allow_html=True)
+                        st.markdown(f"## [{client.client_name}](%s)" % url)
+                    else:
+                        st.markdown(f"## {client.client_name}")
 
                 with header_col2:
                     button_client: StreamlitMenuButton = pmo_config.build_client_menu_button(pmo_table, client)
@@ -224,8 +228,11 @@ def display_mission_tab(pmo_table: PMOTable):
                             key=f"header_project_{project_id}",
                             cols=[1, 'fit-content'], vertical_align_items='center')
                     with header_col1:
-                        url = space_front_service.get_folder_url(project.folder_project_id)
-                        st.markdown(f"## [{project.name}](%s)" % url)
+                        if project.folder_project_id:
+                            url = space_front_service.get_folder_url(project.folder_project_id)
+                            st.markdown(f"## [{project.name}](%s)" % url)
+                        else:
+                            st.markdown(f"## {project.name}")
                     with header_col2:
                         button_project: StreamlitMenuButton = pmo_config.build_project_menu_button(pmo_table, client, project)
                         button_project.render()
