@@ -4,7 +4,7 @@ from typing import List
 import streamlit as st
 import pandas as pd
 
-from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ClientDTO
+from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ClientDTO, UserDTO
 from gws_core import User, UserGroup
 
 class PMOState():
@@ -173,9 +173,18 @@ class PMOState():
     def set_company_members(self, value: List) -> None:
         st.session_state[self.COMPANY_MEMBERS_KEY] = value
 
-    def get_list_lab_users(self) -> List:
+    def get_list_lab_users(self) -> List[UserDTO]:
+        """Get a list of users in the lab with their names and ids"""
         list_lab_users = list(User.select().where(User.group != UserGroup.SYSUSER))
-        return [user.first_name for user in list_lab_users]
+        user_dto_list = []
+        for user in list_lab_users:
+            user_dto = UserDTO(
+                id=user.id,
+                first_name=user.first_name,
+
+                )
+            user_dto_list.append(user_dto)
+        return user_dto_list
 
     def get_share_folders_with_team(self) -> str:
         return st.session_state.get(self.SHARE_FOLDERS_WITH_TEAM_KEY, "")

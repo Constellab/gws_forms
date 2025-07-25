@@ -8,6 +8,7 @@ from gws_core.space.space_dto import SpaceRootFolderUserRole
 from gws_core.streamlit import StreamlitAuthenticateUser
 from gws_core.user.current_user_service import CurrentUserService
 
+
 def check_set_client_and_project_name_unique_and_not_empty(client_name: str, project_name: str, pmo_table: PMOTable) -> None:
 
     # Check if the project name is empty
@@ -536,6 +537,10 @@ def update_folders_names(current_client: ClientDTO, current_project: ProjectDTO 
 @st.dialog("Edit milestone")
 def edit_milestone(pmo_table: PMOTable, milestone_id: str):
     milestone = ProjectPlanDTO.get_milestone_by_id(pmo_table.data, milestone_id)
+    mission = ProjectPlanDTO.get_mission_by_milestone_id(pmo_table.data, milestone_id)
+    project = ProjectPlanDTO.get_project_by_mission_id(pmo_table.data, mission.id)
+    client = ProjectPlanDTO.get_client_by_project_id(pmo_table.data, project.id)
+    previous_milestone_done = milestone.done
     with st.form(key="edit_milestone_form", clear_on_submit=False, enter_to_submit=True):
         # Add fields for milestone details with existing values
         milestone_name, milestone_done = get_fields_milestone(milestone=milestone)
@@ -546,6 +551,9 @@ def edit_milestone(pmo_table: PMOTable, milestone_id: str):
             # Update the milestone data
             milestone.name = milestone_name
             milestone.done = milestone_done
+            if previous_milestone_done == False and milestone.done == True:
+                # We send a notification to the users of the mission
+                pmo_table.send_notification_milestone_done_to_team_members(milestone)
 
             pmo_table.commit_and_save()
             st.rerun()

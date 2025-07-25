@@ -3,10 +3,16 @@ from datetime import datetime, date
 from pydantic import field_validator
 from gws_core.core.model.model_dto import BaseModelDTO
 
+class UserDTO(BaseModelDTO):
+    """DTO for user information"""
+    first_name: str
+    id: Optional[str] = None
+
+
 class SettingsDTO(BaseModelDTO):
     """Represents the settings for the project plan"""
     create_folders_in_space: bool = False
-    company_members: List[str] = []
+    company_members: List["UserDTO"] = []
     predefined_missions: List["MissionDTO"] = []
     share_folders_with_team: str = ""
 
@@ -343,4 +349,14 @@ class ProjectPlanDTO(BaseModelDTO):
                     milestone = MilestoneDTO.get_milestone_by_id(mission.milestones, milestone_id)
                     if milestone:
                         return milestone
+        return None
+
+    @classmethod
+    def get_mission_by_milestone_id(cls, project_plan: "ProjectPlanDTO", milestone_id: str) -> Optional["MissionDTO"]:
+        for client in project_plan.data:
+            for project in client.projects:
+                for mission in project.missions:
+                    for milestone in mission.milestones:
+                        if milestone.id == milestone_id:
+                            return mission
         return None

@@ -14,7 +14,7 @@ class GenerateDashboardPMO(AppConfig):
     def get_app_folder_path(self):
         return os.path.join(
             os.path.abspath(os.path.dirname(__file__)),
-            "_dashboard_code"
+            "_dashboard_code_pmo"
         )
 
 

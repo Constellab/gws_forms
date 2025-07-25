@@ -1,13 +1,14 @@
 import json
 import os
+import numpy as np
 from datetime import datetime
 from enum import Enum
 from typing import Any, Literal, Optional, List, Dict
 from abc import abstractmethod
 import pytz
 from gws_forms.dashboard_pmo.pmo_state import PMOState
-from gws_forms.dashboard_pmo.pmo_dto import SettingsDTO, ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO, ClientDTO
-from gws_core import StringHelper, SpaceService, Tag
+from gws_forms.dashboard_pmo.pmo_dto import SettingsDTO, UserDTO, ProjectPlanDTO, ProjectDTO, MissionDTO, MilestoneDTO, ClientDTO
+from gws_core import StringHelper, SpaceService, Tag, SpaceSendNotificationDTO
 from gws_core.streamlit import StreamlitAuthenticateUser
 
 
@@ -143,7 +144,9 @@ class PMOTable:
 
         # Persist initial value to session state
         self.pmo_state.set_create_folders_in_space_value(self.data_settings.create_folders_in_space)
-        self.pmo_state.set_company_members(self.data_settings.company_members)
+        # Keep the full UserDTO objects, extract first names only when needed
+        company_members = [member.first_name for member in self.data_settings.company_members]
+        self.pmo_state.set_company_members(company_members)
         self.pmo_state.set_predefined_missions(self.data_settings.predefined_missions)
         self.pmo_state.set_share_folders_with_team(self.data_settings.share_folders_with_team)
 
@@ -196,8 +199,8 @@ class PMOTable:
         )
         example_mission = MissionDTO(
             mission_name="Mission 1",
-            mission_referee=self.pmo_state.get_list_lab_users()[0],
-            team_members=[self.pmo_state.get_list_lab_users()[0]],
+            mission_referee=self.pmo_state.get_list_lab_users()[0].first_name,
+            team_members=[self.pmo_state.get_list_lab_users()[0].first_name],
             start_date=datetime.now(tz=pytz.timezone('Europe/Paris')).strftime("%d %m %Y"),
             end_date=None,
             milestones=[example_milestone],
@@ -288,6 +291,8 @@ class PMOTable:
                                 for milestone in global_follow_up_mission.milestones:
                                     if milestone.name == mission.mission_name and not milestone.done:
                                         milestone.done = True
+                                        # Send notification to team members
+                                        self.send_notification_milestone_done_to_team_members(milestone)
                 # --- End: Global follow-up milestone sync ---
 
                 for mission in project.missions:
@@ -342,6 +347,8 @@ class PMOTable:
                                     for milestone in global_follow_up_mission.milestones:
                                         if milestone.name == current_mission.mission_name and not milestone.done:
                                             milestone.done = True
+                                            # Send notification to team members
+                                            self.send_notification_milestone_done_to_team_members(milestone)
                             # Find and update next mission in sequence
                             next_mission = next(
                                 (m for m in project.missions if m.mission_name == next_mission_name),
@@ -368,6 +375,25 @@ class PMOTable:
             for project in client.projects:
                 self.update_folders_tags(project)
 
+    def send_notification_milestone_done_to_team_members(self, milestone: MilestoneDTO):
+        mission = ProjectPlanDTO.get_mission_by_milestone_id(self.data, milestone.id)
+        project = ProjectPlanDTO.get_project_by_mission_id(self.data, mission.id)
+        client = ProjectPlanDTO.get_client_by_project_id(self.data, project.id)
+        with StreamlitAuthenticateUser():
+            # We send a notification to the users of the mission
+            list_team_members = mission.team_members
+            mission_referee = mission.mission_referee
+            list_user_to_notify = np.unique(list_team_members + [mission_referee])
+            if len(list_user_to_notify) > 0:
+                # Retrieve the user ids of the team members in settings
+                user_ids = self.get_user_ids_from_team_members(list_user_to_notify)
+                notification = SpaceSendNotificationDTO(
+                    receiver_ids=user_ids,
+                    text=f"The milestone '{milestone.name}' ({client.client_name} - {project.name} - {mission.mission_name}) has been marked as completed.",
+                )
+
+                SpaceService.get_instance().send_notification(notification)
+
     def update_milestone_status_by_id(self, milestone_id: str, done: bool) -> None:
         """
         Update the status of a milestone by its ID.
@@ -378,6 +404,10 @@ class PMOTable:
         """
         milestone = ProjectPlanDTO.get_milestone_by_id(self.data, milestone_id)
         milestone.done = done
+        if done:
+            # If the milestone is marked as done, send a notification to team members
+            self.send_notification_milestone_done_to_team_members(milestone)
+
 
     def update_project_name_by_id(self, project_id: str, project_name: str) -> None:
         """
@@ -429,11 +459,36 @@ class PMOTable:
         """
         return bool(getattr(self.data_settings, "create_folders_in_space", True))
 
+    def get_user_ids_from_team_members(self, team_members: List[str]) -> List[str]:
+        """
+        Retrieve the user ids of the team members from the settings file.
+        """
+        user_ids = []
+        for member in team_members:
+            # Find the UserDTO object with matching first_name
+            member_dto = next((user for user in self.data_settings.company_members
+                              if user.first_name == member), None)
+            if member_dto and member_dto.id:
+                user_ids.append(member_dto.id)
+        return user_ids
+
     def set_company_members(self, members: list) -> None:
         """
         Set the company_members attribute in settings DTO and persist it.
         """
-        self.data_settings.company_members = members
+        members_to_save = []
+        list_lab_users = self.pmo_state.get_list_lab_users()
+
+        for member in members:
+            # Find the member in the lab users list
+            member_lab = next((user for user in list_lab_users if user.first_name == member), None)
+            if member_lab:
+                members_to_save.append(member_lab)
+            else:
+                # If not found in lab users, create a new UserDTO
+                members_to_save.append(UserDTO(first_name=member, id=None))
+
+        self.data_settings.company_members = members_to_save
         self.pmo_state.set_company_members(members)
         self.save_settings()
 

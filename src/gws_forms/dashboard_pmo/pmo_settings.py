@@ -4,7 +4,7 @@ from typing import List
 import streamlit as st
 import numpy as np
 from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
-from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MissionDTO, MilestoneDTO
+from gws_forms.dashboard_pmo.pmo_dto import ProjectPlanDTO, MissionDTO, MilestoneDTO, UserDTO
 from gws_core import User, UserGroup, StringHelper
 from gws_core.streamlit import StreamlitContainers
 
@@ -141,7 +141,13 @@ def display_settings_tab(pmo_table: PMOTable):
     with st.expander("**Company members**", expanded=False):
         def on_multiselect_change():
             pmo_table.set_company_members(st.session_state["company_members"])
-        options = np.unique(pmo_state.get_list_lab_users() + pmo_table.get_company_members())
+        list_lab_users = pmo_state.get_list_lab_users()
+        list_names = [user.first_name for user in list_lab_users]
+
+        # Convert company members to strings before combining
+        company_member_names = [member if isinstance(member, str) else member.first_name for member in pmo_table.get_company_members()]
+        options = list(np.unique(list_names + company_member_names))
+
         st.multiselect(
             "Select company members",
             options=options,
