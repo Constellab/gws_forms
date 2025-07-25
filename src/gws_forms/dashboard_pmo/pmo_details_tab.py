@@ -1,10 +1,15 @@
 import os
 from gws_forms.dashboard_pmo.pmo_table import PMOTable
-from gws_core.streamlit import rich_text_editor
+from gws_core.streamlit import rich_text_editor, StreamlitRouter
 from gws_core import RichText
+import streamlit as st
 
 
 def display_details_tab(pmo_table: PMOTable):
+    # Add return button at the top
+    router = StreamlitRouter.load_from_session()
+    if st.button("Return", icon=":material/arrow_back:", use_container_width=False):
+        router.navigate('mission')
 
     # Display the details tab for the current mission
     project_selected = pmo_table.pmo_state.get_current_project()
