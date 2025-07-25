@@ -43,7 +43,7 @@ def add_home_page(router: StreamlitRouter, pmo_table: PMOTable):
 def add_mission_page(router: StreamlitRouter, pmo_table: PMOTable):
     router.add_page(
         lambda: display_mission_tab(pmo_table),
-        title='Missions',
+        title='Activity',
         url_path='mission',
         icon=":material/assignment:",
         hide_from_sidebar=False
