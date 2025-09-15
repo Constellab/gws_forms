@@ -537,7 +537,6 @@ class PMOTable:
                 if mission_global_follow_up:
                     current_progress = str(round(mission_global_follow_up.progress, 2))
                     current_status = " ".join(mission_global_follow_up.status.split(" ")[1:])  # Remove the emoji
-                    # TODO : remove when maj of gws_core
                     # We parse value to ensure it is a valid tag format because auto parse is not longer availaible
                     # for values in lab
                     current_status = Tag.parse_tag(current_status)

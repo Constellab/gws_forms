@@ -70,7 +70,6 @@ def create_root_folder_in_space(pmo_table : PMOTable, current_client: ClientDTO)
         # Create folder in the space
         space_service = SpaceService.get_instance()
         # We create a root folder in the space
-        # TODO : remove when maj of gws_core
         # We parse value to ensure it is a valid tag format because auto parse is not longer availaible
         # for values in lab
         current_client_name = current_client.client_name
@@ -521,7 +520,6 @@ def update_folders_names(current_client: ClientDTO, current_project: ProjectDTO 
         current_folder_project_id = current_project.folder_project_id
         if current_folder_project_id == "":
             return
-        # TODO : remove when maj of gws_core
         # We parse value to ensure it is a valid tag format because auto parse is not longer availaible
         # for values in lab
         current_client_name = current_client.client_name
