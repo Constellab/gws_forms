@@ -1,15 +1,19 @@
 from datetime import date, datetime
-import streamlit as st
+
 import numpy as np
-from gws_forms.dashboard_pmo.pmo_table import PMOTable, Status, Priority
-from gws_forms.dashboard_pmo.pmo_dto import ProjectDTO, MissionDTO, ProjectPlanDTO, MilestoneDTO, ClientDTO
-from gws_core import (StringHelper, SpaceService, ExternalSpaceCreateFolder, Tag, User)
-from gws_core.space.space_dto import SpaceRootFolderUserRole
+import streamlit as st
+from gws_core import (CurrentUserService, ExternalSpaceCreateFolder,
+                      SpaceRootFolderUserRole, SpaceService, StringHelper, Tag)
 from gws_core.streamlit import StreamlitAuthenticateUser
-from gws_core.user.current_user_service import CurrentUserService
+
+from gws_forms.dashboard_pmo.pmo_dto import (ClientDTO, MilestoneDTO,
+                                             MissionDTO, ProjectDTO,
+                                             ProjectPlanDTO)
+from gws_forms.dashboard_pmo.pmo_table import PMOTable, Priority, Status
 
 
-def check_set_client_and_project_name_unique_and_not_empty(client_name: str, project_name: str, pmo_table: PMOTable) -> None:
+def check_set_client_and_project_name_unique_and_not_empty(
+        client_name: str, project_name: str, pmo_table: PMOTable) -> None:
 
     # Check if the project name is empty
     if not project_name:
@@ -25,6 +29,7 @@ def check_set_client_and_project_name_unique_and_not_empty(client_name: str, pro
                     return True
     return False
 
+
 def check_client_name_unique_and_not_empty(client_name: str, pmo_table: PMOTable) -> None:
     # Check if the client name is empty
     if not client_name:
@@ -38,11 +43,13 @@ def check_client_name_unique_and_not_empty(client_name: str, pmo_table: PMOTable
     return False
 
 
-def update_milestones_in_global_follow_up_mission(pmo_table : PMOTable, current_project : ProjectDTO, mission : MissionDTO):
+def update_milestones_in_global_follow_up_mission(
+        pmo_table: PMOTable, current_project: ProjectDTO, mission: MissionDTO):
     if current_project.global_follow_up_mission_id != "":
         # If the project has a Global Follow-up mission, we update its milestones
         # to include the new mission
-        global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, current_project.global_follow_up_mission_id)
+        global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(
+            pmo_table.data, current_project.global_follow_up_mission_id)
         if global_follow_up_mission:
             # Create a new milestone for the Global Follow-up mission
             new_milestone = MilestoneDTO(
@@ -65,7 +72,8 @@ def log_new_mission_status(pmo_table: PMOTable, project: ProjectDTO, mission: Mi
     }
     pmo_table.pmo_state.append_status_change_log(new_entry)
 
-def create_root_folder_in_space(pmo_table : PMOTable, current_client: ClientDTO):
+
+def create_root_folder_in_space(pmo_table: PMOTable, current_client: ClientDTO):
     with StreamlitAuthenticateUser():
         # Create folder in the space
         space_service = SpaceService.get_instance()
@@ -75,7 +83,8 @@ def create_root_folder_in_space(pmo_table : PMOTable, current_client: ClientDTO)
         current_client_name = current_client.client_name
         current_client_name = Tag.parse_tag(current_client_name)
 
-        folder_root_client = ExternalSpaceCreateFolder(name=current_client.client_name,
+        folder_root_client = ExternalSpaceCreateFolder(
+            name=current_client.client_name,
             tags=[Tag(key="type", value="client", auto_parse=True),
                   Tag(key="client", value=current_client_name, auto_parse=True)])
         folder_root_client_space = space_service.create_root_folder(folder=folder_root_client)
@@ -85,11 +94,12 @@ def create_root_folder_in_space(pmo_table : PMOTable, current_client: ClientDTO)
             # Get the id of the current user to share the folder with
             id_team_to_share = CurrentUserService.get_current_user().id
         space_service.share_root_folder(root_folder_id=folder_root_client_space.id,
-                                        group_id=id_team_to_share, role = SpaceRootFolderUserRole.OWNER)
+                                        group_id=id_team_to_share, role=SpaceRootFolderUserRole.OWNER)
         space_service.share_root_folder_with_current_lab(root_folder_id=folder_root_client_space.id)
         current_client.folder_root_id = folder_root_client_space.id
 
-def create_subfolders_in_space(pmo_table : PMOTable, current_client: ClientDTO, current_project: ProjectDTO):
+
+def create_subfolders_in_space(pmo_table: PMOTable, current_client: ClientDTO, current_project: ProjectDTO):
     with StreamlitAuthenticateUser():
         space_service = SpaceService.get_instance()
 
@@ -138,12 +148,13 @@ def get_fields_mission(pmo_table: PMOTable, mission: MissionDTO = None):
         options_mission_referee = np.unique(pmo_table.pmo_state.get_company_members() + [mission.mission_referee])
         # Convert to list for the index method
         options_mission_referee_list = options_mission_referee.tolist()
-        index = options_mission_referee_list.index(mission.mission_referee) if mission.mission_referee in options_mission_referee_list else 0
+        index = options_mission_referee_list.index(
+            mission.mission_referee) if mission.mission_referee in options_mission_referee_list else 0
     else:
         options_mission_referee = pmo_table.pmo_state.get_company_members()
         index = None
     mission_referee = st.selectbox("Select your mission referee",
-                                   options = options_mission_referee,
+                                   options=options_mission_referee,
                                    index=index)
     if mission and mission.team_members:
         # If the mission already has team members, we add them to the options
@@ -195,6 +206,7 @@ def delete_milestone(pmo_table: PMOTable, project_id: str, mission_id: str, mile
         pmo_table.commit_and_save()
         st.rerun()
 
+
 @st.dialog("Add predefined missions")
 def add_predefined_missions(pmo_table: PMOTable, current_project: ProjectDTO):
     predefined_missions_dict = pmo_table.pmo_state.get_predefined_missions()
@@ -232,7 +244,7 @@ def add_predefined_missions(pmo_table: PMOTable, current_project: ProjectDTO):
             update_milestones_in_global_follow_up_mission(pmo_table, current_project, new_mission)
 
             if not first_mission:
-                #Keep track of the first mission added
+                # Keep track of the first mission added
                 first_mission = new_mission
 
             log_new_mission_status(pmo_table, current_project, new_mission)
@@ -257,7 +269,8 @@ def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
     with st.form(key="mission_form", clear_on_submit=False, enter_to_submit=True):
 
         # Add fields for mission details
-        mission_name, mission_referee, team_members, start_date, end_date, status, priority, progress = get_fields_mission(pmo_table)
+        mission_name, mission_referee, team_members, start_date, end_date, status, priority, progress = get_fields_mission(
+            pmo_table)
 
         submit_button = st.form_submit_button(label="Submit")
 
@@ -271,7 +284,8 @@ def add_mission(pmo_table: PMOTable, current_project: ProjectDTO):
                     if project.name == current_project.name:
                         existing_missions = [mission.mission_name for mission in project.missions]
                         if mission_name in existing_missions:
-                            st.warning("Mission name must be unique. A mission with this name already exists in the selected project.")
+                            st.warning(
+                                "Mission name must be unique. A mission with this name already exists in the selected project.")
                             return
                         break
 
@@ -329,6 +343,7 @@ def delete_project(pmo_table: PMOTable, current_project: ProjectDTO):
         # So at the next rerun, the tree will be rebuilt and we can set default values
         pmo_table.pmo_state.reset_tree_pmo()
         st.rerun()
+
 
 @st.dialog("Delete client")
 def delete_client(pmo_table: PMOTable, current_client: ClientDTO):
@@ -392,7 +407,7 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
 
         # Add fields for mission details with existing values
         mission_name, mission_referee, team_members, start_date, end_date, status, priority, progress = get_fields_mission(
-            pmo_table= pmo_table, mission=current_mission)
+            pmo_table=pmo_table, mission=current_mission)
 
         submit_button = st.form_submit_button(label="Submit")
 
@@ -425,7 +440,8 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
             if current_project.global_follow_up_mission_id != "":
                 # If the project has a Global Follow-up mission, we update its milestones
                 # to include the new mission name
-                global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(pmo_table.data, current_project.global_follow_up_mission_id)
+                global_follow_up_mission = ProjectPlanDTO.get_mission_by_id(
+                    pmo_table.data, current_project.global_follow_up_mission_id)
                 if global_follow_up_mission:
                     for milestone in global_follow_up_mission.milestones:
                         if milestone.name == original_name:
@@ -442,7 +458,7 @@ def edit_mission(pmo_table: PMOTable, current_project: ProjectDTO, current_missi
 
 
 @st.dialog("Edit client")
-def edit_client(pmo_table: PMOTable, current_client : ClientDTO):
+def edit_client(pmo_table: PMOTable, current_client: ClientDTO):
     with st.form(key="edit_client_form", clear_on_submit=False, enter_to_submit=True):
         existing_client_name = current_client.client_name
         # Add fields for client details
@@ -468,8 +484,9 @@ def edit_client(pmo_table: PMOTable, current_client : ClientDTO):
             pmo_table.pmo_state.reset_tree_pmo()
             st.rerun()
 
+
 @st.dialog("Edit project")
-def edit_project(pmo_table: PMOTable, current_client : ClientDTO, current_project: ProjectDTO):
+def edit_project(pmo_table: PMOTable, current_client: ClientDTO, current_project: ProjectDTO):
 
     with st.form(key="edit_project_form", clear_on_submit=False, enter_to_submit=True):
         existing_project_name = current_project.name
@@ -527,8 +544,8 @@ def update_folders_names(current_client: ClientDTO, current_project: ProjectDTO 
         new_folder = ExternalSpaceCreateFolder(
             name=current_project.name,
             tags=[Tag(key="type", value="client", auto_parse=True),
-                Tag(key="client", value=current_client_name,
-                    auto_parse=True)])
+                  Tag(key="client", value=current_client_name,
+                      auto_parse=True)])
         space_service.update_folder(current_folder_project_id, new_folder)
 
 
@@ -597,7 +614,8 @@ def add_project(pmo_table: PMOTable, current_client: ClientDTO):
         )
 
         if submit_button:
-            if check_set_client_and_project_name_unique_and_not_empty(current_client.client_name, name_project, pmo_table):
+            if check_set_client_and_project_name_unique_and_not_empty(
+                    current_client.client_name, name_project, pmo_table):
                 return
 
             # Create new project using DTO
@@ -606,7 +624,7 @@ def add_project(pmo_table: PMOTable, current_client: ClientDTO):
                 name=name_project,
                 missions=[],
                 folder_project_id="",
-                global_follow_up_mission_id = ""
+                global_follow_up_mission_id=""
             )
 
             if pmo_table.data_settings.create_folders_in_space:
@@ -681,6 +699,7 @@ def add_client(pmo_table: PMOTable):
             pmo_table.pmo_state.reset_tree_pmo()
             st.rerun()
 
+
 @st.dialog("Move milestone up")
 def move_milestone_up(pmo_table: PMOTable, mission_id: str, milestone_id: str) -> None:
     """
@@ -718,6 +737,7 @@ def move_milestone_up(pmo_table: PMOTable, mission_id: str, milestone_id: str) -
             mission.milestones[idx], mission.milestones[idx-1] = mission.milestones[idx-1], mission.milestones[idx]
             pmo_table.commit_and_save()
             st.rerun()
+
 
 @st.dialog("Move milestone down")
 def move_milestone_down(pmo_table: PMOTable, mission_id: str, milestone_id: str) -> None:

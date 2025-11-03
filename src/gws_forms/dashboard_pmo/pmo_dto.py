@@ -1,7 +1,9 @@
+from datetime import date, datetime
 from typing import List, Optional
-from datetime import datetime, date
+
+from gws_core import BaseModelDTO
 from pydantic import field_validator
-from gws_core.core.model.model_dto import BaseModelDTO
+
 
 class UserDTO(BaseModelDTO):
     """DTO for user information"""
@@ -148,6 +150,7 @@ class MissionDTO(BaseModelDTO):
         total_progress = sum(mission.progress for mission in missions)
         return total_progress / len(missions) if len(missions) > 0 else 0.0
 
+
 class ProjectDTO(BaseModelDTO):
     """Represents a project with its missions"""
     id: str
@@ -253,7 +256,7 @@ class ProjectDTO(BaseModelDTO):
 
 class ClientDTO(BaseModelDTO):
     """Represents a client with its projects"""
-    id : str
+    id: str
     client_name: str
     projects: List[ProjectDTO]
     folder_root_id: str
@@ -305,7 +308,8 @@ class ProjectPlanDTO(BaseModelDTO):
         return None
 
     @classmethod
-    def get_project_by_client_and_project_name(cls, project_plan: "ProjectPlanDTO", project_selected: str) -> Optional["ProjectDTO"]:
+    def get_project_by_client_and_project_name(
+            cls, project_plan: "ProjectPlanDTO", project_selected: str) -> Optional["ProjectDTO"]:
         client_name = project_selected.split(" ⸱ ")[0]
         project_name = project_selected.split(" ⸱ ")[1]
         for client in project_plan.data:

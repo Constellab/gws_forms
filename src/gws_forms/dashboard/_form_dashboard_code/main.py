@@ -4,8 +4,7 @@ import random
 import re
 
 import streamlit as st
-from gws_core.space.space_dto import SpaceSendMailToMailsDTO
-from gws_core.space.space_service import SpaceService
+from gws_core import SpaceSendMailToMailsDTO, SpaceService
 from session_management.session_functions import (load_session,
                                                   save_current_session)
 
