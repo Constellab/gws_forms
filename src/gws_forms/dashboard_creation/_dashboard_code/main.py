@@ -3,14 +3,19 @@ import os
 
 import streamlit as st
 from gws_core import FrontService, JSONDict, ResourceModel, ResourceOrigin
+from gws_streamlit_main import StreamlitMainState
+
+# Initialize GWS - MUST be at the top
+StreamlitMainState.initialize()
 
 from gws_forms.dashboard_creation._dashboard_code.session_management.session_functions import (
-    list_sessions, load_session, save_current_session)
+    list_sessions,
+    load_session,
+    save_current_session,
+)
 
-# thoses variable will be set by the streamlit app
-# don't initialize them, there are create to avoid errors in the IDE
-sources: list
-params: dict
+sources = StreamlitMainState.get_sources()
+params = StreamlitMainState.get_params()
 
 # Streamlit app title
 # st.title("Questionnaire Creation Dashboard")
@@ -28,7 +33,7 @@ if not os.path.exists(SESSIONS_SUBMITTED_DIR):
     os.makedirs(SESSIONS_SUBMITTED_DIR)
 
 # Initialize session state to store questions
-if 'questions' not in st.session_state:
+if "questions" not in st.session_state:
     st.session_state.questions = []
 
 if "blank_text" not in st.session_state:
@@ -67,6 +72,7 @@ def clear_fields():
     st.session_state["Is_required"] = False
     st.session_state["Response_type"] = "long_text"
 
+
 # Function to show content in tabs
 
 
@@ -78,21 +84,30 @@ def show_content():
     with tab_creation:
         # User choice: new session or continue previous one
         session_list = list_sessions(session_directory=SESSIONS_DIR)
-        session_choice = st.selectbox("Select a previous session to load it.",
-                                      options=session_list, index=None) if session_list else None
+        session_choice = (
+            st.selectbox("Select a previous session to load it.", options=session_list, index=None)
+            if session_list
+            else None
+        )
         if session_choice:
             session_choice = session_choice + ".json"
             # Load previous answers if available
-            saved_answers = load_session(session_name=session_choice,
-                                         session_directory=SESSIONS_DIR) if session_choice else {}
+            saved_answers = (
+                load_session(session_name=session_choice, session_directory=SESSIONS_DIR)
+                if session_choice
+                else {}
+            )
             # Initialize session state to store the first time to load data
-            if 'load_data' not in st.session_state:
+            if "load_data" not in st.session_state:
                 st.session_state.load_data = []
-                st.session_state.questions = saved_answers.get('questions', [])
+                st.session_state.questions = saved_answers.get("questions", [])
 
         # User name
-        name_user = st.text_input(label="Enter a name", placeholder="Enter a response",
-                                  value=session_choice.split("-")[1] if session_choice else "")
+        name_user = st.text_input(
+            label="Enter a name",
+            placeholder="Enter a response",
+            value=session_choice.split("-")[1] if session_choice else "",
+        )
         st.markdown("---")
 
         st.write("**Create a new question**")
@@ -105,23 +120,34 @@ def show_content():
         # Input fields for question details
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
-            section = st.text_input(label="Section", placeholder="Enter a section name", key="Section")
+            section = st.text_input(
+                label="Section", placeholder="Enter a section name", key="Section"
+            )
         with col2:
-            subsection = st.text_input(label="Subsection", placeholder="Enter a subsection name", key="Subsection")
+            subsection = st.text_input(
+                label="Subsection", placeholder="Enter a subsection name", key="Subsection"
+            )
         with col3:
             question_head = st.text_input(
-                label="Question_head", placeholder="Enter a keyword for your question", key="Question_head")
+                label="Question_head",
+                placeholder="Enter a keyword for your question",
+                key="Question_head",
+            )
         question = st.text_input(label="Question", placeholder="Enter the question", key="Question")
         helper_text = st.text_input(
-            "Helper Text", placeholder="Provide some context for the question", key="Helper_text")
+            "Helper Text", placeholder="Provide some context for the question", key="Helper_text"
+        )
         is_required = st.checkbox("Is this question required?", key="Is_required")
 
         response_type = st.selectbox(
-            "Response Type", ["long_text", "short_text", "option", "numeric"],
-            key="Response_type")
+            "Response Type", ["long_text", "short_text", "option", "numeric"], key="Response_type"
+        )
         if response_type == "option":
-            allowed_values = st.text_area("Allowed Values (comma-separated)",
-                                          placeholder="e.g., Yes, No, Maybe", key="Allowed_values")
+            allowed_values = st.text_area(
+                "Allowed Values (comma-separated)",
+                placeholder="e.g., Yes, No, Maybe",
+                key="Allowed_values",
+            )
             multi_select = st.checkbox("Allow Multiple Selections", key="Multi_select")
         if response_type == "numeric":
             min_value = st.number_input("Minimum Value", key="Min_value")
@@ -142,11 +168,20 @@ def show_content():
                 "question": st.session_state["question"],
                 "response_type": st.session_state["response_type"],
                 "allowed_values": st.session_state["allowed_values"].split(",")
-                if "allowed_values" in st.session_state else [], "multiselect": st.session_state["multi_select"]
-                if "multi_select" in st.session_state else False, "min_value": st.session_state["min_value"]
-                if "min_value" in st.session_state else None, "max_value": st.session_state["max_value"]
-                if "max_value" in st.session_state else None, "required": st.session_state["is_required"],
-                "helper_text": st.session_state["helper_text"]}
+                if "allowed_values" in st.session_state
+                else [],
+                "multiselect": st.session_state["multi_select"]
+                if "multi_select" in st.session_state
+                else False,
+                "min_value": st.session_state["min_value"]
+                if "min_value" in st.session_state
+                else None,
+                "max_value": st.session_state["max_value"]
+                if "max_value" in st.session_state
+                else None,
+                "required": st.session_state["is_required"],
+                "helper_text": st.session_state["helper_text"],
+            }
             # Store question in the dictionary with an index as the key
             index = len(st.session_state.questions)  # next index
             st.session_state.questions.append(question)
@@ -156,13 +191,15 @@ def show_content():
             st.markdown("---")
 
             # Save button
-            st.write(
-                "Save the session to complete your questions later.")
+            st.write("Save the session to complete your questions later.")
             col1, col2, col3 = st.columns([1, 1, 1])
             with col2:
                 if st.button("Save session", use_container_width=True, key="save_end"):
-                    save_current_session(questions=st.session_state.questions,
-                                         session_directory=SESSIONS_DIR, name_user=name_user)
+                    save_current_session(
+                        questions=st.session_state.questions,
+                        session_directory=SESSIONS_DIR,
+                        name_user=name_user,
+                    )
                     # Delete the file where the session was saved if it's not a new session
                     if session_choice:
                         session_path = os.path.join(SESSIONS_DIR, session_choice)
@@ -172,12 +209,17 @@ def show_content():
                     st.success("Session saved !")
 
             # Submit button
-            st.write("Submit the form when finished. Please note that after submission, the form can no longer be edited.")
+            st.write(
+                "Submit the form when finished. Please note that after submission, the form can no longer be edited."
+            )
             col1, col2, col3 = st.columns([1, 1, 1])
             with col2:
                 if st.button("Submit", type="primary", use_container_width=True):
-                    save_current_session(questions=st.session_state.questions,
-                                         session_directory=SESSIONS_SUBMITTED_DIR, name_user=name_user)
+                    save_current_session(
+                        questions=st.session_state.questions,
+                        session_directory=SESSIONS_SUBMITTED_DIR,
+                        name_user=name_user,
+                    )
                     # Delete the file where the session was saved if it's not a new session
                     if session_choice:
                         session_path = os.path.join(SESSIONS_DIR, session_choice)
@@ -187,13 +229,15 @@ def show_content():
                     # Create a Json Dict
                     json_dict: JSONDict = JSONDict()
                     json_dict.data = {"questions": st.session_state.questions}
-                    json_resource = ResourceModel.save_from_resource(json_dict, ResourceOrigin.UPLOADED, flagged=True)
+                    json_resource = ResourceModel.save_from_resource(
+                        json_dict, ResourceOrigin.UPLOADED, flagged=True
+                    )
 
                     st.success(
-                        f"Form successfully submitted! A JsonDict Resource has been created : {FrontService.get_resource_url(json_resource.id)}")
+                        f"Form successfully submitted! A JsonDict Resource has been created : {FrontService.get_resource_url(json_resource.id)}"
+                    )
 
     with tab_questions:
-
         # Display the submitted questions
         if st.session_state.questions:
             # Download JSON button
@@ -204,17 +248,18 @@ def show_content():
                 label="Download Questions JSON",
                 data=json_data,
                 file_name="questions.json",
-                mime="application/json"
+                mime="application/json",
             )
 
             idx = 0
             for question in st.session_state.questions:
-                st.write(f"**Question {idx + 1 }:**")
+                st.write(f"**Question {idx + 1}:**")
                 st.json(question)
                 idx += 1
 
         else:
             st.write("No questions submitted yet.")
+
 
 # ""
 
