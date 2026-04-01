@@ -77,7 +77,6 @@ def clear_fields():
 
 
 def show_content():
-
     # Create tabs
     tab_creation, tab_questions = st.tabs(["Create a new question", "Submitted questions"])
 
@@ -234,7 +233,7 @@ def show_content():
                     )
 
                     st.success(
-                        f"Form successfully submitted! A JsonDict Resource has been created : {FrontService.get_resource_url(json_resource.id)}"
+                        f"Form successfully submitted! A JsonDict Resource has been created : {FrontService().get_resource_url(json_resource.id)}"
                     )
 
     with tab_questions:
