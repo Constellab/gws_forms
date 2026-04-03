@@ -1,7 +1,7 @@
 {
     "name": "gws_forms",
     "author": "Gencovery",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "variables": {
         "skeleton:testdata_dir": "${CURRENT_DIR}/tests/testdata"
     },
@@ -9,7 +9,7 @@
         "bricks": [
             {
                 "name": "gws_core",
-                "version": "0.20.0"
+                "version": "0.21.0"
             }
         ],
         "pip": [
