@@ -1,7 +1,18 @@
 import pandas as pd
-from gws_core import (ConfigSpecs, File, InputSpec, InputSpecs, JSONDict,
-                      OutputSpec, OutputSpecs, StrParam, Task, TaskInputs,
-                      TaskOutputs, task_decorator)
+from gws_core import (
+    ConfigSpecs,
+    File,
+    InputSpec,
+    InputSpecs,
+    JSONDict,
+    OutputSpec,
+    OutputSpecs,
+    SelectParam,
+    Task,
+    TaskInputs,
+    TaskOutputs,
+    task_decorator,
+)
 
 
 @task_decorator("ExcelFormFileToJsonDict", human_name="Excel Form File to Json Dict",
@@ -10,8 +21,8 @@ class ExcelFormFileToJsonDict(Task):
 
     input_specs: InputSpecs = InputSpecs({'excel_file': InputSpec(File, human_name="Excel file")})
     output_specs: OutputSpecs = OutputSpecs({'json_dict': OutputSpec(JSONDict, human_name="JSON dictionary")})
-    config_specs: ConfigSpecs = ConfigSpecs({'language': StrParam(
-        default_value='en', short_description="Language", allowed_values=['en', 'fr'])})
+    config_specs: ConfigSpecs = ConfigSpecs({'language': SelectParam(
+        default_value='en', short_description="Language", options=['en', 'fr'])})
 
     def run(self, params, inputs: TaskInputs) -> TaskOutputs:
 
